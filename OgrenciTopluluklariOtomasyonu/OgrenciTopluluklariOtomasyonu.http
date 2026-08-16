@@ -1,0 +1,6 @@
+@OgrenciTopluluklariOtomasyonu_HostAddress = http://localhost:5268
+
+GET {{OgrenciTopluluklariOtomasyonu_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
