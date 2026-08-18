@@ -16,4 +16,8 @@ public sealed class HttpContextCurrentUser(IHttpContextAccessor httpContextAcces
             return claim is not null && int.TryParse(claim.Value, out var id) ? id : null;
         }
     }
+
+    public IReadOnlyCollection<string> Permissions =>
+        httpContextAccessor.HttpContext?.User.FindAll(CurrentUserClaimTypes.Permission).Select(c => c.Value).ToArray()
+        ?? [];
 }

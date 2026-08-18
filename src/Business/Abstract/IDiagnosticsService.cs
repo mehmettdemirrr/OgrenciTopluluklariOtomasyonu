@@ -11,4 +11,8 @@ public interface IDiagnosticsService
 {
     [PerformanceAspect(thresholdMilliseconds: 1)]
     Task<IDataResult<string>> PingAsync();
+
+    /// <summary>Faz 3'ün SecuredOperation zincirini uçtan uca kanıtlayan asgari uç.</summary>
+    [SecuredOperation("diagnostics.protected")]
+    Task<IDataResult<string>> SecurePingAsync();
 }

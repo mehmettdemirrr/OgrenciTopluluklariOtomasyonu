@@ -24,4 +24,6 @@ public sealed class Result : IResult
     public static Result NotFound(string message) => new(false, ResultStatus.NotFound, message);
 
     public static Result Conflict(string message) => new(false, ResultStatus.Conflict, message);
+
+    public static Result Unauthorized(string message) => new(false, ResultStatus.Unauthorized, message);
 }

@@ -30,4 +30,6 @@ public sealed class DataResult<T> : IDataResult<T>
     public static DataResult<T> NotFound(string message) => new(default!, false, ResultStatus.NotFound, message);
 
     public static DataResult<T> Conflict(string message) => new(default!, false, ResultStatus.Conflict, message);
+
+    public static DataResult<T> Unauthorized(string message) => new(default!, false, ResultStatus.Unauthorized, message);
 }

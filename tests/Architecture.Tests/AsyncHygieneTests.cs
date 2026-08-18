@@ -8,7 +8,10 @@ namespace Architecture.Tests;
 /// NetArchTest metot gövdesi tarayamadığı için doğrudan Mono.Cecil ile IL taranıyor.
 /// Derleyicinin her `await` için ürettiği state machine (MoveNext) de aynı IL kalıbını
 /// (GetAwaiter + GetResult) içerdiğinden, [CompilerGenerated] tipler taramanın dışında tutulur —
-/// aksi halde her meşru `await` kullanımı yanlışlıkla ihlal olarak işaretlenir.
+/// aksi halde her meşru `await` kullanımı yanlışlıkla ihlal olarak işaretlenir. Aynı sebeple,
+/// üst düzey deyimlerde `await` kullanan bir giriş noktası (WebAPI/Program.cs) için Roslyn'in
+/// ürettiği eşzamanlı `<Main>` sarmalayıcısı da (modülün EntryPoint'i — işletim sisteminin
+/// eşzamanlı süreç girişini async Main'e bağlayan tek seferlik, kaçınılmaz köprü) hariç tutulur.
 /// </summary>
 public class AsyncHygieneTests
 {
@@ -21,12 +24,14 @@ public class AsyncHygieneTests
 
         foreach (var assemblyName in AssembliesToScan)
         {
-            var path = System.Reflection.Assembly.Load(assemblyName).Location;
+            var path = Path.Combine(AppContext.BaseDirectory, $"{assemblyName}.dll");
             using var assembly = AssemblyDefinition.ReadAssembly(path);
+
+            var entryPoint = assembly.MainModule.EntryPoint;
 
             foreach (var type in AllTypes(assembly.MainModule.Types).Where(t => !IsCompilerGenerated(t)))
             {
-                foreach (var method in type.Methods.Where(m => m.HasBody))
+                foreach (var method in type.Methods.Where(m => m.HasBody && m != entryPoint))
                 {
                     foreach (var instruction in method.Body.Instructions)
                     {
@@ -54,7 +59,7 @@ public class AsyncHygieneTests
 
         foreach (var assemblyName in AssembliesToScan)
         {
-            var path = System.Reflection.Assembly.Load(assemblyName).Location;
+            var path = Path.Combine(AppContext.BaseDirectory, $"{assemblyName}.dll");
             using var assembly = AssemblyDefinition.ReadAssembly(path);
 
             foreach (var type in AllTypes(assembly.MainModule.Types).Where(t => !IsCompilerGenerated(t)))
