@@ -1,0 +1,41 @@
+using Core.Entities;
+using Entities.Enums;
+
+namespace Entities;
+
+/// <summary>
+/// docs/MIMARI.md · A-25/A-15/K-05: etkinlik, durum makinesi, kontenjan rowversion.
+/// Y-16: soft delete + query filter.
+/// </summary>
+public sealed class Event : IEntity
+{
+    public int Id { get; set; }
+
+    public int ClubId { get; set; }
+
+    public required string Title { get; set; }
+
+    public string? Description { get; set; }
+
+    public string? Location { get; set; }
+
+    public DateTime StartDateUtc { get; set; }
+
+    public DateTime EndDateUtc { get; set; }
+
+    /// <summary>Null ise kontenjan sınırsız.</summary>
+    public int? Capacity { get; set; }
+
+    public EventStatus Status { get; set; }
+
+    public int? PosterFileId { get; set; }
+
+    public DateTime CreatedAtUtc { get; set; }
+
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAtUtc { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-15: kontenjan aşımı için eşzamanlılık kontrolü.</summary>
+    public byte[] RowVersion { get; set; } = null!;
+}
