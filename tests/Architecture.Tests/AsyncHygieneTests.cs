@@ -6,6 +6,9 @@ namespace Architecture.Tests;
 /// <summary>
 /// docs/MIMARI.md · Y-27: .Result, .Wait(), .GetAwaiter().GetResult(), async void yasak.
 /// NetArchTest metot gövdesi tarayamadığı için doğrudan Mono.Cecil ile IL taranıyor.
+/// Derleyicinin her `await` için ürettiği state machine (MoveNext) de aynı IL kalıbını
+/// (GetAwaiter + GetResult) içerdiğinden, [CompilerGenerated] tipler taramanın dışında tutulur —
+/// aksi halde her meşru `await` kullanımı yanlışlıkla ihlal olarak işaretlenir.
 /// </summary>
 public class AsyncHygieneTests
 {
@@ -21,7 +24,7 @@ public class AsyncHygieneTests
             var path = System.Reflection.Assembly.Load(assemblyName).Location;
             using var assembly = AssemblyDefinition.ReadAssembly(path);
 
-            foreach (var type in AllTypes(assembly.MainModule.Types))
+            foreach (var type in AllTypes(assembly.MainModule.Types).Where(t => !IsCompilerGenerated(t)))
             {
                 foreach (var method in type.Methods.Where(m => m.HasBody))
                 {
@@ -54,7 +57,7 @@ public class AsyncHygieneTests
             var path = System.Reflection.Assembly.Load(assemblyName).Location;
             using var assembly = AssemblyDefinition.ReadAssembly(path);
 
-            foreach (var type in AllTypes(assembly.MainModule.Types))
+            foreach (var type in AllTypes(assembly.MainModule.Types).Where(t => !IsCompilerGenerated(t)))
             {
                 foreach (var method in type.Methods)
                 {
@@ -87,6 +90,9 @@ public class AsyncHygieneTests
             }
         }
     }
+
+    private static bool IsCompilerGenerated(TypeDefinition type) =>
+        type.CustomAttributes.Any(a => a.AttributeType.Name == "CompilerGeneratedAttribute");
 
     private static bool IsBlockingTaskCall(MethodReference method)
     {

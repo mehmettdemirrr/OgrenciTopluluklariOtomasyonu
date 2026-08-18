@@ -18,6 +18,21 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
 
+    <!-- DI / AOP (Core: async farkında aspect altyapısı, A-04/A-09) -->
+    <PackageVersion Include="Autofac" Version="8.1.1" />
+    <PackageVersion Include="Autofac.Extras.DynamicProxy" Version="7.1.0" />
+    <PackageVersion Include="Autofac.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageVersion Include="Castle.Core" Version="5.1.1" />
+    <PackageVersion Include="Castle.Core.AsyncInterceptor" Version="2.1.0" />
+
+    <!-- Cache (Core: ICacheManager -> MemoryCacheManager, A-17) -->
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
+
+    <!-- Loglama (A-18: Serilog -> MSSQL, ayrı bağlantı) -->
+    <PackageVersion Include="Serilog" Version="4.0.2" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageVersion Include="Serilog.Sinks.MSSqlServer" Version="7.0.2" />
+
     <!-- Testing -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageVersion Include="xunit" Version="2.9.2" />
