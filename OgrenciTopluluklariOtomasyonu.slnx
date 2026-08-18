@@ -1,1 +1,14 @@
-<Solution />
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Core/Core.csproj" />
+    <Project Path="src/Entities/Entities.csproj" />
+    <Project Path="src/DataAccess/DataAccess.csproj" />
+    <Project Path="src/Business/Business.csproj" />
+    <Project Path="src/WebAPI/WebAPI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Business.Tests/Business.Tests.csproj" />
+    <Project Path="tests/WebAPI.IntegrationTests/WebAPI.IntegrationTests.csproj" />
+    <Project Path="tests/Architecture.Tests/Architecture.Tests.csproj" />
+  </Folder>
+</Solution>

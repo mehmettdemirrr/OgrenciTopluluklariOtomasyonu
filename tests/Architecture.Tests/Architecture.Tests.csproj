@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="NetArchTest.Rules" />
+    <PackageReference Include="Mono.Cecil" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Kasıtlı olarak tüm katmanlara referans verir: bağımlılık yönünü test edebilmek için hepsinin derlenmiş halinin mevcut olması gerekir. -->
+    <ProjectReference Include="..\..\src\Core\Core.csproj" />
+    <ProjectReference Include="..\..\src\Entities\Entities.csproj" />
+    <ProjectReference Include="..\..\src\DataAccess\DataAccess.csproj" />
+    <ProjectReference Include="..\..\src\Business\Business.csproj" />
+    <ProjectReference Include="..\..\src\WebAPI\WebAPI.csproj" />
+  </ItemGroup>
+
+</Project>

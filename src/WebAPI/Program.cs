@@ -23,3 +23,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// WebApplicationFactory<Program> ile entegrasyon testi yazabilmek için top-level statements'ın
+// örtük ürettiği Program sınıfını görünür kılar.
+public partial class Program { }
