@@ -1,6 +1,7 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Core.DataAccess;
+using DataAccess.Interceptors;
 using DataAccess.Repositories;
 using Entities;
 using Microsoft.AspNetCore.Identity;
@@ -21,8 +22,14 @@ public sealed class DataAccessAutofacModule(IConfiguration configuration) : Modu
     {
         var services = new ServiceCollection();
 
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("Default")));
+        // K-12: audit interceptor'ı ICurrentUser'a (scoped) bağımlı olduğu için sp üzerinden,
+        // her AppDbContext örneği kurulduğunda o anki scope'tan çözülür.
+        services.AddScoped<AuditSaveChangesInterceptor>();
+
+        services.AddDbContext<AppDbContext>((sp, options) =>
+            options
+                .UseSqlServer(configuration.GetConnectionString("Default"))
+                .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
 
         // K-03 (e-posta doğrulama/parola sıfırlama) Faz 3 kapsamı dışında — token sağlayıcıları
         // o faz devreye girdiğinde eklenir; Login/Refresh/Logout için gerekli değil.

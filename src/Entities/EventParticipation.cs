@@ -6,7 +6,7 @@ namespace Entities;
 /// docs/MIMARI.md · A-15: (EventId, StudentId) unique index.
 /// Y-16: soft delete + query filter.
 /// </summary>
-public sealed class EventParticipation : IEntity
+public sealed class EventParticipation : IEntity, ISoftDeletable
 {
     public int Id { get; set; }
 

@@ -7,7 +7,7 @@ namespace Entities;
 /// docs/MIMARI.md · A-25/A-15/K-05: etkinlik, durum makinesi, kontenjan rowversion.
 /// Y-16: soft delete + query filter.
 /// </summary>
-public sealed class Event : IEntity
+public sealed class Event : IEntity, ISoftDeletable
 {
     public int Id { get; set; }
 

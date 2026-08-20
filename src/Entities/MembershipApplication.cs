@@ -7,7 +7,7 @@ namespace Entities;
 /// docs/MIMARI.md · A-12/K-03: üyelik başvurusu, onay/ret, soft delete.
 /// Onay/ret bildirimi Hangfire kuyruğuna eklenir (Faz 5).
 /// </summary>
-public sealed class MembershipApplication : IEntity
+public sealed class MembershipApplication : IEntity, ISoftDeletable
 {
     public int Id { get; set; }
 

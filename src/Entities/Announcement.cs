@@ -3,7 +3,7 @@ using Core.Entities;
 namespace Entities;
 
 /// <summary>docs/MIMARI.md: topluluk duyurusu. Y-16: soft delete + query filter.</summary>
-public sealed class Announcement : IEntity
+public sealed class Announcement : IEntity, ISoftDeletable
 {
     public int Id { get; set; }
 
