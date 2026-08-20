@@ -23,6 +23,15 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     /// <summary>Gerçek SMTP'ye asla bağlanılmaz — Hangfire işi tarafından gönderilen e-postalar burada toplanır.</summary>
     public FakeEmailSender EmailSender { get; } = new();
 
+    public CustomWebApplicationFactory()
+    {
+        // Y-48: __Host-Csrf cookie'si SecurePolicy=Always ile kuruluyor (Program.cs) — TestServer'ın
+        // varsayılan http tabanlı istemcisiyle HttpContext.Request.IsHttps=false kalır ve çerez hiç
+        // yazılmaz (üretim/gerçek https davranışıyla tutarlı ama testi anlamsız kılar). Base address'i
+        // https yapmak TestServer'a şemayı "https" olarak bildirir, gerçek dev/prod koşulunu taklit eder.
+        ClientOptions.BaseAddress = new Uri("https://localhost");
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration((_, configBuilder) =>

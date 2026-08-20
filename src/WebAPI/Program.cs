@@ -112,10 +112,15 @@ builder.Services.AddAuthorization(options =>
         .Build());
 
 // Y-48: refresh ucu tek çerez-tabanlı uç — antiforgery header kontrolü zorunlu.
+// SecurePolicy açıkça Always: varsayılan SameAsRequest'e bırakılırsa (canlı HTTPS isteğinde bile
+// gözlemlendi — kök neden netleşmedi) Set-Cookie'de "secure" hiç görünmeyebiliyor; __Host- önekinin
+// gerektirdiği koşullardan biri (Secure + Path=/ + Domain yok) eksik kaldığında tarayıcı çerezi
+// sessizce reddediyor ve /auth/refresh'e giden HER istek CSRF doğrulamasından döner.
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-XSRF-TOKEN";
     options.Cookie.Name = "__Host-Csrf";
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
 // K-08/Y-13: tek veritabanı — Hangfire kendi şemasını aynı DB'de kendi kurar, ayrı migration

@@ -13,6 +13,13 @@ public sealed class ShortLivedTokenWebApplicationFactory : WebApplicationFactory
 {
     public string TestDatabaseName { get; } = $"OgrenciTopluluklariOtomasyonu.Tests.{Guid.NewGuid():N}";
 
+    public ShortLivedTokenWebApplicationFactory()
+    {
+        // Bkz. CustomWebApplicationFactory — __Host-Csrf, SecurePolicy=Always ile yalnızca
+        // HttpContext.Request.IsHttps=true iken yazılır; TestServer'a bunu bildirmek gerekir.
+        ClientOptions.BaseAddress = new Uri("https://localhost");
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration((_, configBuilder) =>
