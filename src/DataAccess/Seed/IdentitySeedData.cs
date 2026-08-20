@@ -38,6 +38,15 @@ public static class IdentitySeedData
         public const string EventsWrite = "events.write";
         public const string DiagnosticsProtected = "diagnostics.protected";
         public const string HangfireDashboard = "hangfire.dashboard";
+
+        /// <summary>Faz 6: rapor talebi + kendi kapsamında özet/indirme.</summary>
+        public const string ReportsRead = "reports.read";
+
+        /// <summary>Faz 6: tüm kulüpleri kapsayan özet — rol bypass'ı değil, açık izin (Admin).</summary>
+        public const string ReportsReadAll = "reports.read.all";
+
+        /// <summary>Faz 6: logo/afiş yükleme (Y-40 riski taşıyan yetenek).</summary>
+        public const string FilesUpload = "files.upload";
     }
 
     public static IEnumerable<ApplicationRole> Roles() =>
@@ -84,6 +93,13 @@ public static class IdentitySeedData
         Claim(16, AdvisorRoleId, Permissions.ClubsRead),
         Claim(17, AdvisorRoleId, Permissions.MembershipsRead),
         Claim(18, AdvisorRoleId, Permissions.MembershipsWrite),
+        Claim(19, AdminRoleId, Permissions.ReportsRead),
+        Claim(20, AdminRoleId, Permissions.ReportsReadAll),
+        Claim(21, AdminRoleId, Permissions.FilesUpload),
+        Claim(22, ClubOfficerRoleId, Permissions.ReportsRead),
+        Claim(23, ClubOfficerRoleId, Permissions.FilesUpload),
+        Claim(24, AdvisorRoleId, Permissions.ReportsRead),
+        Claim(25, AdvisorRoleId, Permissions.FilesUpload),
     ];
 
     private static IdentityRoleClaim<int> Claim(int id, int roleId, string permission) => new()

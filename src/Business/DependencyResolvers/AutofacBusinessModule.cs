@@ -8,6 +8,7 @@ using Business.Mappings;
 using Core.Aspects.Autofac;
 using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Email;
+using Core.Utilities.Files;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
 using DataAccess.DependencyResolvers;
@@ -44,6 +45,10 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .As<IOptions<SmtpSettings>>()
             .SingleInstance();
 
+        builder.Register(_ => Options.Create(BuildFileStorageSettings(configuration)))
+            .As<IOptions<FileStorageSettings>>()
+            .SingleInstance();
+
         builder.RegisterType<MemoryCacheManager>()
             .As<ICacheManager>()
             .SingleInstance();
@@ -55,6 +60,10 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
         builder.RegisterType<SmtpEmailSender>()
             .As<IEmailSender>()
             .InstancePerLifetimeScope();
+
+        builder.RegisterType<LocalFileStorage>()
+            .As<IFileStorage>()
+            .SingleInstance();
 
         builder.Register(_ =>
             {
@@ -111,9 +120,48 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
 
+        // Y-51: kapsam kuralı iç bileşen — aspect taşımaz, proxy'siz kayıt.
+        builder.RegisterType<ReportScopeResolver>()
+            .As<IReportScopeResolver>()
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<ExcelReportBuilder>()
+            .As<IExcelReportBuilder>()
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<FileManager>()
+            .As<IFileService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<ReportManager>()
+            .As<IReportService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<ReportGenerationManager>()
+            .As<IReportGenerationService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<MaintenanceManager>()
+            .As<IMaintenanceService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         // Hangfire, iş sınıflarını kendi aktivatörü üzerinden (uygulamanın IServiceProvider'ı,
         // sonuçta Autofac tarafından destekleniyor) somut tipe göre çözer — arayüz gerekmez.
         builder.RegisterType<MembershipDecisionNotificationJob>()
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<ReportGenerationJob>()
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<NightlyMaintenanceJob>()
             .InstancePerLifetimeScope();
     }
 
@@ -143,6 +191,21 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             FromName = section["FromName"] ?? string.Empty,
             Username = section["Username"],
             Password = section["Password"],
+        };
+    }
+
+    // Y-49: RootPath boşsa uygulama klasörü altında App_Data/uploads'a düşer — wwwroot dışı, secret değil.
+    private static FileStorageSettings BuildFileStorageSettings(IConfiguration configuration)
+    {
+        var section = configuration.GetSection("FileStorage");
+        var rootPath = section["RootPath"];
+
+        return new FileStorageSettings
+        {
+            RootPath = string.IsNullOrWhiteSpace(rootPath)
+                ? Path.Combine(AppContext.BaseDirectory, "App_Data", "uploads")
+                : rootPath,
+            MaxUploadBytes = long.TryParse(section["MaxUploadBytes"], out var maxBytes) ? maxBytes : 5 * 1024 * 1024,
         };
     }
 }

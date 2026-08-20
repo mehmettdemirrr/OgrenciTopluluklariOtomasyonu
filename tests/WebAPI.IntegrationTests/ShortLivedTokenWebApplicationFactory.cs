@@ -13,6 +13,8 @@ public sealed class ShortLivedTokenWebApplicationFactory : WebApplicationFactory
 {
     public string TestDatabaseName { get; } = $"OgrenciTopluluklariOtomasyonu.Tests.{Guid.NewGuid():N}";
 
+    public string FileStorageRootPath { get; } = Path.Combine(Path.GetTempPath(), "ogr-top-test", Guid.NewGuid().ToString("N"));
+
     public ShortLivedTokenWebApplicationFactory()
     {
         // Bkz. CustomWebApplicationFactory — __Host-Csrf, SecurePolicy=Always ile yalnızca
@@ -38,7 +40,18 @@ public sealed class ShortLivedTokenWebApplicationFactory : WebApplicationFactory
                 ["Seed:DemoAdvisorPassword"] = "",
                 ["Seed:DemoStudentEmail"] = "",
                 ["Seed:DemoStudentPassword"] = "",
+                ["FileStorage:RootPath"] = FileStorageRootPath,
             });
         });
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing && Directory.Exists(FileStorageRootPath))
+        {
+            Directory.Delete(FileStorageRootPath, recursive: true);
+        }
     }
 }

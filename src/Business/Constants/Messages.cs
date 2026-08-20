@@ -16,4 +16,22 @@ public static class Messages
     public const string InvalidReviewDecision = "Karar yalnızca 'Onaylandı' veya 'Reddedildi' olabilir.";
     public const string ApplicationApproved = "Başvuru onaylandı.";
     public const string ApplicationRejected = "Başvuru reddedildi.";
+
+    // Faz 6 — Dosya
+    public const string FileTooLarge = "Dosya boyutu izin verilen sınırı (5 MB) aşıyor.";
+    public const string UnsupportedFileType = "Desteklenmeyen dosya türü. Yalnızca JPEG, PNG veya WebP yüklenebilir.";
+    public const string FileNotFound = "Dosya bulunamadı.";
+    public const string EventNotFound = "Etkinlik bulunamadı.";
+    public const string LogoUploaded = "Topluluk logosu güncellendi.";
+    public const string PosterUploaded = "Etkinlik afişi güncellendi.";
+
+    // Faz 6 — Rapor
+    public const string ReportNotFound = "Rapor talebi bulunamadı.";
+    public const string ReportNotReady = "Rapor henüz hazır değil.";
+    public const string ReportFileMissing = "Rapor dosyası bulunamadı veya süresi dolmuş.";
+    public const string ReportNotYours = "Bu rapor talebi size ait değil.";
+    public const string ReportScopeDenied = "Bu kulüp/etkinlik için rapor talep etme yetkiniz yok.";
+    public const string ReportScopeLost = "Bu raporu indirme yetkiniz artık bulunmuyor.";
+    public const string ReportQueued = "Talebiniz kuyruğa alındı.";
+    public const string InvalidReportParameters = "Rapor parametreleri geçersiz.";
 }

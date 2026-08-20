@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Faz 6 · Y-49: FileStorage:RootPath boşken varsayılan yükleme klasörü (uygulama içi, wwwroot dışı).
+App_Data/

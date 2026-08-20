@@ -5,6 +5,7 @@
   <ItemGroup>
     <!-- ASP.NET Core host -->
     <PackageVersion Include="AutoMapper" Version="15.1.1" />
+    <PackageVersion Include="ClosedXML" Version="0.105.1" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.24" />
     <PackageVersion Include="Hangfire.Core" Version="1.8.24" />

@@ -9,4 +9,7 @@ export const Permissions = {
   EventsWrite: 'events.write',
   DiagnosticsProtected: 'diagnostics.protected',
   HangfireDashboard: 'hangfire.dashboard',
+  ReportsRead: 'reports.read',
+  ReportsReadAll: 'reports.read.all',
+  FilesUpload: 'files.upload',
 } as const

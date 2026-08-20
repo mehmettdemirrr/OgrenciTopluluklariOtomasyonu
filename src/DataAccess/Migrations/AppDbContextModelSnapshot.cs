@@ -914,6 +914,55 @@ namespace DataAccess.Migrations
                             ClaimType = "permission",
                             ClaimValue = "memberships.write",
                             RoleId = 4
+                        },
+                        new
+                        {
+                            Id = 19,
+                            ClaimType = "permission",
+                            ClaimValue = "reports.read",
+                            RoleId = 1
+                        },
+                        new
+                        {
+                            Id = 20,
+                            ClaimType = "permission",
+                            ClaimValue = "reports.read.all",
+                            RoleId = 1
+                        },
+                        new
+                        {
+                            Id = 21,
+                            ClaimType = "permission",
+                            ClaimValue = "files.upload",
+                            RoleId = 1
+                        },
+                        new
+                        {
+                            Id = 22,
+                            ClaimType = "permission",
+                            ClaimValue = "reports.read",
+                            RoleId = 2
+                        },
+                        new
+                        {
+                            Id = 23,
+                            ClaimType = "permission",
+                            ClaimValue = "files.upload",
+                            RoleId = 2
+                        },
+                        new
+                        {
+                            Id = 24,
+                            ClaimType = "permission",
+                            ClaimValue = "reports.read",
+                            RoleId = 4
+                        },
+                        new
+                        {
+                            Id = 25,
+                            ClaimType = "permission",
+                            ClaimValue = "files.upload",
+                            RoleId = 4
                         });
                 });
 

@@ -13,4 +13,6 @@ public sealed class ClubDetailDto
     public DateTime CreatedAtUtc { get; set; }
 
     public int AdvisorId { get; set; }
+
+    public int? LogoFileId { get; set; }
 }

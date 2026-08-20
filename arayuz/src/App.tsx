@@ -8,6 +8,7 @@ import { Permissions } from './auth/permissions'
 import { ClubsPage } from './pages/ClubsPage'
 import { LoginPage } from './pages/LoginPage'
 import { MembershipReviewPage } from './pages/MembershipReviewPage'
+import { ReportsPage } from './pages/ReportsPage'
 
 const theme = createTheme()
 const queryClient = new QueryClient()
@@ -39,6 +40,17 @@ function App() {
                   <ProtectedRoute requiredPermission={Permissions.MembershipsWrite}>
                     <AppLayout>
                       <MembershipReviewPage />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute requiredPermission={Permissions.ReportsRead}>
+                    <AppLayout>
+                      <ReportsPage />
                     </AppLayout>
                   </ProtectedRoute>
                 }

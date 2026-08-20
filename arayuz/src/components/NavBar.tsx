@@ -34,6 +34,12 @@ export function NavBar() {
           </Button>
         )}
 
+        {hasPermission(Permissions.ReportsRead) && (
+          <Button color="inherit" component={RouterLink} to="/reports">
+            Raporlarım
+          </Button>
+        )}
+
         {hasPermission(Permissions.HangfireDashboard) && (
           <Button color="inherit" component="a" href={hangfireUrl} target="_blank" rel="noreferrer">
             Hangfire Paneli

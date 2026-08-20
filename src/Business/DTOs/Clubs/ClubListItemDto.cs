@@ -9,4 +9,6 @@ public sealed class ClubListItemDto
     public string? Description { get; set; }
 
     public bool IsActive { get; set; }
+
+    public int? LogoFileId { get; set; }
 }

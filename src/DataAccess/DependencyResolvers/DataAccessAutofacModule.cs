@@ -50,5 +50,9 @@ public sealed class DataAccessAutofacModule(IConfiguration configuration) : Modu
         builder.RegisterType<EfDatabaseMigrator>()
             .As<IDatabaseMigrator>()
             .InstancePerLifetimeScope();
+
+        builder.RegisterType<EfReportDal>()
+            .As<IReportDal>()
+            .InstancePerLifetimeScope();
     }
 }

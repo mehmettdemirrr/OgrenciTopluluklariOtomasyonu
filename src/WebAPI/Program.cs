@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Business.Abstract;
+using Business.BackgroundJobs;
 using Business.DependencyResolvers;
 using Core.DataAccess;
 using Core.Utilities.Security;
@@ -162,6 +163,13 @@ using (var startupScope = app.Services.CreateScope())
     GlobalConfiguration.Configuration.UseSqlServerStorage(
         startupScope.ServiceProvider.GetRequiredService<IConfiguration>().GetConnectionString("Default"),
         new Hangfire.SqlServer.SqlServerStorageOptions { QueuePollInterval = TimeSpan.FromSeconds(1) });
+
+    // K-08/§7: gecelik tek yinelenen iş — süresi geçmiş refresh token'lar + eskimiş rapor dosyaları.
+    startupScope.ServiceProvider.GetRequiredService<IRecurringJobManager>().AddOrUpdate<NightlyMaintenanceJob>(
+        "gecelik-bakim",
+        job => job.RunAsync(),
+        "30 3 * * *",
+        new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 }
 
 // Y-25 / Y-28: beklenmeyen hatalar tek yerden, controller'larda try/catch olmadan yönetilir.

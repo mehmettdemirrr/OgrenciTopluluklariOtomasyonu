@@ -23,6 +23,9 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     /// <summary>Gerçek SMTP'ye asla bağlanılmaz — Hangfire işi tarafından gönderilen e-postalar burada toplanır.</summary>
     public FakeEmailSender EmailSender { get; } = new();
 
+    /// <summary>Y-34: fabrika başına benzersiz, izole geçici klasör — Dispose'ta silinir.</summary>
+    public string FileStorageRootPath { get; } = Path.Combine(Path.GetTempPath(), "ogr-top-test", Guid.NewGuid().ToString("N"));
+
     public CustomWebApplicationFactory()
     {
         // Y-48: __Host-Csrf cookie'si SecurePolicy=Always ile kuruluyor (Program.cs) — TestServer'ın
@@ -47,9 +50,20 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["Seed:DemoAdvisorPassword"] = "",
                 ["Seed:DemoStudentEmail"] = "",
                 ["Seed:DemoStudentPassword"] = "",
+                ["FileStorage:RootPath"] = FileStorageRootPath,
             });
         });
 
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing && Directory.Exists(FileStorageRootPath))
+        {
+            Directory.Delete(FileStorageRootPath, recursive: true);
+        }
     }
 
     // IWebHostBuilder'da ConfigureContainer yok (yalnızca IHostBuilder'da var — Program.cs'in

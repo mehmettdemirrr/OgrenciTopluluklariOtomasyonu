@@ -4,6 +4,7 @@
     <PackageReference Include="Autofac" />
     <PackageReference Include="Autofac.Extras.DynamicProxy" />
     <PackageReference Include="AutoMapper" />
+    <PackageReference Include="ClosedXML" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Hangfire.Core" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
