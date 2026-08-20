@@ -21,28 +21,6 @@ public sealed class SecuredOperationAspectHandler(ICurrentUser currentUser) : IA
         }
 
         var message = $"Bu işlem için '{permission}' izni gerekiyor.";
-        return Task.FromResult(BuildForbiddenResult<TResult>(message));
-    }
-
-    // TResult, çağıran metodun Task<TResult> imzasından gelen gerçek dönüş tipi (IResult veya
-    // IDataResult<T>) — Y-30 gereği Business servisleri başka bir şekil döndürmez.
-    private static TResult BuildForbiddenResult<TResult>(string message)
-    {
-        var resultType = typeof(TResult);
-
-        if (resultType == typeof(IResult))
-        {
-            return (TResult)(object)Result.Forbidden(message);
-        }
-
-        if (resultType.IsGenericType && resultType.GetGenericTypeDefinition() == typeof(IDataResult<>))
-        {
-            var dataType = resultType.GetGenericArguments()[0];
-            var forbiddenMethod = typeof(DataResult<>).MakeGenericType(dataType).GetMethod(nameof(DataResult<object>.Forbidden))!;
-            return (TResult)forbiddenMethod.Invoke(null, [message])!;
-        }
-
-        throw new InvalidOperationException(
-            $"SecuredOperationAspectHandler, {resultType.Name} dönüş tipini desteklemiyor. Yalnızca IResult/IDataResult<T> desteklenir.");
+        return Task.FromResult(AspectResultFactory.Build<TResult>(nameof(Result.Forbidden), message));
     }
 }

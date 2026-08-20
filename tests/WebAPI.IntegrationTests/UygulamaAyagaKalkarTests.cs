@@ -3,6 +3,7 @@ using Xunit;
 
 namespace WebAPI.IntegrationTests;
 
+[Collection("WebAPI Integration Tests")]
 public class UygulamaAyagaKalkarTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory>
 {
     [Fact(DisplayName = "Uygulama ayağa kalkar ve Swagger uç noktası 200 döner")]

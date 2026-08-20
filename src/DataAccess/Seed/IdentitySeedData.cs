@@ -15,10 +15,18 @@ public static class IdentitySeedData
     public const int AdminRoleId = 1;
     public const int ClubOfficerRoleId = 2;
     public const int MemberRoleId = 3;
+    public const int AdvisorRoleId = 4;
 
     public const string AdminRoleName = "Admin";
     public const string ClubOfficerRoleName = "ClubOfficer";
     public const string MemberRoleName = "Member";
+
+    /// <summary>
+    /// Faz 5: danışman (AcademicStaff) rolü. ClubOfficer yeniden kullanılmadı — ClubOfficer,
+    /// öğrencinin kulüp-içi rütbesiyle (ClubRole enum) aynı adı taşıdığı için akademik personeli
+    /// bu role atamak K-17 yetki matrisi ekranında yanıltıcı olurdu.
+    /// </summary>
+    public const string AdvisorRoleName = "Advisor";
 
     public static class Permissions
     {
@@ -29,6 +37,7 @@ public static class IdentitySeedData
         public const string EventsRead = "events.read";
         public const string EventsWrite = "events.write";
         public const string DiagnosticsProtected = "diagnostics.protected";
+        public const string HangfireDashboard = "hangfire.dashboard";
     }
 
     public static IEnumerable<ApplicationRole> Roles() =>
@@ -48,6 +57,11 @@ public static class IdentitySeedData
             Id = MemberRoleId, Name = MemberRoleName, NormalizedName = "MEMBER",
             ConcurrencyStamp = "33333333-3333-3333-3333-333333333333",
         },
+        new()
+        {
+            Id = AdvisorRoleId, Name = AdvisorRoleName, NormalizedName = "ADVISOR",
+            ConcurrencyStamp = "44444444-4444-4444-4444-444444444444",
+        },
     ];
 
     public static IEnumerable<IdentityRoleClaim<int>> RoleClaims() =>
@@ -66,6 +80,10 @@ public static class IdentitySeedData
         Claim(12, ClubOfficerRoleId, Permissions.EventsWrite),
         Claim(13, MemberRoleId, Permissions.ClubsRead),
         Claim(14, MemberRoleId, Permissions.EventsRead),
+        Claim(15, AdminRoleId, Permissions.HangfireDashboard),
+        Claim(16, AdvisorRoleId, Permissions.ClubsRead),
+        Claim(17, AdvisorRoleId, Permissions.MembershipsRead),
+        Claim(18, AdvisorRoleId, Permissions.MembershipsWrite),
     ];
 
     private static IdentityRoleClaim<int> Claim(int id, int roleId, string permission) => new()

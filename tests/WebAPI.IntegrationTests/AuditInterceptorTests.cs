@@ -11,6 +11,7 @@ namespace WebAPI.IntegrationTests;
 /// docs/MIMARI.md · K-12/A-33/Y-44/Y-26: AuditSaveChangesInterceptor'ın Insert/Update/soft-delete
 /// davranışını ve hassas alan (parola/hash) hariç tutmasını uçtan uca doğrular.
 /// </summary>
+[Collection("WebAPI Integration Tests")]
 public sealed class AuditInterceptorTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private readonly CustomWebApplicationFactory _factory;

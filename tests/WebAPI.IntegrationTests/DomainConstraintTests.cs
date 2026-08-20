@@ -11,6 +11,7 @@ namespace WebAPI.IntegrationTests;
 /// docs/MIMARI.md · Faz 4 "bitti sayılır": çift üyelik ve kontenjan aşımı veritabanı seviyesinde
 /// reddediliyor (A-15). Y-34: her test kendi verisini kurar; fixture başına benzersiz LocalDB kullanılır.
 /// </summary>
+[Collection("WebAPI Integration Tests")]
 public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private readonly CustomWebApplicationFactory _factory;

@@ -15,6 +15,7 @@ namespace WebAPI.IntegrationTests;
 /// Süresi dolma kısmı gerçek 15 dk beklemek yerine <see cref="ShortLivedTokenWebApplicationFactory"/>'nin
 /// sıkıştırılmış Jwt:AccessTokenMinutes değeriyle uçtan uca (gerçek exp claim'iyle) doğrulanır.
 /// </summary>
+[Collection("WebAPI Integration Tests")]
 public sealed class AccessTokenExpiryTests : IClassFixture<ShortLivedTokenWebApplicationFactory>, IAsyncLifetime
 {
     private const string AdminEmail = "admin@ogrencitoplulugu.local";

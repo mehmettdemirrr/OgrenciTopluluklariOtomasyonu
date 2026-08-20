@@ -1,6 +1,9 @@
+using Autofac;
+using Core.Utilities.Email;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace WebAPI.IntegrationTests;
 
@@ -9,14 +12,16 @@ namespace WebAPI.IntegrationTests;
 /// user-secrets/ortam değişkeni) — testler kendi signing key'ini burada sağlar. Her çalışma
 /// kendi LocalDB veritabanı adını kullanır (Y-34: paylaşımlı/gerçek veritabanı yok).
 /// Dikkat: WebAPI.csproj'da UserSecretsId olduğu için Development ortamında çalışan bu test host'u
-/// geliştiricinin gerçek `dotnet user-secrets` değerlerini de otomatik yükler. Seed:AdminEmail/
-/// AdminPassword burada açıkça boşaltılır — aksi hâlde IIdentitySeeder, testin kendi
-/// EnsureUserAsync'inden ÖNCE gerçek dev parolasıyla admin'i seed eder ve testin sabit test
-/// parolasıyla girişi 401 ile başarısız olur.
+/// geliştiricinin gerçek `dotnet user-secrets` değerlerini de otomatik yükler. Seed:*Email/*Password
+/// anahtarları burada açıkça boşaltılır — aksi hâlde IIdentitySeeder, testlerin kendi kullanıcı
+/// oluşturma kodundan ÖNCE gerçek dev parolalarıyla seed eder ve testler 401 ile başarısız olur.
 /// </summary>
 public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
     public string TestDatabaseName { get; } = $"OgrenciTopluluklariOtomasyonu.Tests.{Guid.NewGuid():N}";
+
+    /// <summary>Gerçek SMTP'ye asla bağlanılmaz — Hangfire işi tarafından gönderilen e-postalar burada toplanır.</summary>
+    public FakeEmailSender EmailSender { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -29,7 +34,28 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
                     $"Server=(localdb)\\mssqllocaldb;Database={TestDatabaseName};Trusted_Connection=True;TrustServerCertificate=True;",
                 ["Seed:AdminEmail"] = "",
                 ["Seed:AdminPassword"] = "",
+                ["Seed:DemoAdvisorEmail"] = "",
+                ["Seed:DemoAdvisorPassword"] = "",
+                ["Seed:DemoStudentEmail"] = "",
+                ["Seed:DemoStudentPassword"] = "",
             });
         });
+
+    }
+
+    // IWebHostBuilder'da ConfigureContainer yok (yalnızca IHostBuilder'da var — Program.cs'in
+    // builder.Host.ConfigureContainer çağrısıyla aynı metot). CreateHost, WebApplicationFactory'nin
+    // gerçek Program.cs'in kendi ConfigureContainer çağrısını (AutofacBusinessModule → SmtpEmailSender)
+    // zaten kuyruğa eklediği host builder'ı yakaladığı nokta — burada eklenen ikinci ConfigureContainer
+    // ondan SONRA çalışır, Autofac'ın "son kayıt kazanır" kuralıyla FakeEmailSender gerçek
+    // implementasyonun yerini güvenle alır.
+    protected override IHost CreateHost(IHostBuilder builder)
+    {
+        builder.ConfigureContainer<ContainerBuilder>((_, cb) =>
+        {
+            cb.RegisterInstance(EmailSender).As<IEmailSender>().SingleInstance();
+        });
+
+        return base.CreateHost(builder);
     }
 }

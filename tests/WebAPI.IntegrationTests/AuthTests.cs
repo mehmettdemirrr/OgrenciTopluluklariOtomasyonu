@@ -17,6 +17,7 @@ namespace WebAPI.IntegrationTests;
 /// docs/MIMARI.md · Faz 3 "bitti sayılır": giriş → 15 dk sonra sessiz refresh → izinsiz uçta 403.
 /// Y-34: her test kendi verisini kurar; fixture başına benzersiz LocalDB veritabanı kullanılır.
 /// </summary>
+[Collection("WebAPI Integration Tests")]
 public sealed class AuthTests : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private const string AdminEmail = "admin@ogrencitoplulugu.local";

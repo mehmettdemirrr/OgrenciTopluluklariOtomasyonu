@@ -83,6 +83,16 @@ namespace DataAccess.Migrations
                         .IsUnique();
 
                     b.ToTable("AcademicTerms");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            EndDateUtc = new DateTime(2027, 1, 31, 0, 0, 0, 0, DateTimeKind.Utc),
+                            IsCurrent = true,
+                            Name = "2026-2027 Güz",
+                            StartDateUtc = new DateTime(2026, 9, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("Entities.Announcement", b =>
@@ -171,6 +181,13 @@ namespace DataAccess.Migrations
                             ConcurrencyStamp = "33333333-3333-3333-3333-333333333333",
                             Name = "Member",
                             NormalizedName = "MEMBER"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            ConcurrencyStamp = "44444444-4444-4444-4444-444444444444",
+                            Name = "Advisor",
+                            NormalizedName = "ADVISOR"
                         });
                 });
 
@@ -394,6 +411,14 @@ namespace DataAccess.Migrations
                         .IsUnique();
 
                     b.ToTable("Departments");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            FacultyId = 1,
+                            Name = "Bilgisayar Mühendisliği"
+                        });
                 });
 
             modelBuilder.Entity("Entities.Event", b =>
@@ -510,6 +535,13 @@ namespace DataAccess.Migrations
                         .IsUnique();
 
                     b.ToTable("Faculties");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Mühendislik Fakültesi"
+                        });
                 });
 
             modelBuilder.Entity("Entities.MembershipApplication", b =>
@@ -854,6 +886,34 @@ namespace DataAccess.Migrations
                             ClaimType = "permission",
                             ClaimValue = "events.read",
                             RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 15,
+                            ClaimType = "permission",
+                            ClaimValue = "hangfire.dashboard",
+                            RoleId = 1
+                        },
+                        new
+                        {
+                            Id = 16,
+                            ClaimType = "permission",
+                            ClaimValue = "clubs.read",
+                            RoleId = 4
+                        },
+                        new
+                        {
+                            Id = 17,
+                            ClaimType = "permission",
+                            ClaimValue = "memberships.read",
+                            RoleId = 4
+                        },
+                        new
+                        {
+                            Id = 18,
+                            ClaimType = "permission",
+                            ClaimValue = "memberships.write",
+                            RoleId = 4
                         });
                 });
 

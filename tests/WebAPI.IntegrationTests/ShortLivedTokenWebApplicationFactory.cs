@@ -27,6 +27,10 @@ public sealed class ShortLivedTokenWebApplicationFactory : WebApplicationFactory
                 // sızıp EnsureUserAsync'den önce gerçek parolayla admin seed etmesini engeller.
                 ["Seed:AdminEmail"] = "",
                 ["Seed:AdminPassword"] = "",
+                ["Seed:DemoAdvisorEmail"] = "",
+                ["Seed:DemoAdvisorPassword"] = "",
+                ["Seed:DemoStudentEmail"] = "",
+                ["Seed:DemoStudentPassword"] = "",
             });
         });
     }

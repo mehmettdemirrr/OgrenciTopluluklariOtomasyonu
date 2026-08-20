@@ -46,6 +46,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// <summary>K-12/Y-44: audit kaydı yalnızca AuditSaveChangesInterceptor tarafından yazılır.</summary>
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    public async Task<ITransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
+        new EfTransaction(await Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false));
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -70,5 +73,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         // A-27: izin/rol seed'i HasData ile — tamamen statik, parola hash'i içermez.
         builder.Entity<ApplicationRole>().HasData(IdentitySeedData.Roles());
         builder.Entity<IdentityRoleClaim<int>>().HasData(IdentitySeedData.RoleClaims());
+
+        // A-27: Faz 5'in dikey diliminin denenebilmesi için asgari referans verisi.
+        builder.Entity<Faculty>().HasData(DomainSeedData.Faculty());
+        builder.Entity<Department>().HasData(DomainSeedData.Department());
+        builder.Entity<AcademicTerm>().HasData(DomainSeedData.AcademicTerm());
     }
 }
