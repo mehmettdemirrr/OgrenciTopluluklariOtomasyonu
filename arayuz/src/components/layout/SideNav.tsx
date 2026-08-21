@@ -11,6 +11,7 @@ import {
 } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined'
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined'
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
@@ -34,6 +35,7 @@ interface NavItem {
 const genelItems: NavItem[] = [
   { label: 'Kulüpler', to: '/clubs', icon: GroupsOutlinedIcon },
   { label: 'Etkinlikler', to: '/events', icon: EventOutlinedIcon, permission: Permissions.EventsRead },
+  { label: 'Duyurular', to: '/announcements', icon: CampaignOutlinedIcon, permission: Permissions.ClubsRead },
   { label: 'Başvuru İncele', to: '/review', icon: FactCheckOutlinedIcon, permission: Permissions.MembershipsWrite },
   { label: 'Raporlarım', to: '/reports', icon: BarChartOutlinedIcon, permission: Permissions.ReportsRead },
 ]

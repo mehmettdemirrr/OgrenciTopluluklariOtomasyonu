@@ -162,6 +162,18 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<EventParticipationManager>()
+            .As<IEventParticipationService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<AnnouncementManager>()
+            .As<IAnnouncementService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         // Y-51: kapsam kuralı iç bileşen — aspect taşımaz, proxy'siz kayıt.
         builder.RegisterType<ReportScopeResolver>()
             .As<IReportScopeResolver>()
@@ -198,6 +210,9 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
         // Hangfire, iş sınıflarını kendi aktivatörü üzerinden (uygulamanın IServiceProvider'ı,
         // sonuçta Autofac tarafından destekleniyor) somut tipe göre çözer — arayüz gerekmez.
         builder.RegisterType<MembershipDecisionNotificationJob>()
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<EventDecisionNotificationJob>()
             .InstancePerLifetimeScope();
 
         builder.RegisterType<ReportGenerationJob>()

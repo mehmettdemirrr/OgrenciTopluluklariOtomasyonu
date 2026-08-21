@@ -20,10 +20,13 @@ public interface IEventService
     [TransactionAspect]
     Task<IResult> SubmitForApprovalAsync(int eventId, CancellationToken cancellationToken = default);
 
-    /// <summary>Y-23: events.approve yeterli değil — yalnızca kulübün danışmanı karar verebilir (MembershipApplicationManager.ReviewAsync precedent'i).</summary>
+    /// <summary>
+    /// docs/PLAN-V2.md · Y-46/Y-06: transaction elle yönetilir (bkz. EventManager) — Hangfire
+    /// enqueue'sinin commit'ten sonra çalışabilmesi için [TransactionAspect] kasıtlı olarak kullanılmaz.
+    /// Y-23: events.approve yeterli değil — yalnızca kulübün danışmanı karar verebilir (MembershipApplicationManager.ReviewAsync precedent'i).
+    /// </summary>
     [SecuredOperation(IdentitySeedData.Permissions.EventsApprove)]
     [ValidationAspect(typeof(DecideEventRequestValidator))]
-    [TransactionAspect]
     Task<IResult> DecideAsync(int eventId, DecideEventRequestDto request, CancellationToken cancellationToken = default);
 
     /// <summary>Çağıranın danışmanı olduğu kulüplerdeki PendingApproval etkinlikler (sorgu zaten scoped).</summary>
@@ -32,4 +35,30 @@ public interface IEventService
 
     [SecuredOperation(IdentitySeedData.Permissions.EventsRead)]
     Task<IDataResult<PagedResult<EventListItemDto>>> GetPublishedAsync(int clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/PLAN-V2.md §10: kulüp yönetimi görünümü — Draft/PendingApproval/Rejected dahil TÜM durumlar.
+    /// GetPublishedAsync'ten farklı olarak Y-23 kapsamlı: CreateAsync ile aynı kural (danışman veya
+    /// güncel dönemde Officer/President), çünkü taslak/reddedilmiş etkinlikler kulüp dışına sızmamalı.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.EventsWrite)]
+    Task<IDataResult<PagedResult<EventListItemDto>>> GetForClubAsync(int clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+
+    [SecuredOperation(IdentitySeedData.Permissions.EventsRead)]
+    Task<IDataResult<EventListItemDto>> GetByIdAsync(int eventId, CancellationToken cancellationToken = default);
+
+    /// <summary>docs/PLAN-V2.md §10.2: tüm kulüplerde yayındaki, henüz başlamamış etkinlikler.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.EventsRead)]
+    Task<IDataResult<PagedResult<EventListItemDto>>> GetUpcomingAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>Y-23: CreateAsync ile aynı kapsam kuralı. Yalnızca Draft/Rejected iken düzenlenebilir.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.EventsWrite)]
+    [ValidationAspect(typeof(UpdateEventRequestValidator))]
+    [TransactionAspect]
+    Task<IResult> UpdateAsync(int eventId, UpdateEventRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>Y-16: soft delete. Yalnızca Draft iken silinebilir.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.EventsWrite)]
+    [TransactionAspect]
+    Task<IResult> DeleteAsync(int eventId, CancellationToken cancellationToken = default);
 }

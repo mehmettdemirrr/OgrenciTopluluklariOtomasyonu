@@ -152,3 +152,24 @@ export interface EventListItemDto {
   capacity: number | null
   status: EventStatus
 }
+
+// src/Business/DTOs/Events/EventParticipantListItemDto.cs
+export interface EventParticipantListItemDto {
+  studentId: number
+  studentNumber: string
+  registeredAtUtc: string
+}
+
+// src/Entities/Enums/AnnouncementVisibility.cs (JsonStringEnumConverter ile metin olarak taşınır)
+export type AnnouncementVisibility = 'Members' | 'Public'
+
+// src/Business/DTOs/Announcements/AnnouncementListItemDto.cs
+export interface AnnouncementListItemDto {
+  id: number
+  clubId: number | null
+  clubName: string | null
+  title: string
+  content: string
+  visibility: AnnouncementVisibility
+  publishedAtUtc: string
+}

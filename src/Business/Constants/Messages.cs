@@ -82,4 +82,20 @@ public static class Messages
     public const string CannotChangeOwnPresidentRole = "Kendi başkanlık rolünüzü kaldıramaz veya değiştiremezsiniz.";
     public const string ClubRoleUpdated = "Üye rolü güncellendi.";
     public const string ClubMemberRemoved = "Üye topluluktan çıkarıldı.";
+
+    // Faz 10 — Etkinlik katılımı ve duyurular (K-22, K-23, A-38, A-43)
+    public const string EventNotOpenForRegistration = "Bu etkinlik şu anda kayıt için uygun değil.";
+    public const string AlreadyRegisteredForEvent = "Bu etkinliğe zaten kayıtlısınız.";
+    public const string EventCapacityFull = "Bu etkinliğin kontenjanı dolu.";
+    public const string EventRegistered = "Etkinliğe kaydınız alındı.";
+    public const string NotRegisteredForEvent = "Bu etkinliğe kaydınız bulunmuyor.";
+    public const string EventRegistrationCancelled = "Etkinlik kaydınız iptal edildi.";
+    public const string EventCannotBeUpdated = "Yalnızca taslak veya reddedilmiş etkinlikler düzenlenebilir.";
+    public const string EventUpdated = "Etkinlik güncellendi.";
+    public const string EventCannotBeDeleted = "Yalnızca taslak durumundaki etkinlikler silinebilir.";
+    public const string EventDeleted = "Etkinlik silindi.";
+    public const string AnnouncementNotFound = "Duyuru bulunamadı.";
+    public const string AnnouncementCreated = "Duyuru yayınlandı.";
+    public const string AnnouncementUpdated = "Duyuru güncellendi.";
+    public const string AnnouncementDeleted = "Duyuru kaldırıldı.";
 }

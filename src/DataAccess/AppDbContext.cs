@@ -49,6 +49,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public async Task<ITransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
         new EfTransaction(await Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false));
 
+    /// <summary>docs/PLAN-V2.md · A-38/Y-53: kontenjan RowVersion çakışması Business'a EF tipi sızdırmadan taşınır.</summary>
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConcurrencyConflictException(ex.Message, ex);
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

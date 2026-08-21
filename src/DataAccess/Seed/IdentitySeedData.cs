@@ -56,6 +56,12 @@ public static class IdentitySeedData
 
         /// <summary>Faz 7: etkinlik onay/ret — yazarı (events.write) onaylayandan ayırır (A-25).</summary>
         public const string EventsApprove = "events.approve";
+
+        /// <summary>Faz 10: kulüp duyurusu oluştur/düzenle/sil (A-43).</summary>
+        public const string AnnouncementsWrite = "announcements.write";
+
+        /// <summary>Faz 10: kulübe bağlı olmayan sistem duyurusu (ClubId = null) — Admin'e özgü.</summary>
+        public const string AnnouncementsGlobal = "announcements.global";
     }
 
     /// <summary>Y-03: bu roller silinemez/yeniden adlandırılamaz; izinleri değiştirilebilir.</summary>
@@ -80,6 +86,8 @@ public static class IdentitySeedData
         Permissions.RolesManage,
         Permissions.ReferenceManage,
         Permissions.EventsApprove,
+        Permissions.AnnouncementsWrite,
+        Permissions.AnnouncementsGlobal,
     ];
 
     public static IEnumerable<ApplicationRole> Roles() =>
@@ -141,6 +149,12 @@ public static class IdentitySeedData
         Claim(29, AdvisorRoleId, Permissions.EventsRead),
         Claim(30, AdvisorRoleId, Permissions.EventsWrite),
         Claim(31, AdvisorRoleId, Permissions.EventsApprove),
+
+        // Faz 10 — Etkinlik katılımı ve duyurular.
+        Claim(32, AdminRoleId, Permissions.AnnouncementsWrite),
+        Claim(33, AdminRoleId, Permissions.AnnouncementsGlobal),
+        Claim(34, ClubOfficerRoleId, Permissions.AnnouncementsWrite),
+        Claim(35, AdvisorRoleId, Permissions.AnnouncementsWrite),
     ];
 
     private static IdentityRoleClaim<int> Claim(int id, int roleId, string permission) => new()

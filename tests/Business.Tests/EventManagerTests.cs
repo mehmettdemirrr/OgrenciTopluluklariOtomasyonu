@@ -6,6 +6,7 @@ using Core.Utilities.Security;
 using Core.Utilities.Time;
 using Entities;
 using Entities.Enums;
+using Hangfire;
 using Moq;
 using Xunit;
 
@@ -25,6 +26,7 @@ public class EventManagerTests
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<ICurrentUser> _currentUser = new();
     private readonly Mock<IClock> _clock = new();
+    private readonly Mock<IBackgroundJobClient> _backgroundJobClient = new();
     private readonly EventManager _sut;
 
     private readonly Club _club = new() { Id = 1, Name = "Satranç Kulübü", AdvisorId = 10, IsActive = true, CreatedAtUtc = FixedNow };
@@ -36,6 +38,12 @@ public class EventManagerTests
         _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(_club);
         _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(_term);
 
+        var transaction = new Mock<ITransaction>();
+        transaction.Setup(t => t.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        transaction.Setup(t => t.RollbackAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        transaction.Setup(t => t.DisposeAsync()).Returns(ValueTask.CompletedTask);
+        _unitOfWork.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
+
         _sut = new EventManager(
             _eventRepository.Object,
             _clubRepository.Object,
@@ -45,7 +53,8 @@ public class EventManagerTests
             _academicTermRepository.Object,
             _unitOfWork.Object,
             _currentUser.Object,
-            _clock.Object);
+            _clock.Object,
+            _backgroundJobClient.Object);
     }
 
     [Fact(DisplayName = "Create: kulübün danışmanı etkinlik oluşturabilir")]
@@ -174,6 +183,129 @@ public class EventManagerTests
             .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
 
         var result = await _sut.SubmitForApprovalAsync(1);
+
+        Assert.False(result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "Decide: onay/ret sonrası bildirim işi kuyruğa eklenir")]
+    public async Task DecideAsync_Advisor_EnqueuesNotificationJob()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        var pendingEvent = new Event
+        {
+            Id = 1, ClubId = 1, Title = "Etkinlik", StartDateUtc = FixedNow, EndDateUtc = FixedNow.AddHours(2), Status = EventStatus.PendingApproval, CreatedAtUtc = FixedNow,
+        };
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(pendingEvent);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+
+        var result = await _sut.DecideAsync(1, new DecideEventRequestDto { Status = EventStatus.Published });
+
+        Assert.True(result.IsSuccess);
+        _backgroundJobClient.Verify(c => c.Create(It.IsAny<Hangfire.Common.Job>(), It.IsAny<Hangfire.States.IState>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "Update: Draft durumundaki etkinlik danışman tarafından düzenlenebilir")]
+    public async Task UpdateAsync_DraftEvent_ClubAdvisor_ReturnsSuccess()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        var draftEvent = new Event
+        {
+            Id = 1, ClubId = 1, Title = "Eski Başlık", StartDateUtc = FixedNow.AddDays(5), EndDateUtc = FixedNow.AddDays(5).AddHours(2), Status = EventStatus.Draft, CreatedAtUtc = FixedNow,
+        };
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(draftEvent);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+
+        var result = await _sut.UpdateAsync(1, new UpdateEventRequestDto
+        {
+            Title = "Yeni Başlık", StartDateUtc = FixedNow.AddDays(6), EndDateUtc = FixedNow.AddDays(6).AddHours(2),
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Yeni Başlık", draftEvent.Title);
+    }
+
+    [Fact(DisplayName = "Update: PendingApproval durumundaki etkinlik düzenlenemez (Conflict)")]
+    public async Task UpdateAsync_PendingApprovalEvent_ReturnsConflict()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        var pendingEvent = new Event
+        {
+            Id = 1, ClubId = 1, Title = "Etkinlik", StartDateUtc = FixedNow.AddDays(5), EndDateUtc = FixedNow.AddDays(5).AddHours(2), Status = EventStatus.PendingApproval, CreatedAtUtc = FixedNow,
+        };
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(pendingEvent);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+
+        var result = await _sut.UpdateAsync(1, new UpdateEventRequestDto
+        {
+            Title = "Yeni Başlık", StartDateUtc = FixedNow.AddDays(6), EndDateUtc = FixedNow.AddDays(6).AddHours(2),
+        });
+
+        Assert.False(result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "Delete: Draft durumundaki etkinlik silinebilir (soft delete)")]
+    public async Task DeleteAsync_DraftEvent_ReturnsSuccess()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        var draftEvent = new Event
+        {
+            Id = 1, ClubId = 1, Title = "Etkinlik", StartDateUtc = FixedNow.AddDays(5), EndDateUtc = FixedNow.AddDays(5).AddHours(2), Status = EventStatus.Draft, CreatedAtUtc = FixedNow,
+        };
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(draftEvent);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+
+        var result = await _sut.DeleteAsync(1);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(draftEvent.IsDeleted);
+    }
+
+    [Fact(DisplayName = "Delete: PendingApproval durumundaki etkinlik silinemez (Conflict)")]
+    public async Task DeleteAsync_PendingApprovalEvent_ReturnsConflict()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        var pendingEvent = new Event
+        {
+            Id = 1, ClubId = 1, Title = "Etkinlik", StartDateUtc = FixedNow.AddDays(5), EndDateUtc = FixedNow.AddDays(5).AddHours(2), Status = EventStatus.PendingApproval, CreatedAtUtc = FixedNow,
+        };
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(pendingEvent);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+
+        var result = await _sut.DeleteAsync(1);
+
+        Assert.False(result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "GetForClub: kulübün danışmanı taslak dahil tüm etkinlikleri görebilir")]
+    public async Task GetForClubAsync_ClubAdvisor_ReturnsAllStatuses()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+        _eventRepository
+            .Setup(r => r.GetListPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResult<Event>([new Event { Id = 1, ClubId = 1, Title = "Taslak", StartDateUtc = FixedNow, EndDateUtc = FixedNow.AddHours(1), Status = EventStatus.Draft, CreatedAtUtc = FixedNow }], 1, 0, 20));
+        _clubRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([_club]);
+
+        var result = await _sut.GetForClubAsync(1, 0, 20);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Data.Items);
+    }
+
+    [Fact(DisplayName = "GetForClub: ilgisiz kullanıcı kulübün etkinlik listesini göremez")]
+    public async Task GetForClubAsync_UnrelatedUser_ReturnsForbidden()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(777);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync((AcademicStaff?)null);
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync((AcademicTerm?)null);
+
+        var result = await _sut.GetForClubAsync(1, 0, 20);
 
         Assert.False(result.IsSuccess);
     }

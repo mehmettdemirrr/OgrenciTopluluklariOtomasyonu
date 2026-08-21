@@ -1,5 +1,5 @@
 import { Chip, type ChipProps } from '@mui/material'
-import type { ApplicationStatus, EventStatus, ReportStatus } from '../../api/types'
+import type { AnnouncementVisibility, ApplicationStatus, EventStatus, ReportStatus } from '../../api/types'
 
 type ClubRole = 'Member' | 'Officer' | 'President'
 
@@ -31,6 +31,11 @@ const clubRoleMap: Record<ClubRole, { label: string; color: ChipColor }> = {
   President: { label: 'Başkan', color: 'warning' },
 }
 
+const announcementVisibilityMap: Record<AnnouncementVisibility, { label: string; color: ChipColor }> = {
+  Members: { label: 'Yalnızca Üyeler', color: 'default' },
+  Public: { label: 'Herkese Açık', color: 'info' },
+}
+
 function buildChip(entry: { label: string; color: ChipColor }, size: ChipProps['size']) {
   return <Chip label={entry.label} color={entry.color} size={size} variant={entry.color === 'default' ? 'outlined' : 'filled'} />
 }
@@ -49,4 +54,8 @@ export function ReportStatusChip({ status, size = 'small' }: { status: ReportSta
 
 export function ClubRoleChip({ role, size = 'small' }: { role: ClubRole; size?: ChipProps['size'] }) {
   return buildChip(clubRoleMap[role], size)
+}
+
+export function AnnouncementVisibilityChip({ visibility, size = 'small' }: { visibility: AnnouncementVisibility; size?: ChipProps['size'] }) {
+  return buildChip(announcementVisibilityMap[visibility], size)
 }

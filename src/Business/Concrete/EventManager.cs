@@ -1,4 +1,5 @@
 using Business.Abstract;
+using Business.BackgroundJobs;
 using Business.Constants;
 using Business.DTOs.Events;
 using Core.DataAccess;
@@ -7,6 +8,7 @@ using Core.Utilities.Security;
 using Core.Utilities.Time;
 using Entities;
 using Entities.Enums;
+using Hangfire;
 
 namespace Business.Concrete;
 
@@ -19,7 +21,8 @@ public sealed class EventManager(
     IEntityRepository<AcademicTerm> academicTermRepository,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
-    IClock clock) : IEventService
+    IClock clock,
+    IBackgroundJobClient backgroundJobClient) : IEventService
 {
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
@@ -121,9 +124,27 @@ public sealed class EventManager(
             return Result.Forbidden(Messages.NotClubAdvisor);
         }
 
-        @event.Status = request.Status;
-        eventRepository.Update(@event);
-        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        // Y-46/Y-06: [TransactionAspect] kasıtlı olarak kullanılmaz — commit'ten SONRA Hangfire'a
+        // kuyruğa ekleme yapılabilmesi için transaction burada elle yönetilir (ReviewAsync precedent'i).
+        var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using (transaction.ConfigureAwait(false))
+        {
+            try
+            {
+                @event.Status = request.Status;
+                eventRepository.Update(@event);
+                await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        // Y-46: kuyruğa ekleme yalnızca commit'ten sonra — worker henüz var olmayan durumu okumasın.
+        backgroundJobClient.Enqueue<EventDecisionNotificationJob>(job => job.SendAsync(@event.Id));
 
         return Result.Success(request.Status == EventStatus.Published ? Messages.EventPublished : Messages.EventRejected);
     }
@@ -165,24 +186,145 @@ public sealed class EventManager(
         return DataResult<PagedResult<EventListItemDto>>.Success(new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
     }
 
+    public async Task<IDataResult<PagedResult<EventListItemDto>>> GetForClubAsync(int clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return DataResult<PagedResult<EventListItemDto>>.NotFound(Messages.ClubNotFound);
+        }
+
+        var accessError = await EnsureClubWriteAccessAsync(club, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return DataResult<PagedResult<EventListItemDto>>.Forbidden(accessError);
+        }
+
+        var paged = await eventRepository
+            .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), e => e.ClubId == clubId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = await MapWithClubNamesAsync(paged, [clubId], cancellationToken).ConfigureAwait(false);
+        return DataResult<PagedResult<EventListItemDto>>.Success(new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<EventListItemDto>> GetByIdAsync(int eventId, CancellationToken cancellationToken = default)
+    {
+        var @event = await eventRepository.GetAsync(e => e.Id == eventId, cancellationToken).ConfigureAwait(false);
+        if (@event is null)
+        {
+            return DataResult<EventListItemDto>.NotFound(Messages.EventNotFound);
+        }
+
+        var club = await clubRepository.GetAsync(c => c.Id == @event.ClubId, cancellationToken).ConfigureAwait(false);
+        return DataResult<EventListItemDto>.Success(MapToDto(@event, club?.Name ?? string.Empty));
+    }
+
+    public async Task<IDataResult<PagedResult<EventListItemDto>>> GetUpcomingAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var now = clock.UtcNow;
+        var clampedPageSize = ClampPageSize(pageSize);
+
+        var paged = await eventRepository
+            .GetListPagedAsync(pageIndex, clampedPageSize, e => e.Status == EventStatus.Published && e.StartDateUtc >= now, cancellationToken)
+            .ConfigureAwait(false);
+
+        var clubIds = paged.Items.Select(e => e.ClubId).Distinct().ToList();
+        var items = await MapWithClubNamesAsync(paged, clubIds, cancellationToken).ConfigureAwait(false);
+        return DataResult<PagedResult<EventListItemDto>>.Success(new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IResult> UpdateAsync(int eventId, UpdateEventRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var @event = await eventRepository.GetAsync(e => e.Id == eventId, cancellationToken).ConfigureAwait(false);
+        if (@event is null)
+        {
+            return Result.NotFound(Messages.EventNotFound);
+        }
+
+        var club = await clubRepository.GetAsync(c => c.Id == @event.ClubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return Result.NotFound(Messages.ClubNotFound);
+        }
+
+        var accessError = await EnsureClubWriteAccessAsync(club, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return Result.Forbidden(accessError);
+        }
+
+        if (@event.Status is not (EventStatus.Draft or EventStatus.Rejected))
+        {
+            return Result.Conflict(Messages.EventCannotBeUpdated);
+        }
+
+        @event.Title = request.Title;
+        @event.Description = request.Description;
+        @event.Location = request.Location;
+        @event.StartDateUtc = request.StartDateUtc;
+        @event.EndDateUtc = request.EndDateUtc;
+        @event.Capacity = request.Capacity;
+        eventRepository.Update(@event);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.EventUpdated);
+    }
+
+    public async Task<IResult> DeleteAsync(int eventId, CancellationToken cancellationToken = default)
+    {
+        var @event = await eventRepository.GetAsync(e => e.Id == eventId, cancellationToken).ConfigureAwait(false);
+        if (@event is null)
+        {
+            return Result.NotFound(Messages.EventNotFound);
+        }
+
+        var club = await clubRepository.GetAsync(c => c.Id == @event.ClubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return Result.NotFound(Messages.ClubNotFound);
+        }
+
+        var accessError = await EnsureClubWriteAccessAsync(club, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return Result.Forbidden(accessError);
+        }
+
+        if (@event.Status != EventStatus.Draft)
+        {
+            return Result.Conflict(Messages.EventCannotBeDeleted);
+        }
+
+        // Y-16: soft delete + audit interceptor'ın Delete olarak tanıması (Y-44).
+        @event.IsDeleted = true;
+        @event.DeletedAtUtc = clock.UtcNow;
+        eventRepository.Update(@event);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.EventDeleted);
+    }
+
+    private static EventListItemDto MapToDto(Event e, string clubName) => new()
+    {
+        Id = e.Id,
+        ClubId = e.ClubId,
+        ClubName = clubName,
+        Title = e.Title,
+        Description = e.Description,
+        Location = e.Location,
+        StartDateUtc = e.StartDateUtc,
+        EndDateUtc = e.EndDateUtc,
+        Capacity = e.Capacity,
+        Status = e.Status,
+    };
+
     private async Task<List<EventListItemDto>> MapWithClubNamesAsync(PagedResult<Event> paged, List<int> clubIds, CancellationToken cancellationToken)
     {
         var clubNames = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
             .ToDictionary(c => c.Id, c => c.Name);
 
-        return paged.Items.Select(e => new EventListItemDto
-        {
-            Id = e.Id,
-            ClubId = e.ClubId,
-            ClubName = clubNames.GetValueOrDefault(e.ClubId, string.Empty),
-            Title = e.Title,
-            Description = e.Description,
-            Location = e.Location,
-            StartDateUtc = e.StartDateUtc,
-            EndDateUtc = e.EndDateUtc,
-            Capacity = e.Capacity,
-            Status = e.Status,
-        }).ToList();
+        return paged.Items.Select(e => MapToDto(e, clubNames.GetValueOrDefault(e.ClubId, string.Empty))).ToList();
     }
 
     // Y-23: izin claim'i (events.write) yeterli değil — yalnızca kulübün danışmanı VEYA güncel

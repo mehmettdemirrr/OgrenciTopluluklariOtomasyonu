@@ -29,16 +29,22 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import { ClubRoleChip } from '../components/ui/StatusChip'
 import type { ClubDetailDto, ClubMemberListItemDto, ClubRole, PagedResult } from '../api/types'
+import { ClubAnnouncementsTab } from './ClubDetailAnnouncementsTab'
+import { ClubEventsTab } from './ClubDetailEventsTab'
 
 const CLUB_ROLES: ClubRole[] = ['Member', 'Officer', 'President']
+
+type TabKey = 'general' | 'members' | 'events' | 'announcements'
 
 export function ClubDetailPage() {
   const { id } = useParams<{ id: string }>()
   const clubId = Number(id)
-  const [tab, setTab] = useState(0)
+  const [tab, setTab] = useState<TabKey>('general')
   const { hasPermission } = useAuth()
   const canManageClubs = hasPermission(Permissions.ClubsWrite)
   const canViewMembers = hasPermission(Permissions.MembershipsRead)
+  const canViewEvents = hasPermission(Permissions.EventsRead)
+  const canViewAnnouncements = hasPermission(Permissions.ClubsRead)
 
   const clubQuery = useQuery({
     queryKey: ['clubs', clubId],
@@ -47,15 +53,19 @@ export function ClubDetailPage() {
 
   return (
     <>
-      <PageHeader title={clubQuery.data?.name ?? 'Topluluk'} description="Topluluk bilgileri ve üyelik yönetimi." />
+      <PageHeader title={clubQuery.data?.name ?? 'Topluluk'} description="Topluluk bilgileri, üyelik, etkinlik ve duyuru yönetimi." />
 
-      <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
-        <Tab label="Genel" />
-        {canViewMembers && <Tab label="Üyeler" />}
+      <Tabs value={tab} onChange={(_, value: TabKey) => setTab(value)} sx={{ mb: 2 }}>
+        <Tab label="Genel" value="general" />
+        {canViewMembers && <Tab label="Üyeler" value="members" />}
+        {canViewEvents && <Tab label="Etkinlikler" value="events" />}
+        {canViewAnnouncements && <Tab label="Duyurular" value="announcements" />}
       </Tabs>
 
-      {tab === 0 && <GeneralTab clubId={clubId} club={clubQuery.data} canManage={canManageClubs} />}
-      {tab === 1 && canViewMembers && <MembersTab clubId={clubId} />}
+      {tab === 'general' && <GeneralTab clubId={clubId} club={clubQuery.data} canManage={canManageClubs} />}
+      {tab === 'members' && canViewMembers && <MembersTab clubId={clubId} />}
+      {tab === 'events' && canViewEvents && <ClubEventsTab clubId={clubId} />}
+      {tab === 'announcements' && canViewAnnouncements && <ClubAnnouncementsTab clubId={clubId} />}
     </>
   )
 }

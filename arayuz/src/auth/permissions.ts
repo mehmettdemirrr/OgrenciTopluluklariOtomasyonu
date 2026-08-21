@@ -15,4 +15,6 @@ export const Permissions = {
   RolesManage: 'roles.manage',
   ReferenceManage: 'reference.manage',
   EventsApprove: 'events.approve',
+  AnnouncementsWrite: 'announcements.write',
+  AnnouncementsGlobal: 'announcements.global',
 } as const

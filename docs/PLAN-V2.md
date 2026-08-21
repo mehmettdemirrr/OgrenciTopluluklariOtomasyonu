@@ -241,6 +241,28 @@ Oluşturma DTO'su `Visibility` alanını **zorunlu** taşır (varsayılana güve
 ### Çıkış koşulu
 Kontenjanı 1 olan etkinliğe **paralel** iki kayıt → tam biri başarılı (entegrasyon testi). Duyuru oluştur→akışta gör→soft delete çalışıyor.
 
+> **Durum:** Tamamlandı. Backend: `IEventParticipationService`/`EventParticipationManager` (Register/Cancel/
+> GetParticipants/GetMine — A-38 kontenjan RowVersion'ı `eventRepository.Update` ile tüketiyor),
+> `IAnnouncementService`/`AnnouncementManager` (kulüp + sistem duyurusu, A-43), `EventDecisionNotificationJob`
+> (`EventManager.DecideAsync` elle transaction'a çevrildi — `MembershipApplicationManager.ReviewAsync`
+> precedent'i), `IEventService`'e `UpdateAsync`/`DeleteAsync`/`GetByIdAsync`/`GetUpcomingAsync` eklendi.
+> Migration: `Announcement.Visibility` + nullable `ClubId` (SetNull) + yeni `announcements.write`/
+> `announcements.global` claim'leri (tek `AlterColumn`+`AddColumn`+`CreateIndex`).
+> **Plan dışı ek (implementasyon sırasında bulundu):** `GetPublishedAsync` yalnızca `Published` durumundaki
+> etkinlikleri döndürüyor (Faz 7'den beri) — bu, kulüp yöneticisinin kendi taslak etkinliğini bile
+> listede göremediği gerçek bir boşluktu. Yeni `IEventService.GetForClubAsync` (Y-23 kapsamlı, tüm
+> durumlar) eklendi ve `ClubDetailPage`'in Etkinlikler sekmesi + `EventsPage`'in "Topluluk Etkinliklerim"
+> sekmesi buna geçirildi. **Y-08 uyumu:** `DbUpdateConcurrencyException` Business'a sızamayacağı için
+> yeni `Core.DataAccess.ConcurrencyConflictException` eklendi; `AppDbContext.SaveChangesAsync` override'ı
+> çeviriyi yapıyor (mevcut `DomainConstraintTests.Event_ConcurrentCapacityUpdates_...` testi buna göre
+> güncellendi).
+> Frontend: `EventsPage` üç sekme (Yaklaşan Etkinlikler/Topluluk Etkinliklerim/Onay Kuyruğu), yeni
+> `EventDetailPage`, yeni `AnnouncementsPage`, `ClubDetailPage`'e Etkinlikler/Duyurular sekmeleri.
+> Test: 198/198 yeşil (135 Business.Tests + 10 Architecture.Tests + 53 WebAPI.IntegrationTests, yeni
+> `EventCapacityConcurrencyTests` — `Task.WhenAll` ile paralel kayıt, tam biri başarılı — ve
+> `AnnouncementFlowTests` dahil). Canlı Playwright doğrulaması yapıldı (danışman: kulüp→etkinlik
+> oluştur→onaya gönder→onayla→duyuru yayınla; öğrenci: yaklaşan etkinliğe katıl/ayrıl, duyuru akışında gör).
+
 ---
 
 ## Faz 11 — Hesap yaşam döngüsü (K-03'ün tamamlanması, A-40)

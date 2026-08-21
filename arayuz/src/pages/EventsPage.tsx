@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, Tab, Tabs, TextField } from '@mui/material'
+import { Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
+import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import type { GridColDef } from '@mui/x-data-grid'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
@@ -22,16 +24,116 @@ export function EventsPage() {
 
   return (
     <>
-      <PageHeader title="Etkinlikler" description="Kulübünüzün etkinliklerini yönetin ve onay durumunu takip edin." />
+      <PageHeader title="Etkinlikler" description="Yaklaşan etkinlikleri keşfedin, topluluğunuzun etkinliklerini yönetin." />
 
       <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
-        <Tab label="Etkinlikler" />
+        <Tab label="Yaklaşan Etkinlikler" />
+        <Tab label="Topluluk Etkinliklerim" />
         {canApprove && <Tab label="Onay Kuyruğu" />}
       </Tabs>
 
-      {tab === 0 && <EventsTab />}
-      {tab === 1 && canApprove && <ApprovalQueueTab />}
+      {tab === 0 && <UpcomingTab />}
+      {tab === 1 && <EventsTab />}
+      {tab === 2 && canApprove && <ApprovalQueueTab />}
     </>
+  )
+}
+
+function UpcomingTab() {
+  const queryClient = useQueryClient()
+  const notify = useNotifier()
+
+  const upcomingQuery = useQuery({
+    queryKey: ['events-upcoming', 0, 100],
+    queryFn: async () => (await apiClient.get<PagedResult<EventListItemDto>>('/events/upcoming', { params: { pageIndex: 0, pageSize: 100 } })).data,
+  })
+
+  const mineQuery = useQuery({
+    queryKey: ['events-mine', 0, 200],
+    queryFn: async () => (await apiClient.get<PagedResult<EventListItemDto>>('/events/mine', { params: { pageIndex: 0, pageSize: 200 } })).data,
+  })
+
+  const registeredEventIds = useMemo(() => new Set((mineQuery.data?.items ?? []).map((e) => e.id)), [mineQuery.data])
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['events-upcoming'] })
+    queryClient.invalidateQueries({ queryKey: ['events-mine'] })
+  }
+
+  const registerMutation = useMutation({
+    mutationFn: async (eventId: number) => {
+      await apiClient.post(`/events/${eventId}/participation`)
+    },
+    onSuccess: () => {
+      notify({ message: 'Etkinliğe kaydınız alındı.', severity: 'success' })
+      invalidate()
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Kayıt oluşturulamadı.'), severity: 'error' }),
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: async (eventId: number) => {
+      await apiClient.delete(`/events/${eventId}/participation`)
+    },
+    onSuccess: () => {
+      notify({ message: 'Etkinlik kaydınız iptal edildi.', severity: 'success' })
+      invalidate()
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Kayıt iptal edilemedi.'), severity: 'error' }),
+  })
+
+  const items = upcomingQuery.data?.items ?? []
+
+  if (!upcomingQuery.isLoading && items.length === 0) {
+    return <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" description="Şu anda yayında ve başlamamış bir etkinlik bulunmuyor." />
+  }
+
+  return (
+    <Grid container spacing={2}>
+      {items.map((event) => {
+        const isRegistered = registeredEventIds.has(event.id)
+        return (
+          <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
+            <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardContent sx={{ flex: 1 }}>
+                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+                    {event.title}
+                  </Typography>
+                  <Chip size="small" label={event.capacity ? `Kontenjan: ${event.capacity}` : 'Sınırsız'} variant="outlined" />
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  {event.clubName}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  {new Date(event.startDateUtc).toLocaleString('tr-TR')}
+                </Typography>
+                {event.location && (
+                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+                    <PlaceOutlinedIcon fontSize="inherit" />
+                    <Typography variant="caption">{event.location}</Typography>
+                  </Stack>
+                )}
+              </CardContent>
+              <CardActions sx={{ px: 2, pb: 2, gap: 0.5 }}>
+                <Button size="small" component={RouterLink} to={`/events/${event.id}`}>
+                  Detay
+                </Button>
+                {isRegistered ? (
+                  <Button size="small" color="error" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate(event.id)}>
+                    Ayrıl
+                  </Button>
+                ) : (
+                  <Button size="small" variant="outlined" disabled={registerMutation.isPending} onClick={() => registerMutation.mutate(event.id)}>
+                    Katıl
+                  </Button>
+                )}
+              </CardActions>
+            </Card>
+          </Grid>
+        )
+      })}
+    </Grid>
   )
 }
 
@@ -52,10 +154,10 @@ function EventsTab() {
   })
 
   const { paginationModel, setPaginationModel, query: eventsQuery } = usePagedQuery({
-    queryKey: ['events', selectedClubId],
-    enabled: selectedClubId !== '',
+    queryKey: ['club-events', selectedClubId],
+    enabled: selectedClubId !== '' && canWrite,
     queryFn: async (pageIndex, pageSize) =>
-      (await apiClient.get<PagedResult<EventListItemDto>>('/events', { params: { clubId: selectedClubId, pageIndex, pageSize } })).data,
+      (await apiClient.get<PagedResult<EventListItemDto>>(`/clubs/${selectedClubId}/events`, { params: { pageIndex, pageSize } })).data,
   })
 
   const createEventMutation = useMutation({
@@ -73,7 +175,7 @@ function EventsTab() {
       setTitle('')
       setStartDateTime('')
       setEndDateTime('')
-      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['club-events'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Etkinlik oluşturulamadı.'), severity: 'error' }),
   })
@@ -98,27 +200,30 @@ function EventsTab() {
       valueFormatter: (value: string) => new Date(value).toLocaleString('tr-TR'),
     },
     { field: 'status', headerName: 'Durum', width: 150, renderCell: (params) => <EventStatusChip status={params.row.status} /> },
-    ...(canWrite
-      ? [
-          {
-            field: 'actions',
-            headerName: '',
-            width: 160,
-            sortable: false,
-            filterable: false,
-            renderCell: (params: { row: EventListItemDto }) => (
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={params.row.status !== 'Draft' || submitMutation.isPending}
-                onClick={() => submitMutation.mutate(params.row.id)}
-              >
-                Onaya Gönder
-              </Button>
-            ),
-          } satisfies GridColDef<EventListItemDto>,
-        ]
-      : []),
+    {
+      field: 'actions',
+      headerName: '',
+      width: 220,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1}>
+          <Button size="small" component={RouterLink} to={`/events/${params.row.id}`}>
+            Detay
+          </Button>
+          {canWrite && (
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={params.row.status !== 'Draft' || submitMutation.isPending}
+              onClick={() => submitMutation.mutate(params.row.id)}
+            >
+              Onaya Gönder
+            </Button>
+          )}
+        </Stack>
+      ),
+    },
   ]
 
   return (
@@ -151,6 +256,12 @@ function EventsTab() {
           icon={EventOutlinedIcon}
           title="Bir topluluk seçin"
           description="Etkinlikleri görüntülemek için önce yukarıdan bir topluluk seçin."
+        />
+      ) : !canWrite ? (
+        <EmptyState
+          icon={EventOutlinedIcon}
+          title="Yönetim yetkiniz yok"
+          description="Bu topluluğun etkinliklerini yönetmek için danışman veya yetkili/başkan olmanız gerekir. Yayındaki etkinlikleri Yaklaşan Etkinlikler sekmesinden görebilirsiniz."
         />
       ) : (
         <DataTable

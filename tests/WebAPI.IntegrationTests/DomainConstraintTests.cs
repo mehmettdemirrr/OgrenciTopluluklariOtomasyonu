@@ -1,3 +1,4 @@
+using Core.DataAccess;
 using DataAccess;
 using Entities;
 using Entities.Enums;
@@ -99,8 +100,9 @@ public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFa
         var dbB = scopeB.ServiceProvider.GetRequiredService<AppDbContext>();
 
         // İki "eşzamanlı" isteğin aynı satırı okuyup değiştirmeye çalıştığı senaryo: ikincisi eski
-        // RowVersion ile geldiği için reddedilmeli — Business katmanının (Faz 5) kontenjan dolduğunda
-        // kaydı iptal etmek için dayanacağı mekanizma budur.
+        // RowVersion ile geldiği için reddedilmeli — Faz 10'un EventParticipationManager.RegisterAsync'in
+        // dayandığı mekanizma budur. AppDbContext.SaveChangesAsync EF'in DbUpdateConcurrencyException'ını
+        // Y-08 gereği ConcurrencyConflictException'a çevirir (bkz. AppDbContext.cs).
         var eventA = await dbA.Events.SingleAsync(e => e.Id == @event.Id);
         var eventB = await dbB.Events.SingleAsync(e => e.Id == @event.Id);
 
@@ -108,7 +110,7 @@ public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFa
         await dbA.SaveChangesAsync();
 
         eventB.Capacity = 0;
-        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => dbB.SaveChangesAsync());
+        await Assert.ThrowsAsync<ConcurrencyConflictException>(() => dbB.SaveChangesAsync());
     }
 
     private static async Task<Event> SeedEventAsync(AppDbContext db, int clubId, int capacity)

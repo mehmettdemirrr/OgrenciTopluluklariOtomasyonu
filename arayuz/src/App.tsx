@@ -7,9 +7,11 @@ import { AuthProvider } from './auth/AuthContext'
 import { Permissions } from './auth/permissions'
 import { NotifierProvider } from './notifications/NotifierProvider'
 import { theme } from './theme'
+import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { AuthorizationPage } from './pages/AuthorizationPage'
 import { ClubDetailPage } from './pages/ClubDetailPage'
 import { ClubsPage } from './pages/ClubsPage'
+import { EventDetailPage } from './pages/EventDetailPage'
 import { EventsPage } from './pages/EventsPage'
 import { LoginPage } from './pages/LoginPage'
 import { MembershipReviewPage } from './pages/MembershipReviewPage'
@@ -80,6 +82,24 @@ function App() {
                     element={
                       <ProtectedRoute requiredPermission={Permissions.EventsRead}>
                         <EventsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/events/:id"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.EventsRead}>
+                        <EventDetailPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/announcements"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.ClubsRead}>
+                        <AnnouncementsPage />
                       </ProtectedRoute>
                     }
                   />
