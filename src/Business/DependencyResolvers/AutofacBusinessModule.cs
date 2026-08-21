@@ -120,6 +120,18 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<ReferenceDataManager>()
+            .As<IReferenceDataService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<AcademicTermManager>()
+            .As<IAcademicTermService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<AuthManager>()
             .As<IAuthService>()
             .EnableInterfaceInterceptors()

@@ -49,4 +49,14 @@ public static class Messages
     public const string RoleDeleted = "Rol silindi.";
     public const string PermissionsUpdated = "Rol izinleri güncellendi.";
     public const string RolesUpdated = "Kullanıcı rolleri güncellendi.";
+
+    // Faz 7 — Referans verisi ve dönem yönetimi
+    public const string FacultyNotFound = "Fakülte bulunamadı.";
+    public const string FacultyAlreadyExists = "Bu isimde bir fakülte zaten kayıtlı.";
+    public const string DepartmentAlreadyExists = "Bu isimde bir bölüm bu fakültede zaten kayıtlı.";
+    public const string AcademicTermNotFound = "Akademik dönem bulunamadı.";
+    public const string AcademicTermNameTaken = "Bu isimde bir akademik dönem zaten var.";
+    public const string AcademicTermAlreadyCurrent = "Bu dönem zaten güncel dönem.";
+    public const string AcademicTermSetCurrent = "Güncel dönem güncellendi.";
+    public const string InvalidAcademicTermDateRange = "Bitiş tarihi başlangıç tarihinden sonra olmalıdır.";
 }
