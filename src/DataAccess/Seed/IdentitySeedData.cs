@@ -47,7 +47,40 @@ public static class IdentitySeedData
 
         /// <summary>Faz 6: logo/afiş yükleme (Y-40 riski taşıyan yetenek).</summary>
         public const string FilesUpload = "files.upload";
+
+        /// <summary>Faz 7: K-17 yetki matrisinin tamamı (rol + izin + kullanıcı-rol ataması).</summary>
+        public const string RolesManage = "roles.manage";
+
+        /// <summary>Faz 7: fakülte, bölüm, akademik dönem yönetimi (A-12/A-27 tek kategori).</summary>
+        public const string ReferenceManage = "reference.manage";
+
+        /// <summary>Faz 7: etkinlik onay/ret — yazarı (events.write) onaylayandan ayırır (A-25).</summary>
+        public const string EventsApprove = "events.approve";
     }
+
+    /// <summary>Y-03: bu roller silinemez/yeniden adlandırılamaz; izinleri değiştirilebilir.</summary>
+    public static readonly IReadOnlyCollection<int> SystemRoleIds = [AdminRoleId, ClubOfficerRoleId, MemberRoleId, AdvisorRoleId];
+
+    public static bool IsSystemRole(int roleId) => SystemRoleIds.Contains(roleId);
+
+    /// <summary>K-17 "Yeni İzinler" ekranının kaynağı — izin kodu koddan gelir, sabit frontend listesi değil.</summary>
+    public static IReadOnlyCollection<string> AllPermissionCodes() =>
+    [
+        Permissions.ClubsRead,
+        Permissions.ClubsWrite,
+        Permissions.MembershipsRead,
+        Permissions.MembershipsWrite,
+        Permissions.EventsRead,
+        Permissions.EventsWrite,
+        Permissions.DiagnosticsProtected,
+        Permissions.HangfireDashboard,
+        Permissions.ReportsRead,
+        Permissions.ReportsReadAll,
+        Permissions.FilesUpload,
+        Permissions.RolesManage,
+        Permissions.ReferenceManage,
+        Permissions.EventsApprove,
+    ];
 
     public static IEnumerable<ApplicationRole> Roles() =>
     [
@@ -100,6 +133,14 @@ public static class IdentitySeedData
         Claim(23, ClubOfficerRoleId, Permissions.FilesUpload),
         Claim(24, AdvisorRoleId, Permissions.ReportsRead),
         Claim(25, AdvisorRoleId, Permissions.FilesUpload),
+
+        // Faz 7 — K-17 yetki matrisi + referans veri + etkinlik onay kuyruğu.
+        Claim(26, AdminRoleId, Permissions.RolesManage),
+        Claim(27, AdminRoleId, Permissions.ReferenceManage),
+        Claim(28, AdminRoleId, Permissions.EventsApprove),
+        Claim(29, AdvisorRoleId, Permissions.EventsRead),
+        Claim(30, AdvisorRoleId, Permissions.EventsWrite),
+        Claim(31, AdvisorRoleId, Permissions.EventsApprove),
     ];
 
     private static IdentityRoleClaim<int> Claim(int id, int roleId, string permission) => new()

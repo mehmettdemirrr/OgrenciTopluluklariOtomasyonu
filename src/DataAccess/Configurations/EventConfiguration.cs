@@ -29,6 +29,9 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.Property(e => e.RowVersion)
             .IsRowVersion();
 
+        // Faz 7: onay kuyruğu (ClubId + PendingApproval) ve yayın listesi (ClubId + Published) aynı index'i kullanır.
+        builder.HasIndex(e => new { e.ClubId, e.Status });
+
         // Y-16: soft delete query filter.
         builder.HasQueryFilter(e => !e.IsDeleted);
     }
