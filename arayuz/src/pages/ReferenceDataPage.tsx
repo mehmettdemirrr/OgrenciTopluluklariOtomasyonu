@@ -1,77 +1,47 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Snackbar,
-  Tab,
-  Tabs,
-  TextField,
-  Typography,
-} from '@mui/material'
-import { DataGrid, type GridColDef, type GridPaginationModel, type GridRowSelectionModel } from '@mui/x-data-grid'
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Tab, Tabs, TextField, Typography } from '@mui/material'
+import { DataGrid, type GridColDef, type GridRowSelectionModel } from '@mui/x-data-grid'
 import { useState } from 'react'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { usePagedQuery } from '../hooks/usePagedQuery'
+import { useNotifier } from '../notifications/NotifierProvider'
+import { DataTable } from '../components/ui/DataTable'
+import { PageHeader } from '../components/ui/PageHeader'
+import { SectionCard } from '../components/ui/SectionCard'
 import type { AcademicTermListItemDto, DepartmentListItemDto, FacultyListItemDto, PagedResult } from '../api/types'
-
-const DEFAULT_PAGE_SIZE = 10
-
-type Snack = { message: string; severity: 'success' | 'error' } | null
 
 export function ReferenceDataPage() {
   const [tab, setTab] = useState(0)
-  const [snackbar, setSnackbar] = useState<Snack>(null)
 
   return (
-    <Box>
-      <Typography variant="h5" component="h1" gutterBottom>
-        Referans Verisi
-      </Typography>
+    <>
+      <PageHeader title="Referans Verisi" description="Fakülte, bölüm ve akademik dönem verilerini yönetin." />
 
       <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
         <Tab label="Fakülte / Bölüm" />
         <Tab label="Akademik Dönemler" />
       </Tabs>
 
-      {tab === 0 && <FacultiesTab onNotify={setSnackbar} />}
-      {tab === 1 && <TermsTab onNotify={setSnackbar} />}
-
-      <Snackbar
-        open={snackbar !== null}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        {snackbar ? <Alert severity={snackbar.severity}>{snackbar.message}</Alert> : undefined}
-      </Snackbar>
-    </Box>
+      {tab === 0 && <FacultiesTab />}
+      {tab === 1 && <TermsTab />}
+    </>
   )
 }
 
-function FacultiesTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
+function FacultiesTab() {
   const queryClient = useQueryClient()
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_PAGE_SIZE })
+  const notify = useNotifier()
   const [selectedFacultyId, setSelectedFacultyId] = useState<number | null>(null)
   const [facultyDialogOpen, setFacultyDialogOpen] = useState(false)
   const [newFacultyName, setNewFacultyName] = useState('')
   const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false)
   const [newDepartmentName, setNewDepartmentName] = useState('')
 
-  const facultiesQuery = useQuery({
-    queryKey: ['faculties', paginationModel.page, paginationModel.pageSize],
-    queryFn: async () => {
-      const response = await apiClient.get<PagedResult<FacultyListItemDto>>('/faculties', {
-        params: { pageIndex: paginationModel.page, pageSize: paginationModel.pageSize },
-      })
-      return response.data
-    },
-    placeholderData: (previousData) => previousData,
+  const { paginationModel, setPaginationModel, query: facultiesQuery } = usePagedQuery({
+    queryKey: ['faculties'],
+    queryFn: async (pageIndex, pageSize) =>
+      (await apiClient.get<PagedResult<FacultyListItemDto>>('/faculties', { params: { pageIndex, pageSize } })).data,
   })
 
   const departmentsQuery = useQuery({
@@ -88,12 +58,12 @@ function FacultiesTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
   const createFacultyMutation = useMutation({
     mutationFn: async (name: string) => (await apiClient.post<FacultyListItemDto>('/faculties', { name })).data,
     onSuccess: (_data, name) => {
-      onNotify({ message: `"${name}" kaydedildi (zaten varsa mevcut satır kullanıldı).`, severity: 'success' })
+      notify({ message: `"${name}" kaydedildi (zaten varsa mevcut satır kullanıldı).`, severity: 'success' })
       setFacultyDialogOpen(false)
       setNewFacultyName('')
       queryClient.invalidateQueries({ queryKey: ['faculties'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'Fakülte eklenemedi.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Fakülte eklenemedi.'), severity: 'error' }),
   })
 
   const createDepartmentMutation = useMutation({
@@ -102,12 +72,12 @@ function FacultiesTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
       return (await apiClient.post<DepartmentListItemDto>(`/faculties/${selectedFacultyId}/departments`, { name })).data
     },
     onSuccess: (_data, name) => {
-      onNotify({ message: `"${name}" kaydedildi (zaten varsa mevcut satır kullanıldı).`, severity: 'success' })
+      notify({ message: `"${name}" kaydedildi (zaten varsa mevcut satır kullanıldı).`, severity: 'success' })
       setDepartmentDialogOpen(false)
       setNewDepartmentName('')
       queryClient.invalidateQueries({ queryKey: ['departments', selectedFacultyId] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'Bölüm eklenemedi.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Bölüm eklenemedi.'), severity: 'error' }),
   })
 
   const facultyColumns: GridColDef<FacultyListItemDto>[] = [{ field: 'name', headerName: 'Fakülte Adı', flex: 1, minWidth: 220 }]
@@ -119,50 +89,49 @@ function FacultiesTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
   }
 
   return (
-    <Box>
-      <Box sx={{ mb: 1 }}>
-        <Button variant="contained" onClick={() => setFacultyDialogOpen(true)}>
-          Yeni Fakülte
-        </Button>
-      </Box>
-
-      <Typography variant="subtitle2" gutterBottom>
-        Fakülteler (bölümleri görmek için bir satır seçin)
-      </Typography>
-      <Box sx={{ height: 300, mb: 3 }}>
-        <DataGrid
-          rows={facultiesQuery.data?.items ?? []}
-          columns={facultyColumns}
-          loading={facultiesQuery.isFetching}
-          paginationMode="server"
-          rowCount={facultiesQuery.data?.totalCount ?? 0}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[10, 20, 50]}
-          checkboxSelection={false}
-          onRowSelectionModelChange={handleSelectionChange}
-        />
-      </Box>
+    <>
+      <SectionCard
+        title="Fakülteler"
+        action={
+          <Button variant="contained" size="small" onClick={() => setFacultyDialogOpen(true)}>
+            Yeni Fakülte
+          </Button>
+        }
+        sx={{ mb: 3 }}
+      >
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+          Bölümleri görmek için bir satır seçin.
+        </Typography>
+        <Box sx={{ height: 300 }}>
+          <DataGrid
+            rows={facultiesQuery.data?.items ?? []}
+            columns={facultyColumns}
+            loading={facultiesQuery.isFetching}
+            paginationMode="server"
+            rowCount={facultiesQuery.data?.totalCount ?? 0}
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[10, 20, 50]}
+            disableRowSelectionOnClick={false}
+            onRowSelectionModelChange={handleSelectionChange}
+            sx={{ border: 'none' }}
+          />
+        </Box>
+      </SectionCard>
 
       {selectedFacultyId !== null && (
-        <>
-          <Box sx={{ mb: 1 }}>
-            <Button variant="outlined" onClick={() => setDepartmentDialogOpen(true)}>
+        <SectionCard
+          title="Bölümler"
+          action={
+            <Button variant="outlined" size="small" onClick={() => setDepartmentDialogOpen(true)}>
               Yeni Bölüm
             </Button>
-          </Box>
-          <Typography variant="subtitle2" gutterBottom>
-            Bölümler
-          </Typography>
+          }
+        >
           <Box sx={{ height: 300 }}>
-            <DataGrid
-              rows={departmentsQuery.data?.items ?? []}
-              columns={departmentColumns}
-              loading={departmentsQuery.isFetching}
-              hideFooter
-            />
+            <DataGrid rows={departmentsQuery.data?.items ?? []} columns={departmentColumns} loading={departmentsQuery.isFetching} hideFooter sx={{ border: 'none' }} />
           </Box>
-        </>
+        </SectionCard>
       )}
 
       <Dialog open={facultyDialogOpen} onClose={() => setFacultyDialogOpen(false)} fullWidth maxWidth="xs">
@@ -212,27 +181,22 @@ function FacultiesTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   )
 }
 
-function TermsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
+function TermsTab() {
   const queryClient = useQueryClient()
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_PAGE_SIZE })
+  const notify = useNotifier()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [name, setName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
-  const termsQuery = useQuery({
-    queryKey: ['academic-terms', paginationModel.page, paginationModel.pageSize],
-    queryFn: async () => {
-      const response = await apiClient.get<PagedResult<AcademicTermListItemDto>>('/academic-terms', {
-        params: { pageIndex: paginationModel.page, pageSize: paginationModel.pageSize },
-      })
-      return response.data
-    },
-    placeholderData: (previousData) => previousData,
+  const { paginationModel, setPaginationModel, query: termsQuery } = usePagedQuery({
+    queryKey: ['academic-terms'],
+    queryFn: async (pageIndex, pageSize) =>
+      (await apiClient.get<PagedResult<AcademicTermListItemDto>>('/academic-terms', { params: { pageIndex, pageSize } })).data,
   })
 
   const createTermMutation = useMutation({
@@ -244,14 +208,14 @@ function TermsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
       })
     },
     onSuccess: () => {
-      onNotify({ message: 'Dönem oluşturuldu.', severity: 'success' })
+      notify({ message: 'Dönem oluşturuldu.', severity: 'success' })
       setDialogOpen(false)
       setName('')
       setStartDate('')
       setEndDate('')
       queryClient.invalidateQueries({ queryKey: ['academic-terms'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'Dönem oluşturulamadı.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Dönem oluşturulamadı.'), severity: 'error' }),
   })
 
   const setCurrentMutation = useMutation({
@@ -259,10 +223,10 @@ function TermsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
       await apiClient.put(`/academic-terms/${id}/current`)
     },
     onSuccess: () => {
-      onNotify({ message: 'Güncel dönem güncellendi.', severity: 'success' })
+      notify({ message: 'Güncel dönem güncellendi.', severity: 'success' })
       queryClient.invalidateQueries({ queryKey: ['academic-terms'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'Güncel dönem güncellenemedi.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Güncel dönem güncellenemedi.'), severity: 'error' }),
   })
 
   const columns: GridColDef<AcademicTermListItemDto>[] = [
@@ -305,26 +269,24 @@ function TermsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
   ]
 
   return (
-    <Box>
+    <>
       <Box sx={{ mb: 2 }}>
         <Button variant="contained" onClick={() => setDialogOpen(true)}>
           Yeni Dönem
         </Button>
       </Box>
 
-      <Box sx={{ height: 480 }}>
-        <DataGrid
-          rows={termsQuery.data?.items ?? []}
-          columns={columns}
-          loading={termsQuery.isFetching}
-          paginationMode="server"
-          rowCount={termsQuery.data?.totalCount ?? 0}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[10, 20, 50]}
-          disableRowSelectionOnClick
-        />
-      </Box>
+      <DataTable
+        rows={termsQuery.data?.items ?? []}
+        columns={columns}
+        loading={termsQuery.isFetching}
+        paginationMode="server"
+        rowCount={termsQuery.data?.totalCount ?? 0}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        pageSizeOptions={[10, 20, 50]}
+        emptyTitle="Akademik dönem yok"
+      />
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle>Yeni Akademik Dönem</DialogTitle>
@@ -360,6 +322,6 @@ function TermsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   )
 }

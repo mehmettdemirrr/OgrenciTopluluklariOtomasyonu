@@ -1,10 +1,12 @@
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
+import { CssBaseline, ThemeProvider } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom'
-import { AppLayout } from './components/AppLayout'
+import { AppShell } from './components/layout/AppShell'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './auth/AuthContext'
 import { Permissions } from './auth/permissions'
+import { NotifierProvider } from './notifications/NotifierProvider'
+import { theme } from './theme'
 import { AuthorizationPage } from './pages/AuthorizationPage'
 import { ClubsPage } from './pages/ClubsPage'
 import { EventsPage } from './pages/EventsPage'
@@ -13,7 +15,6 @@ import { MembershipReviewPage } from './pages/MembershipReviewPage'
 import { ReferenceDataPage } from './pages/ReferenceDataPage'
 import { ReportsPage } from './pages/ReportsPage'
 
-const theme = createTheme()
 const queryClient = new QueryClient()
 
 function App() {
@@ -21,81 +22,72 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
+        <NotifierProvider>
+          <BrowserRouter>
+            <AuthProvider>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
 
-              <Route
-                path="/clubs"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <ClubsPage />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <AppShell />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/clubs" element={<ClubsPage />} />
 
-              <Route
-                path="/review"
-                element={
-                  <ProtectedRoute requiredPermission={Permissions.MembershipsWrite}>
-                    <AppLayout>
-                      <MembershipReviewPage />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  <Route
+                    path="/review"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.MembershipsWrite}>
+                        <MembershipReviewPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-              <Route
-                path="/reports"
-                element={
-                  <ProtectedRoute requiredPermission={Permissions.ReportsRead}>
-                    <AppLayout>
-                      <ReportsPage />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  <Route
+                    path="/reports"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.ReportsRead}>
+                        <ReportsPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-              <Route
-                path="/authorization"
-                element={
-                  <ProtectedRoute requiredPermission={Permissions.RolesManage}>
-                    <AppLayout>
-                      <AuthorizationPage />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  <Route
+                    path="/authorization"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.RolesManage}>
+                        <AuthorizationPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-              <Route
-                path="/reference"
-                element={
-                  <ProtectedRoute requiredPermission={Permissions.ReferenceManage}>
-                    <AppLayout>
-                      <ReferenceDataPage />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  <Route
+                    path="/reference"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.ReferenceManage}>
+                        <ReferenceDataPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-              <Route
-                path="/events"
-                element={
-                  <ProtectedRoute requiredPermission={Permissions.EventsRead}>
-                    <AppLayout>
-                      <EventsPage />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  <Route
+                    path="/events"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.EventsRead}>
+                        <EventsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Route>
 
-              <Route path="*" element={<Navigate to="/clubs" replace />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
+                <Route path="*" element={<Navigate to="/clubs" replace />} />
+              </Routes>
+            </AuthProvider>
+          </BrowserRouter>
+        </NotifierProvider>
       </QueryClientProvider>
     </ThemeProvider>
   )

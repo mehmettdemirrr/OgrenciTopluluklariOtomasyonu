@@ -1,36 +1,48 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Box, Button, Snackbar, Typography } from '@mui/material'
-import { DataGrid, type GridColDef, type GridPaginationModel } from '@mui/x-data-grid'
-import { useRef, useState, type ChangeEvent } from 'react'
+import {
+  Box,
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  CardMedia,
+  Chip,
+  Grid,
+  InputAdornment,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material'
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import { useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { useNotifier } from '../notifications/NotifierProvider'
+import { EmptyState } from '../components/ui/EmptyState'
+import { PageHeader } from '../components/ui/PageHeader'
 import type { ClubListItemDto, PagedResult } from '../api/types'
 
-const DEFAULT_PAGE_SIZE = 10
+type StatusFilter = 'all' | 'active' | 'inactive'
 
 export function ClubsPage() {
   const queryClient = useQueryClient()
+  const notify = useNotifier()
   const { hasPermission } = useAuth()
   const canUploadLogo = hasPermission(Permissions.FilesUpload)
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
-    page: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
-  })
-  const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'error' } | null>(null)
+
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [logoTargetClubId, setLogoTargetClubId] = useState<number | null>(null)
 
   const clubsQuery = useQuery({
-    queryKey: ['clubs', paginationModel.page, paginationModel.pageSize],
-    queryFn: async () => {
-      const response = await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', {
-        params: { pageIndex: paginationModel.page, pageSize: paginationModel.pageSize },
-      })
-      return response.data
-    },
-    placeholderData: (previousData) => previousData,
+    queryKey: ['clubs', 0, 200],
+    queryFn: async () => (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', { params: { pageIndex: 0, pageSize: 200 } })).data,
   })
 
   const applyMutation = useMutation({
@@ -38,12 +50,10 @@ export function ClubsPage() {
       await apiClient.post(`/clubs/${clubId}/membership-applications`)
     },
     onSuccess: () => {
-      setSnackbar({ message: 'Başvurunuz alındı, danışman onayı bekleniyor.', severity: 'success' })
+      notify({ message: 'Başvurunuz alındı, danışman onayı bekleniyor.', severity: 'success' })
       queryClient.invalidateQueries({ queryKey: ['membership-applications'] })
     },
-    onError: (error) => {
-      setSnackbar({ message: extractErrorMessage(error, 'Başvuru gönderilemedi.'), severity: 'error' })
-    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Başvuru gönderilemedi.'), severity: 'error' }),
   })
 
   const logoMutation = useMutation({
@@ -53,12 +63,10 @@ export function ClubsPage() {
       await apiClient.post(`/clubs/${clubId}/logo`, formData)
     },
     onSuccess: () => {
-      setSnackbar({ message: 'Logo güncellendi.', severity: 'success' })
+      notify({ message: 'Logo güncellendi.', severity: 'success' })
       queryClient.invalidateQueries({ queryKey: ['clubs'] })
     },
-    onError: (error) => {
-      setSnackbar({ message: extractErrorMessage(error, 'Logo yüklenemedi.'), severity: 'error' })
-    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Logo yüklenemedi.'), severity: 'error' }),
   })
 
   const handleLogoButtonClick = (clubId: number) => {
@@ -74,83 +82,84 @@ export function ClubsPage() {
     }
   }
 
-  const columns: GridColDef<ClubListItemDto>[] = [
-    {
-      field: 'logoFileId',
-      headerName: 'Logo',
-      width: 70,
-      sortable: false,
-      filterable: false,
-      // A-36: açık görsel, anonim uçtan doğrudan <img src> ile — tarayıcı önbelleği çalışır.
-      renderCell: (params) =>
-        params.row.logoFileId ? (
-          <img src={`/api/files/${params.row.logoFileId}`} alt="" height={28} style={{ borderRadius: 4 }} />
-        ) : null,
-    },
-    { field: 'name', headerName: 'Kulüp Adı', flex: 1, minWidth: 200 },
-    { field: 'description', headerName: 'Açıklama', flex: 2, minWidth: 240 },
-    {
-      field: 'isActive',
-      headerName: 'Durum',
-      width: 120,
-      valueFormatter: (value: boolean) => (value ? 'Aktif' : 'Pasif'),
-    },
-    {
-      field: 'actions',
-      headerName: '',
-      width: canUploadLogo ? 260 : 140,
-      sortable: false,
-      filterable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            disabled={!params.row.isActive || applyMutation.isPending}
-            onClick={() => applyMutation.mutate(params.row.id)}
-          >
-            Başvur
-          </Button>
-          {canUploadLogo && (
-            <Button size="small" disabled={logoMutation.isPending} onClick={() => handleLogoButtonClick(params.row.id)}>
-              Logo Yükle
-            </Button>
-          )}
-        </Box>
-      ),
-    },
-  ]
+  const filteredClubs = useMemo(() => {
+    const items = clubsQuery.data?.items ?? []
+    const query = search.trim().toLocaleLowerCase('tr-TR')
+    return items.filter((club) => {
+      if (statusFilter === 'active' && !club.isActive) return false
+      if (statusFilter === 'inactive' && club.isActive) return false
+      if (query && !club.name.toLocaleLowerCase('tr-TR').includes(query)) return false
+      return true
+    })
+  }, [clubsQuery.data, search, statusFilter])
 
   return (
-    <Box>
-      <Typography variant="h5" component="h1" gutterBottom>
-        Kulüpler
-      </Typography>
+    <>
+      <PageHeader title="Kulüpler" description="Kampüsteki tüm öğrenci topluluklarını keşfedin ve üyelik başvurusu yapın." />
 
       <input ref={logoInputRef} type="file" accept="image/*" hidden onChange={handleLogoFileChange} />
 
-      <Box sx={{ height: 480 }}>
-        <DataGrid
-          rows={clubsQuery.data?.items ?? []}
-          columns={columns}
-          loading={clubsQuery.isFetching}
-          paginationMode="server"
-          rowCount={clubsQuery.data?.totalCount ?? 0}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[10, 20, 50]}
-          disableRowSelectionOnClick
+      <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
+        <TextField
+          placeholder="Kulüp ara…"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          sx={{ minWidth: 240 }}
+          slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchOutlinedIcon fontSize="small" /></InputAdornment> } }}
         />
-      </Box>
+        <ToggleButtonGroup exclusive size="small" value={statusFilter} onChange={(_, value: StatusFilter | null) => value && setStatusFilter(value)}>
+          <ToggleButton value="all">Tümü</ToggleButton>
+          <ToggleButton value="active">Aktif</ToggleButton>
+          <ToggleButton value="inactive">Pasif</ToggleButton>
+        </ToggleButtonGroup>
+      </Stack>
 
-      <Snackbar
-        open={snackbar !== null}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        {snackbar ? <Alert severity={snackbar.severity}>{snackbar.message}</Alert> : undefined}
-      </Snackbar>
-    </Box>
+      {!clubsQuery.isLoading && filteredClubs.length === 0 && (
+        <EmptyState icon={GroupsOutlinedIcon} title="Kulüp bulunamadı" description="Arama veya filtre kriterlerinizi değiştirmeyi deneyin." />
+      )}
+
+      <Grid container spacing={2}>
+        {filteredClubs.map((club) => (
+          <Grid key={club.id} size={{ xs: 12, sm: 6, md: 4 }}>
+            <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {club.logoFileId ? (
+                // A-36: açık görsel, anonim uçtan doğrudan <img src> ile — tarayıcı önbelleği çalışır.
+                <CardMedia component="img" height={120} image={`/api/files/${club.logoFileId}`} alt="" sx={{ objectFit: 'contain', bgcolor: 'grey.50', p: 2 }} />
+              ) : (
+                <Box sx={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50' }}>
+                  <GroupsOutlinedIcon sx={{ fontSize: 40, color: 'grey.400' }} />
+                </Box>
+              )}
+              <CardContent sx={{ flex: 1 }}>
+                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+                    {club.name}
+                  </Typography>
+                  <Chip size="small" label={club.isActive ? 'Aktif' : 'Pasif'} color={club.isActive ? 'success' : 'default'} variant={club.isActive ? 'filled' : 'outlined'} />
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {club.description || 'Açıklama eklenmemiş.'}
+                </Typography>
+              </CardContent>
+              <CardActions sx={{ px: 2, pb: 2 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={!club.isActive || applyMutation.isPending}
+                  onClick={() => applyMutation.mutate(club.id)}
+                >
+                  Başvur
+                </Button>
+                {canUploadLogo && (
+                  <Button size="small" disabled={logoMutation.isPending} onClick={() => handleLogoButtonClick(club.id)}>
+                    Logo Yükle
+                  </Button>
+                )}
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    </>
   )
 }

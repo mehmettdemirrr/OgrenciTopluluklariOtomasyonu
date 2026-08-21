@@ -1,69 +1,45 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Alert,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Snackbar,
-  Stack,
-  Tab,
-  Tabs,
-  TextField,
-  Typography,
-} from '@mui/material'
-import { DataGrid, type GridColDef, type GridPaginationModel } from '@mui/x-data-grid'
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, Tab, Tabs, TextField } from '@mui/material'
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
+import type { GridColDef } from '@mui/x-data-grid'
 import { useState } from 'react'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { usePagedQuery } from '../hooks/usePagedQuery'
+import { useNotifier } from '../notifications/NotifierProvider'
+import { DataTable } from '../components/ui/DataTable'
+import { EmptyState } from '../components/ui/EmptyState'
+import { PageHeader } from '../components/ui/PageHeader'
+import { EventStatusChip } from '../components/ui/StatusChip'
 import type { ClubListItemDto, EventListItemDto, PagedResult } from '../api/types'
-
-const DEFAULT_PAGE_SIZE = 10
-
-type Snack = { message: string; severity: 'success' | 'error' } | null
 
 export function EventsPage() {
   const { hasPermission } = useAuth()
   const [tab, setTab] = useState(0)
-  const [snackbar, setSnackbar] = useState<Snack>(null)
   const canApprove = hasPermission(Permissions.EventsApprove)
 
   return (
-    <Box>
-      <Typography variant="h5" component="h1" gutterBottom>
-        Etkinlikler
-      </Typography>
+    <>
+      <PageHeader title="Etkinlikler" description="Kulübünüzün etkinliklerini yönetin ve onay durumunu takip edin." />
 
       <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
         <Tab label="Etkinlikler" />
         {canApprove && <Tab label="Onay Kuyruğu" />}
       </Tabs>
 
-      {tab === 0 && <EventsTab onNotify={setSnackbar} />}
-      {tab === 1 && canApprove && <ApprovalQueueTab onNotify={setSnackbar} />}
-
-      <Snackbar
-        open={snackbar !== null}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        {snackbar ? <Alert severity={snackbar.severity}>{snackbar.message}</Alert> : undefined}
-      </Snackbar>
-    </Box>
+      {tab === 0 && <EventsTab />}
+      {tab === 1 && canApprove && <ApprovalQueueTab />}
+    </>
   )
 }
 
-function EventsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
+function EventsTab() {
   const queryClient = useQueryClient()
+  const notify = useNotifier()
   const { hasPermission } = useAuth()
   const canWrite = hasPermission(Permissions.EventsWrite)
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_PAGE_SIZE })
   const [selectedClubId, setSelectedClubId] = useState<number | ''>('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [title, setTitle] = useState('')
@@ -75,16 +51,11 @@ function EventsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
     queryFn: async () => (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', { params: { pageIndex: 0, pageSize: 200 } })).data,
   })
 
-  const eventsQuery = useQuery({
-    queryKey: ['events', selectedClubId, paginationModel.page, paginationModel.pageSize],
+  const { paginationModel, setPaginationModel, query: eventsQuery } = usePagedQuery({
+    queryKey: ['events', selectedClubId],
     enabled: selectedClubId !== '',
-    queryFn: async () => {
-      const response = await apiClient.get<PagedResult<EventListItemDto>>('/events', {
-        params: { clubId: selectedClubId, pageIndex: paginationModel.page, pageSize: paginationModel.pageSize },
-      })
-      return response.data
-    },
-    placeholderData: (previousData) => previousData,
+    queryFn: async (pageIndex, pageSize) =>
+      (await apiClient.get<PagedResult<EventListItemDto>>('/events', { params: { clubId: selectedClubId, pageIndex, pageSize } })).data,
   })
 
   const createEventMutation = useMutation({
@@ -97,14 +68,14 @@ function EventsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
       })
     },
     onSuccess: () => {
-      onNotify({ message: 'Etkinlik oluşturuldu (taslak).', severity: 'success' })
+      notify({ message: 'Etkinlik oluşturuldu (taslak).', severity: 'success' })
       setCreateDialogOpen(false)
       setTitle('')
       setStartDateTime('')
       setEndDateTime('')
       queryClient.invalidateQueries({ queryKey: ['events'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'Etkinlik oluşturulamadı.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Etkinlik oluşturulamadı.'), severity: 'error' }),
   })
 
   const submitMutation = useMutation({
@@ -112,18 +83,11 @@ function EventsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
       await apiClient.put(`/events/${eventId}/submission`)
     },
     onSuccess: () => {
-      onNotify({ message: 'Etkinlik onaya gönderildi.', severity: 'success' })
+      notify({ message: 'Etkinlik onaya gönderildi.', severity: 'success' })
       queryClient.invalidateQueries({ queryKey: ['events'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'Onaya gönderilemedi.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Onaya gönderilemedi.'), severity: 'error' }),
   })
-
-  const statusLabels: Record<EventListItemDto['status'], string> = {
-    Draft: 'Taslak',
-    PendingApproval: 'Onay Bekliyor',
-    Published: 'Yayında',
-    Rejected: 'Reddedildi',
-  }
 
   const columns: GridColDef<EventListItemDto>[] = [
     { field: 'title', headerName: 'Başlık', flex: 1, minWidth: 200 },
@@ -133,7 +97,7 @@ function EventsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
       width: 170,
       valueFormatter: (value: string) => new Date(value).toLocaleString('tr-TR'),
     },
-    { field: 'status', headerName: 'Durum', width: 130, valueFormatter: (value: EventListItemDto['status']) => statusLabels[value] },
+    { field: 'status', headerName: 'Durum', width: 150, renderCell: (params) => <EventStatusChip status={params.row.status} /> },
     ...(canWrite
       ? [
           {
@@ -158,7 +122,7 @@ function EventsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
   ]
 
   return (
-    <Box>
+    <>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 2 }}>
         <TextField
           select
@@ -182,8 +146,14 @@ function EventsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
         )}
       </Stack>
 
-      <Box sx={{ height: 480 }}>
-        <DataGrid
+      {selectedClubId === '' ? (
+        <EmptyState
+          icon={EventOutlinedIcon}
+          title="Bir topluluk seçin"
+          description="Etkinlikleri görüntülemek için önce yukarıdan bir topluluk seçin."
+        />
+      ) : (
+        <DataTable
           rows={eventsQuery.data?.items ?? []}
           columns={columns}
           loading={eventsQuery.isFetching}
@@ -192,9 +162,9 @@ function EventsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           pageSizeOptions={[10, 20, 50]}
-          disableRowSelectionOnClick
+          emptyTitle="Bu toplulukta etkinlik yok"
         />
-      </Box>
+      )}
 
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle>Yeni Etkinlik</DialogTitle>
@@ -230,23 +200,18 @@ function EventsTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   )
 }
 
-function ApprovalQueueTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
+function ApprovalQueueTab() {
   const queryClient = useQueryClient()
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_PAGE_SIZE })
+  const notify = useNotifier()
 
-  const queueQuery = useQuery({
-    queryKey: ['events-approval-queue', paginationModel.page, paginationModel.pageSize],
-    queryFn: async () => {
-      const response = await apiClient.get<PagedResult<EventListItemDto>>('/events/approval-queue', {
-        params: { pageIndex: paginationModel.page, pageSize: paginationModel.pageSize },
-      })
-      return response.data
-    },
-    placeholderData: (previousData) => previousData,
+  const { paginationModel, setPaginationModel, query: queueQuery } = usePagedQuery({
+    queryKey: ['events-approval-queue'],
+    queryFn: async (pageIndex, pageSize) =>
+      (await apiClient.get<PagedResult<EventListItemDto>>('/events/approval-queue', { params: { pageIndex, pageSize } })).data,
   })
 
   const decideMutation = useMutation({
@@ -254,10 +219,10 @@ function ApprovalQueueTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
       await apiClient.put(`/events/${id}/decision`, { status })
     },
     onSuccess: (_data, variables) => {
-      onNotify({ message: variables.status === 'Published' ? 'Etkinlik yayınlandı.' : 'Etkinlik reddedildi.', severity: 'success' })
+      notify({ message: variables.status === 'Published' ? 'Etkinlik yayınlandı.' : 'Etkinlik reddedildi.', severity: 'success' })
       queryClient.invalidateQueries({ queryKey: ['events-approval-queue'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'İşlem gerçekleştirilemedi.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'İşlem gerçekleştirilemedi.'), severity: 'error' }),
   })
 
   const columns: GridColDef<EventListItemDto>[] = [
@@ -301,18 +266,16 @@ function ApprovalQueueTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
   ]
 
   return (
-    <Box sx={{ height: 480 }}>
-      <DataGrid
-        rows={queueQuery.data?.items ?? []}
-        columns={columns}
-        loading={queueQuery.isFetching}
-        paginationMode="server"
-        rowCount={queueQuery.data?.totalCount ?? 0}
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        pageSizeOptions={[10, 20, 50]}
-        disableRowSelectionOnClick
-      />
-    </Box>
+    <DataTable
+      rows={queueQuery.data?.items ?? []}
+      columns={columns}
+      loading={queueQuery.isFetching}
+      paginationMode="server"
+      rowCount={queueQuery.data?.totalCount ?? 0}
+      paginationModel={paginationModel}
+      onPaginationModelChange={setPaginationModel}
+      pageSizeOptions={[10, 20, 50]}
+      emptyTitle="Onay bekleyen etkinlik yok"
+    />
   )
 }

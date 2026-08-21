@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
@@ -11,26 +10,36 @@ import {
   DialogTitle,
   FormControlLabel,
   FormGroup,
-  Snackbar,
   Stack,
   Tab,
   Tabs,
   TextField,
   Typography,
 } from '@mui/material'
-import { DataGrid, type GridColDef, type GridPaginationModel } from '@mui/x-data-grid'
-import { useState } from 'react'
+import type { GridColDef } from '@mui/x-data-grid'
+import { useMemo, useState } from 'react'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { usePagedQuery } from '../hooks/usePagedQuery'
+import { useNotifier } from '../notifications/NotifierProvider'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { DataTable } from '../components/ui/DataTable'
+import { PageHeader } from '../components/ui/PageHeader'
 import type { PagedResult, PermissionCatalogItemDto, RoleListItemDto, UserListItemDto } from '../api/types'
 
-const DEFAULT_PAGE_SIZE = 10
-
-type Snack = { message: string; severity: 'success' | 'error' } | null
+function groupByCategory(catalog: PermissionCatalogItemDto[]): Map<string, PermissionCatalogItemDto[]> {
+  const groups = new Map<string, PermissionCatalogItemDto[]>()
+  for (const permission of catalog) {
+    const category = permission.code.split('.')[0]
+    const bucket = groups.get(category) ?? []
+    bucket.push(permission)
+    groups.set(category, bucket)
+  }
+  return groups
+}
 
 export function AuthorizationPage() {
   const [tab, setTab] = useState(0)
-  const [snackbar, setSnackbar] = useState<Snack>(null)
 
   const permissionsQuery = useQuery({
     queryKey: ['permissions'],
@@ -38,69 +47,48 @@ export function AuthorizationPage() {
   })
 
   return (
-    <Box>
-      <Typography variant="h5" component="h1" gutterBottom>
-        Yetki Matrisi
-      </Typography>
+    <>
+      <PageHeader title="Yetki Matrisi" description="Rolleri, izinlerini ve kullanıcı-rol atamalarını yönetin." />
 
       <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
         <Tab label="Roller / İzinler" />
         <Tab label="Kullanıcılar / Roller" />
       </Tabs>
 
-      {tab === 0 && (
-        <RolesTab permissionCatalog={permissionsQuery.data ?? []} onNotify={setSnackbar} />
-      )}
-      {tab === 1 && <UsersTab onNotify={setSnackbar} />}
-
-      <Snackbar
-        open={snackbar !== null}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        {snackbar ? <Alert severity={snackbar.severity}>{snackbar.message}</Alert> : undefined}
-      </Snackbar>
-    </Box>
+      {tab === 0 && <RolesTab permissionCatalog={permissionsQuery.data ?? []} />}
+      {tab === 1 && <UsersTab />}
+    </>
   )
 }
 
-function RolesTab({
-  permissionCatalog,
-  onNotify,
-}: {
-  permissionCatalog: PermissionCatalogItemDto[]
-  onNotify: (snack: Snack) => void
-}) {
+function RolesTab({ permissionCatalog }: { permissionCatalog: PermissionCatalogItemDto[] }) {
   const queryClient = useQueryClient()
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_PAGE_SIZE })
+  const notify = useNotifier()
   const [editingRole, setEditingRole] = useState<RoleListItemDto | null>(null)
   const [editingPermissions, setEditingPermissions] = useState<Set<string>>(new Set())
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [newRoleName, setNewRoleName] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<RoleListItemDto | null>(null)
 
-  const rolesQuery = useQuery({
-    queryKey: ['roles', paginationModel.page, paginationModel.pageSize],
-    queryFn: async () => {
-      const response = await apiClient.get<PagedResult<RoleListItemDto>>('/roles', {
-        params: { pageIndex: paginationModel.page, pageSize: paginationModel.pageSize },
-      })
-      return response.data
-    },
-    placeholderData: (previousData) => previousData,
+  const { paginationModel, setPaginationModel, query: rolesQuery } = usePagedQuery({
+    queryKey: ['roles'],
+    queryFn: async (pageIndex, pageSize) =>
+      (await apiClient.get<PagedResult<RoleListItemDto>>('/roles', { params: { pageIndex, pageSize } })).data,
   })
+
+  const permissionGroups = useMemo(() => groupByCategory(permissionCatalog), [permissionCatalog])
 
   const createRoleMutation = useMutation({
     mutationFn: async (name: string) => {
       await apiClient.post('/roles', { name })
     },
     onSuccess: () => {
-      onNotify({ message: 'Rol oluşturuldu.', severity: 'success' })
+      notify({ message: 'Rol oluşturuldu.', severity: 'success' })
       setCreateDialogOpen(false)
       setNewRoleName('')
       queryClient.invalidateQueries({ queryKey: ['roles'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'Rol oluşturulamadı.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Rol oluşturulamadı.'), severity: 'error' }),
   })
 
   const deleteRoleMutation = useMutation({
@@ -108,10 +96,11 @@ function RolesTab({
       await apiClient.delete(`/roles/${id}`)
     },
     onSuccess: () => {
-      onNotify({ message: 'Rol silindi.', severity: 'success' })
+      notify({ message: 'Rol silindi.', severity: 'success' })
+      setDeleteTarget(null)
       queryClient.invalidateQueries({ queryKey: ['roles'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'Rol silinemedi.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Rol silinemedi.'), severity: 'error' }),
   })
 
   const setPermissionsMutation = useMutation({
@@ -119,11 +108,11 @@ function RolesTab({
       await apiClient.put(`/roles/${roleId}/permissions`, { permissions })
     },
     onSuccess: () => {
-      onNotify({ message: 'Rol izinleri güncellendi.', severity: 'success' })
+      notify({ message: 'Rol izinleri güncellendi.', severity: 'success' })
       setEditingRole(null)
       queryClient.invalidateQueries({ queryKey: ['roles'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'İzinler güncellenemedi.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'İzinler güncellenemedi.'), severity: 'error' }),
   })
 
   const openEditDialog = (role: RoleListItemDto) => {
@@ -176,12 +165,7 @@ function RolesTab({
           <Button size="small" variant="outlined" onClick={() => openEditDialog(params.row)}>
             İzinleri Düzenle
           </Button>
-          <Button
-            size="small"
-            color="error"
-            disabled={params.row.isSystemRole || deleteRoleMutation.isPending}
-            onClick={() => deleteRoleMutation.mutate(params.row.id)}
-          >
+          <Button size="small" color="error" disabled={params.row.isSystemRole} onClick={() => setDeleteTarget(params.row)}>
             Sil
           </Button>
         </Stack>
@@ -190,27 +174,25 @@ function RolesTab({
   ]
 
   return (
-    <Box>
+    <>
       <Box sx={{ mb: 2 }}>
         <Button variant="contained" onClick={() => setCreateDialogOpen(true)}>
           Yeni Rol
         </Button>
       </Box>
 
-      <Box sx={{ height: 480 }}>
-        <DataGrid
-          rows={rolesQuery.data?.items ?? []}
-          columns={columns}
-          getRowHeight={() => 'auto'}
-          loading={rolesQuery.isFetching}
-          paginationMode="server"
-          rowCount={rolesQuery.data?.totalCount ?? 0}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[10, 20, 50]}
-          disableRowSelectionOnClick
-        />
-      </Box>
+      <DataTable
+        rows={rolesQuery.data?.items ?? []}
+        columns={columns}
+        getRowHeight={() => 'auto'}
+        loading={rolesQuery.isFetching}
+        paginationMode="server"
+        rowCount={rolesQuery.data?.totalCount ?? 0}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        pageSizeOptions={[10, 20, 50]}
+        emptyTitle="Rol bulunamadı"
+      />
 
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle>Yeni Rol</DialogTitle>
@@ -239,17 +221,24 @@ function RolesTab({
       <Dialog open={editingRole !== null} onClose={() => setEditingRole(null)} fullWidth maxWidth="sm">
         <DialogTitle>{editingRole?.name} — İzinler</DialogTitle>
         <DialogContent>
-          <FormGroup>
-            {permissionCatalog.map((permission) => (
-              <FormControlLabel
-                key={permission.code}
-                control={
-                  <Checkbox checked={editingPermissions.has(permission.code)} onChange={() => togglePermission(permission.code)} />
-                }
-                label={`${permission.displayName} (${permission.code})`}
-              />
-            ))}
-          </FormGroup>
+          {Array.from(permissionGroups.entries()).map(([category, permissions]) => (
+            <Box key={category} sx={{ mb: 2 }}>
+              <Typography variant="overline" color="text.secondary">
+                {category}
+              </Typography>
+              <FormGroup>
+                {permissions.map((permission) => (
+                  <FormControlLabel
+                    key={permission.code}
+                    control={
+                      <Checkbox checked={editingPermissions.has(permission.code)} onChange={() => togglePermission(permission.code)} />
+                    }
+                    label={`${permission.displayName} (${permission.code})`}
+                  />
+                ))}
+              </FormGroup>
+            </Box>
+          ))}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditingRole(null)}>Vazgeç</Button>
@@ -265,26 +254,32 @@ function RolesTab({
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Rolü sil"
+        description={deleteTarget ? `"${deleteTarget.name}" rolünü silmek istediğinize emin misiniz?` : undefined}
+        confirmLabel="Sil"
+        destructive
+        loading={deleteRoleMutation.isPending}
+        onConfirm={() => deleteTarget && deleteRoleMutation.mutate(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
   )
 }
 
-function UsersTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
+function UsersTab() {
   const queryClient = useQueryClient()
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_PAGE_SIZE })
+  const notify = useNotifier()
   const [search, setSearch] = useState('')
   const [editingUser, setEditingUser] = useState<UserListItemDto | null>(null)
   const [editingRoleNames, setEditingRoleNames] = useState<Set<string>>(new Set())
 
-  const usersQuery = useQuery({
-    queryKey: ['users', paginationModel.page, paginationModel.pageSize, search],
-    queryFn: async () => {
-      const response = await apiClient.get<PagedResult<UserListItemDto>>('/users', {
-        params: { pageIndex: paginationModel.page, pageSize: paginationModel.pageSize, search: search || undefined },
-      })
-      return response.data
-    },
-    placeholderData: (previousData) => previousData,
+  const { paginationModel, setPaginationModel, query: usersQuery } = usePagedQuery({
+    queryKey: ['users', search],
+    queryFn: async (pageIndex, pageSize) =>
+      (await apiClient.get<PagedResult<UserListItemDto>>('/users', { params: { pageIndex, pageSize, search: search || undefined } })).data,
   })
 
   // Rol adı listesi için tam liste gerekiyor — matris ekranında zaten yüklü olan rolleri yeniden kullanır.
@@ -298,11 +293,11 @@ function UsersTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
       await apiClient.put(`/users/${userId}/roles`, { roleNames })
     },
     onSuccess: () => {
-      onNotify({ message: 'Kullanıcı rolleri güncellendi.', severity: 'success' })
+      notify({ message: 'Kullanıcı rolleri güncellendi.', severity: 'success' })
       setEditingUser(null)
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },
-    onError: (error) => onNotify({ message: extractErrorMessage(error, 'Roller güncellenemedi.'), severity: 'error' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Roller güncellenemedi.'), severity: 'error' }),
   })
 
   const openEditDialog = (user: UserListItemDto) => {
@@ -353,32 +348,30 @@ function UsersTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
   ]
 
   return (
-    <Box>
+    <>
       <TextField
         size="small"
         label="E-posta ara"
         value={search}
         onChange={(event) => {
-          setPaginationModel((prev) => ({ ...prev, page: 0 }))
+          setPaginationModel({ ...paginationModel, page: 0 })
           setSearch(event.target.value)
         }}
         sx={{ mb: 2, width: 280 }}
       />
 
-      <Box sx={{ height: 480 }}>
-        <DataGrid
-          rows={usersQuery.data?.items ?? []}
-          columns={columns}
-          getRowHeight={() => 'auto'}
-          loading={usersQuery.isFetching}
-          paginationMode="server"
-          rowCount={usersQuery.data?.totalCount ?? 0}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[10, 20, 50]}
-          disableRowSelectionOnClick
-        />
-      </Box>
+      <DataTable
+        rows={usersQuery.data?.items ?? []}
+        columns={columns}
+        getRowHeight={() => 'auto'}
+        loading={usersQuery.isFetching}
+        paginationMode="server"
+        rowCount={usersQuery.data?.totalCount ?? 0}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        pageSizeOptions={[10, 20, 50]}
+        emptyTitle="Kullanıcı bulunamadı"
+      />
 
       <Dialog open={editingUser !== null} onClose={() => setEditingUser(null)} fullWidth maxWidth="xs">
         <DialogTitle>{editingUser?.email} — Roller</DialogTitle>
@@ -406,6 +399,6 @@ function UsersTab({ onNotify }: { onNotify: (snack: Snack) => void }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   )
 }

@@ -1,10 +1,11 @@
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react'
 import { apiClient, type AuthResponse } from '../api/client'
-import { getSession, setSession, subscribe } from './tokenStore'
+import { getSession, setSession, setSessionEmail, subscribe } from './tokenStore'
 
 interface AuthContextValue {
   isAuthenticated: boolean
   permissions: string[]
+  email: string | null
   hasPermission: (permission: string) => boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
@@ -18,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const response = await apiClient.post<AuthResponse>('/auth/login', { email, password })
     setSession(response.data.accessToken, response.data.csrfToken)
+    setSessionEmail(email)
   }
 
   const logout = async () => {
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     isAuthenticated: session.accessToken !== null,
     permissions: session.permissions,
+    email: session.email,
     hasPermission: (permission) => session.permissions.includes(permission),
     login,
     logout,

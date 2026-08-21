@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Box, Button, Paper, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
+import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -40,67 +41,90 @@ export function LoginPage() {
   }
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        bgcolor: 'grey.100',
-      }}
-    >
-      <Paper elevation={3} sx={{ p: 4, width: 360 }}>
-        <Typography variant="h5" component="h1" gutterBottom>
-          Öğrenci Toplulukları Otomasyonu
-        </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Devam etmek için giriş yapın.
-        </Typography>
+    <Box sx={{ minHeight: '100vh', display: 'flex' }}>
+      <Box
+        sx={{
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          width: '42%',
+          bgcolor: 'secondary.main',
+          color: 'common.white',
+          p: 6,
+        }}
+      >
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+          <GroupsRoundedIcon fontSize="large" />
+          <Typography variant="h6" sx={{ fontWeight: 800 }}>
+            Öğrenci Toplulukları
+          </Typography>
+        </Stack>
 
-        <Box
-          component="form"
-          onSubmit={handleSubmit(onSubmit)}
-          sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}
-        >
-          <Controller
-            name="email"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                label="E-posta"
-                type="email"
-                autoComplete="username"
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-                fullWidth
-              />
-            )}
-          />
-
-          <Controller
-            name="password"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                label="Parola"
-                type="password"
-                autoComplete="current-password"
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-                fullWidth
-              />
-            )}
-          />
-
-          {serverError && <Alert severity="error">{serverError}</Alert>}
-
-          <Button type="submit" variant="contained" disabled={isSubmitting} size="large">
-            Giriş Yap
-          </Button>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+            Kampüsteki topluluklar, tek yerde.
+          </Typography>
+          <Typography variant="body1" sx={{ opacity: 0.8, maxWidth: 420 }}>
+            Üyelik başvurusundan etkinlik onayına, yetki yönetiminden raporlamaya kadar tüm topluluk
+            süreçlerini buradan yönetin.
+          </Typography>
         </Box>
-      </Paper>
+
+        <Typography variant="caption" sx={{ opacity: 0.6 }}>
+          © {new Date().getFullYear()} Öğrenci Toplulukları Otomasyonu
+        </Typography>
+      </Box>
+
+      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+        <Box sx={{ width: '100%', maxWidth: 360 }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Giriş Yap
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Devam etmek için hesabınıza giriş yapın.
+          </Typography>
+
+          <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Controller
+              name="email"
+              control={control}
+              render={({ field, fieldState }) => (
+                <TextField
+                  {...field}
+                  label="E-posta"
+                  type="email"
+                  autoComplete="username"
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message}
+                  fullWidth
+                />
+              )}
+            />
+
+            <Controller
+              name="password"
+              control={control}
+              render={({ field, fieldState }) => (
+                <TextField
+                  {...field}
+                  label="Parola"
+                  type="password"
+                  autoComplete="current-password"
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message}
+                  fullWidth
+                />
+              )}
+            />
+
+            {serverError && <Alert severity="error">{serverError}</Alert>}
+
+            <Button type="submit" variant="contained" disabled={isSubmitting} size="large">
+              Giriş Yap
+            </Button>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   )
 }
