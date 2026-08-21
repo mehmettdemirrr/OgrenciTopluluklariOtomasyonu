@@ -59,4 +59,13 @@ public static class Messages
     public const string AcademicTermAlreadyCurrent = "Bu dönem zaten güncel dönem.";
     public const string AcademicTermSetCurrent = "Güncel dönem güncellendi.";
     public const string InvalidAcademicTermDateRange = "Bitiş tarihi başlangıç tarihinden sonra olmalıdır.";
+
+    // Faz 7 — Etkinlik onay kuyruğu
+    public const string NotClubAdvisorOrOfficer = "Bu işlem için bu topluluğun danışmanı ya da yetkilisi/başkanı olmanız gerekir.";
+    public const string EventNotInDraft = "Etkinlik taslak durumunda değil.";
+    public const string EventNotPendingApproval = "Etkinlik onay bekleyen durumda değil.";
+    public const string EventSubmitted = "Etkinlik onaya gönderildi.";
+    public const string EventPublished = "Etkinlik yayınlandı.";
+    public const string EventRejected = "Etkinlik reddedildi.";
+    public const string InvalidEventDecision = "Karar yalnızca 'Yayınlandı' veya 'Reddedildi' olabilir.";
 }

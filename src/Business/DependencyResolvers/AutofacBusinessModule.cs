@@ -132,6 +132,12 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<EventManager>()
+            .As<IEventService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<AuthManager>()
             .As<IAuthService>()
             .EnableInterfaceInterceptors()
