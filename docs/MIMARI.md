@@ -1,10 +1,12 @@
 # Öğrenci Toplulukları Otomasyonu — Mimari Taslak
 
-**Sürüm:** v1.0 · 17 Ağustos 2026 · kararlar kapandı
+**Sürüm:** v2.0 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14 eklendi)
 **Referans mimari:** [engindemirog/NetCoreBackend](https://github.com/engindemirog/NetCoreBackend)
+**Uygulama planı:** [docs/PLAN-V2.md](PLAN-V2.md) — Faz 8-14'ün gerekçesi, sırası ve doğrulama adımları
 
-Tek uygulama, beş katman, tek veritabanı. 36 kararın tamamı verildi, açık nokta kalmadı.
-Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
+Tek uygulama, beş katman, tek veritabanı. v1.0'ın 36 kararının tamamı verildi, v2.0 yedi yeni fazla
+(K-21…K-27) 7 yeni karar (A-37…A-43) ve 6 yeni kural (Y-53…Y-58) ekledi. Yığın, kapsam ve kurallar
+sabit; bundan sonrası uygulama.
 
 > **Bu belge tek doğruluk kaynağıdır.** Bir kural veya kapsam değişikliği gerekirse önce burası
 > güncellenir, sonra kod. Aksi hâlde belge ile kod arasındaki fark sessizce büyür ve mimari testler
@@ -12,10 +14,10 @@ Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
 
 | | |
 |---|---|
-| Karar | 36 (tamamı kapandı) |
-| Yasak kural | 52 |
-| V1 dışı madde | 13 |
-| Uygulama fazı | 7 |
+| Karar | 43 (36 v1.0 + 7 v2.0) |
+| Yasak kural | 58 (52 v1.0 + 6 v2.0) |
+| V1 dışı madde | 13 (değişmedi — bkz. §3) |
+| Uygulama fazı | 14 (7 v1.0 + 7 v2.0) |
 
 **Yığın:** .NET 8 LTS · ASP.NET Core Identity · EF Core 8 / MSSQL · Autofac + async AOP ·
 FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · React 18 + Vite + TypeScript + MUI
@@ -25,11 +27,11 @@ FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · 
 ## İçindekiler
 
 1. [Katmanlar ve bağımlılık yönü](#1-katmanlar-ve-bağımlılık-yönü)
-2. [Açıkça yasak (Y-01 … Y-52)](#2-açıkça-yasak)
-3. [V1 kapsamı (K-01 … K-20)](#3-v1-kapsamı)
+2. [Açıkça yasak (Y-01 … Y-58)](#2-açıkça-yasak)
+3. [V1 kapsamı (K-01 … K-27)](#3-v1-kapsamı)
 4. [Teknoloji ve domain](#4-teknoloji-ve-domain)
 5. [Uygulama sırası](#5-uygulama-sırası)
-6. [Karar kaydı (A-01 … A-36)](#6-karar-kaydı)
+6. [Karar kaydı (A-01 … A-43)](#6-karar-kaydı)
 7. [Sessiz onaylar](#7-sessiz-onaylar)
 
 ---
@@ -174,6 +176,17 @@ değiştiririz — ama önce belge değişir, sonra kod.
 | **Y-51** | Rapor işinin, talebi yapan kullanıcının göremeyeceği veriyi üretmesi; indirme anında yetkinin yeniden kontrol edilmemesi (A-35) | Rapor sorgusu talep sahibinin kapsamıyla sınırlı çalışır; dosya indirilirken yetki **yeniden** kontrol edilir — kuyrukta beklerken yetki değişmiş olabilir |
 | **Y-52** | Anonim dosya ucunun görünürlüğü "herkese açık" olmayan bir kaydı döndürmesi; `StoredFile`'ı görünürlük alanı olmadan kaydetmek (A-36) | Görünürlük yükleme anında belirlenir: logo/afiş açık, rapor ve liste çıktıları korumalı |
 
+### V2 eklentileri (Faz 8-14)
+
+| # | Yasak | Bunun yerine |
+|---|---|---|
+| **Y-53** | Kontenjan/benzersizlik kuralını yalnızca uygulama kodunda sayarak korumak (etkinlik katılımı) | Yazma işlemi `Event.RowVersion`'ı tüketir; eşzamanlı iki kayıttan biri `DbUpdateConcurrencyException` ile kaybeder (A-38) |
+| **Y-54** | E-posta doğrulama / şifre sıfırlama token'ını Hangfire iş parametresine yazmak | İş yalnızca `userId` alır, token'ı kendi scope'unda üretir (Y-26'nın "panel okunabilir" ilkesiyle çelişmesin diye) |
+| **Y-55** | `forgot-password` gibi uçlarda e-postanın kayıtlı olup olmadığını cevaptan sızdırmak | Kayıtlı/kayıtsız e-posta için **aynı** cevap; kullanıcı sayımı (enumeration) engellenir |
+| **Y-56** | Marka renklerini bileşen kodunda hex olarak yazmak | Yalnızca `arayuz/src/theme/tokens.ts`; palet üzerinden tüketilir (A-37) |
+| **Y-57** | Görünürlük alanı olmadan duyuru kaydetmek; anonim vitrin ucunun yayında olmayan/görünürlüğü kısıtlı kaydı döndürmesi | `Announcement.Visibility` yazma anında zorunlu; anonim uç yalnızca `Visibility == Public` ve silinmemiş kaydı döner (A-43, Y-52'nin duyuru karşılığı) |
+| **Y-58** | Anonim vitrin ucundan kişisel veri (ad, e-posta, öğrenci no, üye/katılımcı listesi) döndürmek | Vitrin DTO ailesi (`DTOs/Public/`) yalnızca toplu sayı ve genel içerik taşır; mevcut yetkili DTO'lar anonim uçta yeniden kullanılmaz (A-42) |
+
 ---
 
 ## 3. V1 kapsamı
@@ -190,10 +203,28 @@ değiştiririz — ama önce belge değişir, sonra kod.
 | **K-12** | Denetim izi | Kim, ne zaman, hangi kaydı, hangi alanları değiştirdi. `SaveChanges` interceptor'ı ile otomatik | Audit tablosu, eski/yeni değer serileştirme, `ICurrentUser` (A-33), PII filtresi (Y-26) |
 | **K-17** | Yetki matrisi yönetim ekranı | Rol oluşturma, role izin atama, kullanıcıya rol atama — arayüzden. İzinler Identity rol claim'lerinde | İzin kataloğu, yönetim uçları, cache geçersizleştirme (Y-45) |
 
+### V2'ye alınanlar (Faz 8-14)
+
+| # | Özellik | Ne var | Getirdiği iş |
+|---|---|---|---|
+| **K-21** | Topluluk yönetimi ve üye rolleri | Kulüp oluşturma/düzenleme (`clubs.write` ilk kez kullanılır), üye listesi, Officer/President atama | `IClubMemberService`, başkan tekilliği (A-39), `ClubManager` cache geçersizleştirme |
+| **K-22** | Etkinlik katılımı | Öğrenci kendi kaydını açar/iptal eder, kontenjan `rowversion` ile korunur | `EventParticipation`'ın ilk kullanımı, eşzamanlılık testi (A-38, Y-53) |
+| **K-23** | Duyurular | Kulüp duyurusu + görünürlük alanlı (üye/herkese açık) sistem duyurusu | `Announcement`'ın ilk kullanımı, görünürlük alanı (A-43, Y-57) |
+| **K-24** | Hesap yaşam döngüsü | Self-servis kayıt, e-posta doğrulama, şifre sıfırlama — **K-03'ün tamamlanması** | Identity token sağlayıcıları, `EmailConfirmed` zorunluluğu, token güvenliği (A-40, Y-54, Y-55) |
+| **K-25** | Dashboard ve öğrenci self-servisi | Rol farkında özet ekranı, "kulüplerim"/"etkinliklerim" | Yeni `IDashboardDal`, `IReportScopeResolver` precedent'i |
+| **K-26** | Denetim görüntüleme | `AuditLog`'un ilk okuma ucu | `audit.read` izni, PII filtresi testi (Y-26) |
+| **K-27** | Herkese açık vitrin ve ana sayfa | Giriş yapmadan görülen duyuru/etkinlik/kulüp vitrini | Dar anonim yüzey: tek önek, tek controller, ayrı DTO ailesi (A-42, Y-58) |
+
+> **K-16 notu (v2.0):** forum, mesajlaşma, anket, QR yoklama, takvim hâlâ V1 dışı — Faz 8-14 yalnızca
+> etkinlik katılım kaydını (K-22) ve duyuruyu (K-23) ekliyor, sosyal özellik setinin geri kalanına dokunmuyor.
+
 ### V1 dışında kalanlar — bilinçli kararlar
 
 Bunlar eksik değil, ertelenmiş özellikler. "Kapı" sütunu, bugün ne yapmamız gerektiğini söyler ki
-sonradan eklemek pahalı olmasın.
+sonradan eklemek pahalı olmasın. **v2.0 (Faz 8-14) bu tabloyu değiştirmez** — K-02, K-04, K-07,
+K-09…K-20'nin tamamı ertelenmiş kalır; özellikle aidat/ödeme (K-15), forum/anket/QR (K-16),
+gerçek zamanlı bildirim (K-04), rate limiting (K-13) ve KVKK silme akışı (K-19) planın hiçbir
+fazında yapılmaz.
 
 | # | Ertelenen | Kapı |
 |---|---|---|
@@ -299,7 +330,7 @@ Sıra önemlidir: **yetki → validasyon → transaction → cache.** Hepsi asyn
 | `MembershipApplication` | Başvuru, onay/ret, soft delete, bildirim tetikler | A-12, K-03 |
 | `Event` | Taslak → onay bekliyor → yayında/reddedildi; kontenjan `rowversion` | A-25, A-15, K-05 |
 | `EventParticipation` | `(EventId, StudentId)` unique | A-15 |
-| `Announcement` | Topluluk duyurusu | — |
+| `Announcement` | Topluluk duyurusu; `ClubId` nullable (sistem duyurusu) + **görünürlük** (üye/herkese açık) | K-23, A-43, Y-57 |
 | `AuditLog` | Kim, ne zaman, hangi alan; interceptor yazar | K-12, A-33, Y-44 |
 | `StoredFile` | Üretilen ad, tip, boyut, sahibi ve **görünürlük** (açık/korumalı) | K-05, A-31, A-36, Y-52 |
 | `ReportRequest` | Rapor talebi: tür, parametreler, durum (kuyrukta → üretiliyor → hazır/hatalı), üretilen dosya | K-06, A-35, Y-51 |
@@ -346,6 +377,41 @@ Yetki matrisi (K-17), fakülte/bölüm seed ucu, dönem yönetimi, etkinlik onay
 
 ---
 
+### v2.0 — Faz 8-14
+
+Ayrıntılı gerekçe, uçlar ve testler için [docs/PLAN-V2.md](PLAN-V2.md). Aşağıdaki özet yalnızca
+sıralama ve "bitti sayılır" koşullarını taşır.
+
+### 8 — Tasarım sistemi ve uygulama kabuğu
+Kurumsal renk paleti (A-37), sidebar kabuk, ortak bileşen katmanı, yedi mevcut sayfanın yeniden kurgusu. Backend'e dokunulmaz.
+**Bitti sayılır:** `git diff --stat src/` boş; yedi sayfa da yeni kabukta açılıyor; build+lint temiz.
+
+### 9 — Topluluk yönetimi ve üye rolleri
+`clubs.write` ilk kez kullanılır; kulüp CRUD, üye listesi, Officer/President atama, başkan tekilliği (A-39).
+**Bitti sayılır:** bir öğrenciye `President` verilip `EventManager`'ın Officer/President dalı ilk kez uçtan uca çalışıyor.
+
+### 10 — Etkinlik katılımı ve duyurular
+`EventParticipation` ilk kullanımı, kontenjan eşzamanlılığı (A-38, Y-53), `Announcement` görünürlüğü (A-43, Y-57).
+**Bitti sayılır:** kontenjanı 1 olan etkinliğe paralel iki kayıttan tam biri başarılı.
+
+### 11 — Hesap yaşam döngüsü
+Self-servis kayıt, e-posta doğrulama, şifre sıfırlama (K-03'ün tamamlanması, A-40).
+**Bitti sayılır:** kayıt → giriş reddi → doğrula → giriş başarılı; mevcut `AuthTests` bozulmamış.
+
+### 12 — Dashboard ve öğrenci self-servisi
+Rol farkında özet ekranı (K-25), `/panel` rotası.
+**Bitti sayılır:** üç farklı rol, üç farklı kapsam; kapsam sızıntısı yok.
+
+### 13 — Denetim izi ve referans veri olgunluğu
+`AuditLog` ilk okuma ucu (K-26), referans verisinde güncelleme/silme.
+**Bitti sayılır:** audit ekranı PII sızdırmıyor (Y-26); kullanımdaki fakülte silinemiyor (409).
+
+### 14 — Herkese açık vitrin ve ana sayfa
+Dar, denetlenebilir anonim yüzey (A-42): tek önek `/api/public/*`, tek controller, ayrı DTO ailesi (K-27).
+**Bitti sayılır:** giriş yapmadan `/` çalışıyor; `Members` görünürlüklü duyuru ve pasif kulüp görünmüyor; anonim cevapta hiçbir kişisel veri yok (Y-58).
+
+---
+
 ## 6. Karar kaydı
 
 Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
@@ -388,6 +454,13 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | **A-34** | Frontend bileşen seti | B · MUI | Ücretsiz DataGrid; ücretli katman yasak (Y-50) |
 | **A-35** | Arka plan işleri | B | E-posta + Excel üretimi (Y-51) |
 | **A-36** | Dosya erişimi | A | Açık görsel anonim, korumalı indirme blob (Y-52) |
+| **A-37** | Kurumsal renk sistemi | B | Turkuaz `#12A7CD` birincil vurgu, `#0B6E87` contained buton zemini (kontrast), tokenlar `theme/tokens.ts`'te (Y-56) |
+| **A-38** | Kontenjan eşzamanlılığı | B | `Event.RowVersion` tüketilir; `DbUpdateConcurrencyException` → `Conflict` (Y-53) |
+| **A-39** | Başkan tekilliği | B | `(ClubId, AcademicTermId)` üzerinde `ClubRole = President` filtreli unique index |
+| **A-40** | Kayıt ve e-posta doğrulama | B | Self-servis kayıt + zorunlu doğrulama; token Hangfire parametresine yazılmaz (Y-54) |
+| **A-41** | Sidebar kabuk ve ortak bileşen katmanı | B | `AppShell`/`SideNav` + paylaşılan `Notifier`/`DataTable`/`StatusChip` |
+| **A-42** | Anonim vitrin yüzeyi | C | Tek önek `/api/public/*`, tek controller, ayrı DTO ailesi (Y-58) |
+| **A-43** | Duyuru görünürlüğü ve sistem duyurusu | B | `Announcement.Visibility` zorunlu, `ClubId` nullable = sistem duyurusu (Y-57) |
 
 ### Kararların birbirini etkilediği yerler
 
@@ -433,4 +506,4 @@ Ayrı karar beklemeyen, itiraz gelmedikçe geçerli varsayılan kurallar.
 
 ---
 
-*Mimari taslak v1.0 · 36 karar, 52 kural, 13 V1 dışı madde, 7 faz · referans: engindemirog/NetCoreBackend*
+*Mimari taslak v2.0 · 43 karar, 58 kural, 13 V1 dışı madde, 14 faz · referans: engindemirog/NetCoreBackend*
