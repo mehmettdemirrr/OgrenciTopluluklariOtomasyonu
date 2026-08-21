@@ -109,6 +109,17 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .As<IIdentitySeeder>()
             .InstancePerLifetimeScope();
 
+        // K-17: yazma yüzeyi — normalized name/ConcurrencyStamp tutarlılığı Identity API'siyle korunur, aspect taşımaz.
+        builder.RegisterType<IdentityAdminGateway>()
+            .As<IIdentityAdminGateway>()
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<RoleAdminManager>()
+            .As<IRoleAdminService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<AuthManager>()
             .As<IAuthService>()
             .EnableInterfaceInterceptors()

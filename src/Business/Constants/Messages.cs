@@ -34,4 +34,19 @@ public static class Messages
     public const string ReportScopeLost = "Bu raporu indirme yetkiniz artık bulunmuyor.";
     public const string ReportQueued = "Talebiniz kuyruğa alındı.";
     public const string InvalidReportParameters = "Rapor parametreleri geçersiz.";
+
+    // Faz 7 — Yetki matrisi (K-17)
+    public const string InvalidRoleName = "Rol adı yalnızca harf, rakam, boşluk, nokta, tire ve alt çizgi içerebilir.";
+    public const string RoleNotFound = "Rol bulunamadı.";
+    public const string RoleNameTaken = "Bu isimde bir rol zaten var.";
+    public const string SystemRoleCannotBeDeleted = "Sistem rolleri silinemez.";
+    public const string RoleHasUsers = "Bu role atanmış kullanıcılar olduğu için rol silinemez.";
+    public const string AdminRoleMustKeepRolesManage = "Admin rolünden 'roles.manage' izni kaldırılamaz.";
+    public const string CannotRemoveOwnAdminRole = "Kendi Admin rolünüzü kaldıramazsınız.";
+    public const string UnknownPermissionCode = "Bilinmeyen izin kodu.";
+    public const string UserNotFound = "Kullanıcı bulunamadı.";
+    public const string RoleCreated = "Rol oluşturuldu.";
+    public const string RoleDeleted = "Rol silindi.";
+    public const string PermissionsUpdated = "Rol izinleri güncellendi.";
+    public const string RolesUpdated = "Kullanıcı rolleri güncellendi.";
 }
