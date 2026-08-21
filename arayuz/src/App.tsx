@@ -5,9 +5,12 @@ import { AppLayout } from './components/AppLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './auth/AuthContext'
 import { Permissions } from './auth/permissions'
+import { AuthorizationPage } from './pages/AuthorizationPage'
 import { ClubsPage } from './pages/ClubsPage'
+import { EventsPage } from './pages/EventsPage'
 import { LoginPage } from './pages/LoginPage'
 import { MembershipReviewPage } from './pages/MembershipReviewPage'
+import { ReferenceDataPage } from './pages/ReferenceDataPage'
 import { ReportsPage } from './pages/ReportsPage'
 
 const theme = createTheme()
@@ -51,6 +54,39 @@ function App() {
                   <ProtectedRoute requiredPermission={Permissions.ReportsRead}>
                     <AppLayout>
                       <ReportsPage />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/authorization"
+                element={
+                  <ProtectedRoute requiredPermission={Permissions.RolesManage}>
+                    <AppLayout>
+                      <AuthorizationPage />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/reference"
+                element={
+                  <ProtectedRoute requiredPermission={Permissions.ReferenceManage}>
+                    <AppLayout>
+                      <ReferenceDataPage />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/events"
+                element={
+                  <ProtectedRoute requiredPermission={Permissions.EventsRead}>
+                    <AppLayout>
+                      <EventsPage />
                     </AppLayout>
                   </ProtectedRoute>
                 }

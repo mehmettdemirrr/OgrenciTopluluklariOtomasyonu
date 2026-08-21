@@ -61,3 +61,64 @@ export interface TermSummaryRowDto {
   memberCount: number
   eventCount: number
 }
+
+// src/Business/DTOs/Admin/PermissionCatalogItemDto.cs
+export interface PermissionCatalogItemDto {
+  code: string
+  displayName: string
+  description: string
+}
+
+// src/Business/DTOs/Admin/RoleListItemDto.cs
+export interface RoleListItemDto {
+  id: number
+  name: string
+  isSystemRole: boolean
+  permissions: string[]
+}
+
+// src/Business/DTOs/Admin/UserListItemDto.cs
+export interface UserListItemDto {
+  id: number
+  email: string
+  roles: string[]
+}
+
+// src/Business/DTOs/Reference/FacultyListItemDto.cs
+export interface FacultyListItemDto {
+  id: number
+  name: string
+}
+
+// src/Business/DTOs/Reference/DepartmentListItemDto.cs
+export interface DepartmentListItemDto {
+  id: number
+  name: string
+  facultyId: number
+}
+
+// src/Business/DTOs/Reference/AcademicTermListItemDto.cs
+export interface AcademicTermListItemDto {
+  id: number
+  name: string
+  startDateUtc: string
+  endDateUtc: string
+  isCurrent: boolean
+}
+
+// src/Entities/Enums/EventStatus.cs (JsonStringEnumConverter ile metin olarak taşınır)
+export type EventStatus = 'Draft' | 'PendingApproval' | 'Published' | 'Rejected'
+
+// src/Business/DTOs/Events/EventListItemDto.cs
+export interface EventListItemDto {
+  id: number
+  clubId: number
+  clubName: string
+  title: string
+  description: string | null
+  location: string | null
+  startDateUtc: string
+  endDateUtc: string
+  capacity: number | null
+  status: EventStatus
+}

@@ -12,4 +12,7 @@ export const Permissions = {
   ReportsRead: 'reports.read',
   ReportsReadAll: 'reports.read.all',
   FilesUpload: 'files.upload',
+  RolesManage: 'roles.manage',
+  ReferenceManage: 'reference.manage',
+  EventsApprove: 'events.approve',
 } as const

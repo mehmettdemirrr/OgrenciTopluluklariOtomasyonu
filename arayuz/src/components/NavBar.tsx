@@ -40,6 +40,24 @@ export function NavBar() {
           </Button>
         )}
 
+        {hasPermission(Permissions.RolesManage) && (
+          <Button color="inherit" component={RouterLink} to="/authorization">
+            Yetki Matrisi
+          </Button>
+        )}
+
+        {hasPermission(Permissions.ReferenceManage) && (
+          <Button color="inherit" component={RouterLink} to="/reference">
+            Referans Verisi
+          </Button>
+        )}
+
+        {hasPermission(Permissions.EventsRead) && (
+          <Button color="inherit" component={RouterLink} to="/events">
+            Etkinlikler
+          </Button>
+        )}
+
         {hasPermission(Permissions.HangfireDashboard) && (
           <Button color="inherit" component="a" href={hangfireUrl} target="_blank" rel="noreferrer">
             Hangfire Paneli
