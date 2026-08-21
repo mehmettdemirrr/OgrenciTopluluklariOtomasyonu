@@ -94,6 +94,13 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
 
+        // A-17/Y-45: rol→izin haritası burada cache'lenir; proxy kaydı olmadan [CacheAspect] sessizce devre dışı kalır.
+        builder.RegisterType<RolePermissionCatalog>()
+            .As<IRolePermissionCatalog>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<IdentityGateway>()
             .As<IIdentityGateway>()
             .InstancePerLifetimeScope();
