@@ -32,4 +32,10 @@ public interface IReferenceDataService
     [TransactionAspect]
     Task<IDataResult<DepartmentListItemDto>> CreateDepartmentAsync(
         int facultyId, CreateDepartmentRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>docs/PLAN-V2.md §9: kulüp oluşturma diyaloğundaki danışman seçici için sayfalı liste.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [CacheAspect(durationMinutes: 5)]
+    Task<IDataResult<PagedResult<AcademicStaffListItemDto>>> GetAcademicStaffPagedAsync(
+        int pageIndex, int pageSize, CancellationToken cancellationToken = default);
 }

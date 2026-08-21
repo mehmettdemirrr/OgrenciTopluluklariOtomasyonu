@@ -58,5 +58,9 @@ public sealed class DataAccessAutofacModule(IConfiguration configuration) : Modu
         builder.RegisterType<EfIdentityAdminDal>()
             .As<IIdentityAdminDal>()
             .InstancePerLifetimeScope();
+
+        builder.RegisterType<EfAcademicStaffDal>()
+            .As<IAcademicStaffDal>()
+            .InstancePerLifetimeScope();
     }
 }

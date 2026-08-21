@@ -3,6 +3,7 @@ using Business.Constants;
 using Business.DTOs.Reference;
 using Core.DataAccess;
 using Core.Utilities.Results;
+using DataAccess.Repositories;
 using Entities;
 
 namespace Business.Concrete;
@@ -10,6 +11,7 @@ namespace Business.Concrete;
 public sealed class ReferenceDataManager(
     IEntityRepository<Faculty> facultyRepository,
     IEntityRepository<Department> departmentRepository,
+    IAcademicStaffDal academicStaffDal,
     IUnitOfWork unitOfWork) : IReferenceDataService
 {
     private const int DefaultPageSize = 20;
@@ -80,6 +82,16 @@ public sealed class ReferenceDataManager(
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return DataResult<DepartmentListItemDto>.Success(new DepartmentListItemDto { Id = department.Id, Name = department.Name, FacultyId = department.FacultyId });
+    }
+
+    public async Task<IDataResult<PagedResult<AcademicStaffListItemDto>>> GetAcademicStaffPagedAsync(
+        int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var paged = await academicStaffDal.GetListPagedAsync(pageIndex, ClampPageSize(pageSize), cancellationToken).ConfigureAwait(false);
+
+        var items = paged.Items.Select(s => new AcademicStaffListItemDto { Id = s.Id, Title = s.Title, Email = s.Email }).ToList();
+        return DataResult<PagedResult<AcademicStaffListItemDto>>.Success(
+            new PagedResult<AcademicStaffListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
     }
 
     private static int ClampPageSize(int pageSize) =>

@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Business.Concrete;
 using Business.DTOs.Reference;
 using Core.DataAccess;
+using DataAccess.Repositories;
 using Entities;
 using Moq;
 using Xunit;
@@ -13,11 +14,12 @@ public class ReferenceDataManagerTests
 {
     private readonly Mock<IEntityRepository<Faculty>> _facultyRepository = new();
     private readonly Mock<IEntityRepository<Department>> _departmentRepository = new();
+    private readonly Mock<IAcademicStaffDal> _academicStaffDal = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly ReferenceDataManager _sut;
 
     public ReferenceDataManagerTests() =>
-        _sut = new ReferenceDataManager(_facultyRepository.Object, _departmentRepository.Object, _unitOfWork.Object);
+        _sut = new ReferenceDataManager(_facultyRepository.Object, _departmentRepository.Object, _academicStaffDal.Object, _unitOfWork.Object);
 
     [Fact(DisplayName = "CreateFaculty: ad zaten varsa yeni satır oluşturmadan mevcut satırı Success ile döner")]
     public async Task CreateFacultyAsync_NameExists_ReturnsExistingWithoutInsert()

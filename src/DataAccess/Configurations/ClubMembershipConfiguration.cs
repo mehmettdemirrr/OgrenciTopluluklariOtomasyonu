@@ -34,6 +34,13 @@ public sealed class ClubMembershipConfiguration : IEntityTypeConfiguration<ClubM
             .IsUnique()
             .HasFilter("[IsDeleted] = 0");
 
+        // docs/PLAN-V2.md §9.2 · A-39: bir kulüpte bir dönemde tek President — veritabanı son sözü söyler.
+        // ClubRole.President = 2 (Entities.Enums.ClubRole); Business önden kontrol eder, index yarış durumunu kapatır.
+        builder.HasIndex(m => new { m.ClubId, m.AcademicTermId })
+            .IsUnique()
+            .HasFilter("[ClubRole] = 2 AND [IsDeleted] = 0")
+            .HasDatabaseName("IX_ClubMemberships_ClubId_AcademicTermId_President");
+
         // Y-16: soft delete query filter.
         builder.HasQueryFilter(m => !m.IsDeleted);
     }

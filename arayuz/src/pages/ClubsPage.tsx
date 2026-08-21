@@ -7,8 +7,13 @@ import {
   CardContent,
   CardMedia,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   InputAdornment,
+  MenuItem,
   Stack,
   TextField,
   ToggleButton,
@@ -18,6 +23,7 @@ import {
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
@@ -25,7 +31,7 @@ import { Permissions } from '../auth/permissions'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
-import type { ClubListItemDto, PagedResult } from '../api/types'
+import type { AcademicStaffListItemDto, ClubListItemDto, PagedResult } from '../api/types'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 
@@ -34,15 +40,26 @@ export function ClubsPage() {
   const notify = useNotifier()
   const { hasPermission } = useAuth()
   const canUploadLogo = hasPermission(Permissions.FilesUpload)
+  const canManageClubs = hasPermission(Permissions.ClubsWrite)
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [logoTargetClubId, setLogoTargetClubId] = useState<number | null>(null)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newDescription, setNewDescription] = useState('')
+  const [newAdvisorId, setNewAdvisorId] = useState<number | ''>('')
 
   const clubsQuery = useQuery({
     queryKey: ['clubs', 0, 200],
     queryFn: async () => (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', { params: { pageIndex: 0, pageSize: 200 } })).data,
+  })
+
+  const academicStaffQuery = useQuery({
+    queryKey: ['academic-staff', 0, 200],
+    enabled: canManageClubs && createDialogOpen,
+    queryFn: async () => (await apiClient.get<PagedResult<AcademicStaffListItemDto>>('/academic-staff', { params: { pageIndex: 0, pageSize: 200 } })).data,
   })
 
   const applyMutation = useMutation({
@@ -67,6 +84,21 @@ export function ClubsPage() {
       queryClient.invalidateQueries({ queryKey: ['clubs'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Logo yüklenemedi.'), severity: 'error' }),
+  })
+
+  const createClubMutation = useMutation({
+    mutationFn: async () => {
+      await apiClient.post('/clubs', { name: newName.trim(), description: newDescription.trim() || null, advisorId: newAdvisorId });
+    },
+    onSuccess: () => {
+      notify({ message: 'Topluluk oluşturuldu.', severity: 'success' })
+      setCreateDialogOpen(false)
+      setNewName('')
+      setNewDescription('')
+      setNewAdvisorId('')
+      queryClient.invalidateQueries({ queryKey: ['clubs'] })
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Topluluk oluşturulamadı.'), severity: 'error' }),
   })
 
   const handleLogoButtonClick = (clubId: number) => {
@@ -95,7 +127,17 @@ export function ClubsPage() {
 
   return (
     <>
-      <PageHeader title="Kulüpler" description="Kampüsteki tüm öğrenci topluluklarını keşfedin ve üyelik başvurusu yapın." />
+      <PageHeader
+        title="Kulüpler"
+        description="Kampüsteki tüm öğrenci topluluklarını keşfedin ve üyelik başvurusu yapın."
+        action={
+          canManageClubs && (
+            <Button variant="contained" onClick={() => setCreateDialogOpen(true)}>
+              Yeni Topluluk
+            </Button>
+          )
+        }
+      />
 
       <input ref={logoInputRef} type="file" accept="image/*" hidden onChange={handleLogoFileChange} />
 
@@ -141,7 +183,10 @@ export function ClubsPage() {
                   {club.description || 'Açıklama eklenmemiş.'}
                 </Typography>
               </CardContent>
-              <CardActions sx={{ px: 2, pb: 2 }}>
+              <CardActions sx={{ px: 2, pb: 2, flexWrap: 'wrap', gap: 0.5 }}>
+                <Button size="small" component={RouterLink} to={`/clubs/${club.id}`}>
+                  Detay
+                </Button>
                 <Button
                   size="small"
                   variant="outlined"
@@ -160,6 +205,46 @@ export function ClubsPage() {
           </Grid>
         ))}
       </Grid>
+
+      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Yeni Topluluk</DialogTitle>
+        <DialogContent>
+          <TextField autoFocus fullWidth margin="dense" label="Topluluk Adı" value={newName} onChange={(event) => setNewName(event.target.value)} />
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            margin="dense"
+            label="Açıklama"
+            value={newDescription}
+            onChange={(event) => setNewDescription(event.target.value)}
+          />
+          <TextField
+            select
+            fullWidth
+            margin="dense"
+            label="Danışman"
+            value={newAdvisorId}
+            onChange={(event) => setNewAdvisorId(event.target.value === '' ? '' : Number(event.target.value))}
+          >
+            {(academicStaffQuery.data?.items ?? []).map((staff) => (
+              <MenuItem key={staff.id} value={staff.id}>
+                {staff.title} — {staff.email}
+              </MenuItem>
+            ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateDialogOpen(false)}>Vazgeç</Button>
+          <Button
+            variant="contained"
+            disabled={newName.trim() === '' || newAdvisorId === '' || createClubMutation.isPending}
+            onClick={() => createClubMutation.mutate()}
+          >
+            Oluştur
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   )
 }

@@ -4,11 +4,19 @@ using Business.Constants;
 using Business.DTOs.Clubs;
 using Core.DataAccess;
 using Core.Utilities.Results;
+using Core.Utilities.Time;
 using Entities;
+using Entities.Enums;
 
 namespace Business.Concrete;
 
-public sealed class ClubManager(IEntityRepository<Club> clubRepository, IMapper mapper) : IClubService
+public sealed class ClubManager(
+    IEntityRepository<Club> clubRepository,
+    IEntityRepository<AcademicStaff> academicStaffRepository,
+    IEntityRepository<MembershipApplication> membershipApplicationRepository,
+    IUnitOfWork unitOfWork,
+    IClock clock,
+    IMapper mapper) : IClubService
 {
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
@@ -38,6 +46,86 @@ public sealed class ClubManager(IEntityRepository<Club> clubRepository, IMapper 
         }
 
         return DataResult<ClubDetailDto>.Success(mapper.Map<ClubDetailDto>(club));
+    }
+
+    public async Task<IDataResult<int>> CreateAsync(CreateClubRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var name = request.Name.Trim();
+
+        var existing = await clubRepository.GetAsync(c => c.Name == name, cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return DataResult<int>.Conflict(Messages.ClubNameTaken);
+        }
+
+        var advisor = await academicStaffRepository.GetAsync(s => s.Id == request.AdvisorId, cancellationToken).ConfigureAwait(false);
+        if (advisor is null)
+        {
+            return DataResult<int>.NotFound(Messages.AdvisorNotFound);
+        }
+
+        var club = new Club
+        {
+            Name = name,
+            Description = request.Description?.Trim(),
+            AdvisorId = advisor.Id,
+            IsActive = true,
+            CreatedAtUtc = clock.UtcNow,
+        };
+
+        await clubRepository.AddAsync(club, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return DataResult<int>.Success(club.Id, Messages.ClubCreated);
+    }
+
+    public async Task<IResult> UpdateAsync(int clubId, UpdateClubRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return Result.NotFound(Messages.ClubNotFound);
+        }
+
+        var name = request.Name.Trim();
+        var nameTaken = await clubRepository.GetAsync(c => c.Id != clubId && c.Name == name, cancellationToken).ConfigureAwait(false);
+        if (nameTaken is not null)
+        {
+            return Result.Conflict(Messages.ClubNameTaken);
+        }
+
+        club.Name = name;
+        club.Description = request.Description?.Trim();
+        clubRepository.Update(club);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ClubUpdated);
+    }
+
+    public async Task<IResult> SetStatusAsync(int clubId, SetClubStatusRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return Result.NotFound(Messages.ClubNotFound);
+        }
+
+        if (!request.IsActive && club.IsActive)
+        {
+            var hasPending = await membershipApplicationRepository
+                .GetAsync(a => a.ClubId == clubId && a.Status == ApplicationStatus.Pending, cancellationToken)
+                .ConfigureAwait(false);
+            if (hasPending is not null)
+            {
+                return Result.Conflict(Messages.ClubHasPendingApplications);
+            }
+        }
+
+        club.IsActive = request.IsActive;
+        clubRepository.Update(club);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ClubStatusUpdated);
     }
 
     private static int ClampPageSize(int pageSize) =>

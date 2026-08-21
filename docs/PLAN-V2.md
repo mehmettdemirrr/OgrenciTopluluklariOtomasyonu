@@ -161,6 +161,16 @@ Aspect sırası Faz 7'de kurulan sözleşmeye uyar: `[SecuredOperation] [Validat
 ### Çıkış koşulu
 Bir öğrenciye `President` verilip **`EventManager.EnsureClubWriteAccessAsync`'in Officer/President dalı ilk kez uçtan uca çalışıyor**; `ReportScopeResolver` officer kapsamı gerçek veriyle test ediliyor.
 
+> **Durum:** Tamamlandı. Backend: `IClubService` (Create/Update/SetStatus) + yeni `IClubMemberService`
+> (`ClubMemberManager` — GetMembersPagedAsync/SetRoleAsync/RemoveMemberAsync), `ClubMembersController`,
+> `AcademicStaffController` (+ `IAcademicStaffDal` — AcademicStaff↔Identity email join'i), President
+> filtreli unique index migration'ı (`20260824_TopluluklarVeUyeRolleri` — tek `CreateIndex`).
+> Frontend: `ClubsPage`'e oluştur diyaloğu, yeni `ClubDetailPage` (Genel/Üyeler sekmeleri, rol değiştir/çıkar).
+> Test: 13 yeni Business.Tests (`ClubManagerTests`, `ClubMemberManagerTests`) + 4 yeni
+> `WebAPI.IntegrationTests` (`ClubMemberManagementTests` — danışman öğrenciyi President yapar → öğrenci
+> etkinlik oluşturabilir kanıtı, A-39 ikinci-President 409, Y-23 kapsam red'leri). 173/173 test yeşil,
+> canlı Playwright doğrulaması yapıldı.
+
 ---
 
 ## Faz 10 — Etkinlik katılımı ve duyurular

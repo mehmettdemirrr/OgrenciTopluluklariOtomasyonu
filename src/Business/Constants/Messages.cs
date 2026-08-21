@@ -68,4 +68,18 @@ public static class Messages
     public const string EventPublished = "Etkinlik yayınlandı.";
     public const string EventRejected = "Etkinlik reddedildi.";
     public const string InvalidEventDecision = "Karar yalnızca 'Yayınlandı' veya 'Reddedildi' olabilir.";
+
+    // Faz 9 — Topluluk yönetimi ve üye rolleri (K-21, A-39)
+    public const string ClubNameTaken = "Bu isimde bir topluluk zaten kayıtlı.";
+    public const string AdvisorNotFound = "Danışman bulunamadı.";
+    public const string ClubCreated = "Topluluk oluşturuldu.";
+    public const string ClubUpdated = "Topluluk güncellendi.";
+    public const string ClubStatusUpdated = "Topluluk durumu güncellendi.";
+    public const string ClubHasPendingApplications = "Bekleyen üyelik başvurusu olan bir topluluk pasife alınamaz.";
+    public const string ClubMembershipNotFound = "Üyelik kaydı bulunamadı.";
+    public const string NotClubAdvisorOrPresident = "Bu işlem için bu topluluğun danışmanı ya da başkanı olmanız gerekir.";
+    public const string ClubAlreadyHasPresident = "Bu toplulukta bu dönem için zaten bir başkan var.";
+    public const string CannotChangeOwnPresidentRole = "Kendi başkanlık rolünüzü kaldıramaz veya değiştiremezsiniz.";
+    public const string ClubRoleUpdated = "Üye rolü güncellendi.";
+    public const string ClubMemberRemoved = "Üye topluluktan çıkarıldı.";
 }

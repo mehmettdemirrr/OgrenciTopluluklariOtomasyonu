@@ -16,6 +16,36 @@ export interface ClubListItemDto {
   logoFileId: number | null
 }
 
+// src/Business/DTOs/Clubs/ClubDetailDto.cs
+export interface ClubDetailDto {
+  id: number
+  name: string
+  description: string | null
+  isActive: boolean
+  createdAtUtc: string
+  advisorId: number
+  logoFileId: number | null
+}
+
+// src/Entities/Enums/ClubRole.cs (JsonStringEnumConverter ile metin olarak taşınır)
+export type ClubRole = 'Member' | 'Officer' | 'President'
+
+// src/Business/DTOs/Clubs/ClubMemberListItemDto.cs
+export interface ClubMemberListItemDto {
+  membershipId: number
+  studentId: number
+  studentNumber: string
+  clubRole: ClubRole
+  joinedAtUtc: string
+}
+
+// src/Business/DTOs/Reference/AcademicStaffListItemDto.cs
+export interface AcademicStaffListItemDto {
+  id: number
+  title: string
+  email: string
+}
+
 // src/Entities/Enums/ApplicationStatus.cs (JsonStringEnumConverter ile metin olarak taşınır)
 export type ApplicationStatus = 'Pending' | 'Approved' | 'Rejected'
 

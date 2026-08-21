@@ -8,6 +8,7 @@ import { Permissions } from './auth/permissions'
 import { NotifierProvider } from './notifications/NotifierProvider'
 import { theme } from './theme'
 import { AuthorizationPage } from './pages/AuthorizationPage'
+import { ClubDetailPage } from './pages/ClubDetailPage'
 import { ClubsPage } from './pages/ClubsPage'
 import { EventsPage } from './pages/EventsPage'
 import { LoginPage } from './pages/LoginPage'
@@ -36,6 +37,7 @@ function App() {
                   }
                 >
                   <Route path="/clubs" element={<ClubsPage />} />
+                  <Route path="/clubs/:id" element={<ClubDetailPage />} />
 
                   <Route
                     path="/review"

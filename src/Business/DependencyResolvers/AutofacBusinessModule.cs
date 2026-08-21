@@ -150,6 +150,12 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<ClubMemberManager>()
+            .As<IClubMemberService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<MembershipApplicationManager>()
             .As<IMembershipApplicationService>()
             .EnableInterfaceInterceptors()
