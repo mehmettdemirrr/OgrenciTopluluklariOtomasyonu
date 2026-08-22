@@ -2,6 +2,7 @@ import { CssBaseline, ThemeProvider } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
+import { PublicLayout } from './components/layout/PublicLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './auth/AuthContext'
 import { Permissions } from './auth/permissions'
@@ -22,6 +23,10 @@ import { MembershipReviewPage } from './pages/MembershipReviewPage'
 import { MyClubsPage } from './pages/MyClubsPage'
 import { MyEventsPage } from './pages/MyEventsPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { HomePage } from './pages/public/HomePage'
+import { PublicClubDetailPage } from './pages/public/PublicClubDetailPage'
+import { PublicClubsPage } from './pages/public/PublicClubsPage'
+import { PublicEventsPage } from './pages/public/PublicEventsPage'
 import { ReferenceDataPage } from './pages/ReferenceDataPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ReportsPage } from './pages/ReportsPage'
@@ -43,6 +48,13 @@ function App() {
                 <Route path="/confirm-email" element={<ConfirmEmailPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+                <Route element={<PublicLayout />}>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/kulupler" element={<PublicClubsPage />} />
+                  <Route path="/kulupler/:id" element={<PublicClubDetailPage />} />
+                  <Route path="/etkinlikler" element={<PublicEventsPage />} />
+                </Route>
 
                 <Route
                   element={
@@ -131,7 +143,7 @@ function App() {
                   />
                 </Route>
 
-                <Route path="*" element={<Navigate to="/panel" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AuthProvider>
           </BrowserRouter>

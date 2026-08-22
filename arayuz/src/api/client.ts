@@ -51,8 +51,11 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined
     const isRefreshCall = originalRequest?.url?.includes('/auth/refresh')
+    // Faz 14 · A-42: /api/public/* anonim ziyaretçiden de çağrılır — çerez/CSRF yok, sessiz refresh
+    // denemesi burada anlamsız ve gereksiz bir /auth/refresh isteğine yol açar.
+    const isPublicCall = originalRequest?.url?.includes('/public/')
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retried && !isRefreshCall) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retried && !isRefreshCall && !isPublicCall) {
       originalRequest._retried = true
 
       if (!refreshInFlight) {

@@ -27,6 +27,7 @@ public interface IEventService
     /// </summary>
     [SecuredOperation(IdentitySeedData.Permissions.EventsApprove)]
     [ValidationAspect(typeof(DecideEventRequestValidator))]
+    [CacheRemoveAspect("PublicContentManager.")]
     Task<IResult> DecideAsync(int eventId, DecideEventRequestDto request, CancellationToken cancellationToken = default);
 
     /// <summary>Çağıranın danışmanı olduğu kulüplerdeki PendingApproval etkinlikler (sorgu zaten scoped).</summary>

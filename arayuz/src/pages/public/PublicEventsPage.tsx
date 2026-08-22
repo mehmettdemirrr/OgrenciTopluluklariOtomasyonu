@@ -1,0 +1,56 @@
+import { useQuery } from '@tanstack/react-query'
+import { Card, CardContent, Chip, Grid, Stack, Typography } from '@mui/material'
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
+import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
+import { apiClient } from '../../api/client'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { PageHeader } from '../../components/ui/PageHeader'
+import type { PagedResult, PublicEventListItemDto } from '../../api/types'
+
+export function PublicEventsPage() {
+  const eventsQuery = useQuery({
+    queryKey: ['public-events', 0, 200],
+    queryFn: async () => (await apiClient.get<PagedResult<PublicEventListItemDto>>('/public/events', { params: { pageIndex: 0, pageSize: 200 } })).data,
+  })
+
+  const items = eventsQuery.data?.items ?? []
+
+  return (
+    <>
+      <PageHeader title="Etkinlikler" description="Kampüsteki yaklaşan, yayında olan tüm etkinlikler." />
+
+      {!eventsQuery.isLoading && items.length === 0 ? (
+        <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" />
+      ) : (
+        <Grid container spacing={2}>
+          {items.map((event) => (
+            <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card variant="outlined" sx={{ height: '100%' }}>
+                <CardContent>
+                  <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+                      {event.title}
+                    </Typography>
+                    {event.capacity && <Chip size="small" label={`Kontenjan: ${event.capacity}`} variant="outlined" />}
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    {event.clubName}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    {new Date(event.startDateUtc).toLocaleString('tr-TR')}
+                  </Typography>
+                  {event.location && (
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+                      <PlaceOutlinedIcon fontSize="inherit" />
+                      <Typography variant="caption">{event.location}</Typography>
+                    </Stack>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+    </>
+  )
+}

@@ -1,0 +1,123 @@
+using Business.Abstract;
+using Business.Constants;
+using Business.DTOs.Public;
+using Core.DataAccess;
+using Core.Utilities.Results;
+using Core.Utilities.Time;
+using Entities;
+using Entities.Enums;
+
+namespace Business.Concrete;
+
+/// <summary>docs/PLAN-V2.md · Faz 14 (A-42/Y-58): anonim vitrin — filtreler kodda sabit, dışarıdan parametrelenmez.</summary>
+public sealed class PublicContentManager(
+    IEntityRepository<Club> clubRepository,
+    IEntityRepository<Event> eventRepository,
+    IEntityRepository<Announcement> announcementRepository,
+    IClock clock) : IPublicContentService
+{
+    private const int DefaultPageSize = 20;
+    private const int MaxPageSize = 100;
+
+    public async Task<IDataResult<PagedResult<PublicClubListItemDto>>> GetClubsAsync(
+        int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var paged = await clubRepository
+            .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), c => c.IsActive, cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = paged.Items
+            .Select(c => new PublicClubListItemDto { Id = c.Id, Name = c.Name, Description = c.Description, LogoFileId = c.LogoFileId })
+            .ToList();
+
+        return DataResult<PagedResult<PublicClubListItemDto>>.Success(
+            new PagedResult<PublicClubListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<PublicClubDetailDto>> GetClubByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var club = await clubRepository.GetAsync(c => c.Id == id && c.IsActive, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return DataResult<PublicClubDetailDto>.NotFound(Messages.ClubNotFound);
+        }
+
+        return DataResult<PublicClubDetailDto>.Success(new PublicClubDetailDto
+        {
+            Id = club.Id,
+            Name = club.Name,
+            Description = club.Description,
+            LogoFileId = club.LogoFileId,
+        });
+    }
+
+    public async Task<IDataResult<PagedResult<PublicEventListItemDto>>> GetEventsAsync(
+        int? clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var now = clock.UtcNow;
+        var paged = await eventRepository
+            .GetListPagedAsync(
+                pageIndex,
+                ClampPageSize(pageSize),
+                e => e.Status == EventStatus.Published && e.StartDateUtc >= now && (clubId == null || e.ClubId == clubId),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        var clubIds = paged.Items.Select(e => e.ClubId).Distinct().ToList();
+        var clubNames = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(c => c.Id, c => c.Name);
+
+        var items = paged.Items
+            .Select(e => new PublicEventListItemDto
+            {
+                Id = e.Id,
+                ClubId = e.ClubId,
+                ClubName = clubNames.GetValueOrDefault(e.ClubId, string.Empty),
+                Title = e.Title,
+                Description = e.Description,
+                Location = e.Location,
+                StartDateUtc = e.StartDateUtc,
+                EndDateUtc = e.EndDateUtc,
+                Capacity = e.Capacity,
+                PosterFileId = e.PosterFileId,
+            })
+            .ToList();
+
+        return DataResult<PagedResult<PublicEventListItemDto>>.Success(
+            new PagedResult<PublicEventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<PagedResult<PublicAnnouncementListItemDto>>> GetAnnouncementsAsync(
+        int? clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var paged = await announcementRepository
+            .GetListPagedAsync(
+                pageIndex,
+                ClampPageSize(pageSize),
+                a => a.Visibility == AnnouncementVisibility.Public && (clubId == null || a.ClubId == clubId),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        var clubIds = paged.Items.Where(a => a.ClubId is not null).Select(a => a.ClubId!.Value).Distinct().ToList();
+        var clubNames = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(c => c.Id, c => c.Name);
+
+        var items = paged.Items
+            .Select(a => new PublicAnnouncementListItemDto
+            {
+                Id = a.Id,
+                ClubId = a.ClubId,
+                ClubName = a.ClubId is { } id ? clubNames.GetValueOrDefault(id, string.Empty) : null,
+                Title = a.Title,
+                Content = a.Content,
+                PublishedAtUtc = a.PublishedAtUtc,
+            })
+            .ToList();
+
+        return DataResult<PagedResult<PublicAnnouncementListItemDto>>.Success(
+            new PagedResult<PublicAnnouncementListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    private static int ClampPageSize(int pageSize) =>
+        pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);
+}

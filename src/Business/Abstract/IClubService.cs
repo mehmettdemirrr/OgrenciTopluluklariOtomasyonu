@@ -19,18 +19,18 @@ public interface IClubService
     /// <summary>docs/PLAN-V2.md §9: clubs.write ilk kez kullanılır — ölü kodu (Officer/President) canlandıran fazın girişi.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.ClubsWrite)]
     [ValidationAspect(typeof(CreateClubRequestValidator))]
-    [CacheRemoveAspect("ClubManager.")]
+    [CacheRemoveAspect("ClubManager.", "PublicContentManager.")]
     [TransactionAspect]
     Task<IDataResult<int>> CreateAsync(CreateClubRequestDto request, CancellationToken cancellationToken = default);
 
     [SecuredOperation(IdentitySeedData.Permissions.ClubsWrite)]
     [ValidationAspect(typeof(UpdateClubRequestValidator))]
-    [CacheRemoveAspect("ClubManager.")]
+    [CacheRemoveAspect("ClubManager.", "PublicContentManager.")]
     [TransactionAspect]
     Task<IResult> UpdateAsync(int clubId, UpdateClubRequestDto request, CancellationToken cancellationToken = default);
 
     [SecuredOperation(IdentitySeedData.Permissions.ClubsWrite)]
-    [CacheRemoveAspect("ClubManager.")]
+    [CacheRemoveAspect("ClubManager.", "PublicContentManager.")]
     [TransactionAspect]
     Task<IResult> SetStatusAsync(int clubId, SetClubStatusRequestDto request, CancellationToken cancellationToken = default);
 }

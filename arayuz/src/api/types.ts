@@ -220,6 +220,46 @@ export interface DashboardSummaryDto {
   termTrend: TermSummaryRowDto[]
 }
 
+// src/Business/DTOs/Public/PublicClubListItemDto.cs
+export interface PublicClubListItemDto {
+  id: number
+  name: string
+  description: string | null
+  logoFileId: number | null
+}
+
+// src/Business/DTOs/Public/PublicClubDetailDto.cs
+export interface PublicClubDetailDto {
+  id: number
+  name: string
+  description: string | null
+  logoFileId: number | null
+}
+
+// src/Business/DTOs/Public/PublicEventListItemDto.cs
+export interface PublicEventListItemDto {
+  id: number
+  clubId: number
+  clubName: string
+  title: string
+  description: string | null
+  location: string | null
+  startDateUtc: string
+  endDateUtc: string
+  capacity: number | null
+  posterFileId: number | null
+}
+
+// src/Business/DTOs/Public/PublicAnnouncementListItemDto.cs
+export interface PublicAnnouncementListItemDto {
+  id: number
+  clubId: number | null
+  clubName: string | null
+  title: string
+  content: string
+  publishedAtUtc: string
+}
+
 // src/Entities/Enums/AuditAction.cs (JsonStringEnumConverter ile metin olarak taşınır)
 export type AuditAction = 'Insert' | 'Update' | 'Delete'
 

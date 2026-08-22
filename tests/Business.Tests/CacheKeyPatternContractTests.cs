@@ -49,7 +49,7 @@ public class CacheKeyPatternContractTests
         var method = serviceInterface.GetMethod(methodName) ?? throw new InvalidOperationException($"{methodName} bulunamadı.");
         var attribute = method.GetCustomAttribute<CacheRemoveAspectAttribute>()
             ?? throw new InvalidOperationException($"{methodName} üzerinde [CacheRemoveAspect] yok.");
-        return attribute.Pattern;
+        return attribute.Patterns.Single();
     }
 
     /// <summary>CacheAspectHandler.BuildKey ile birebir aynı format — kasıtlı olarak burada yeniden üretilir (production kodu değiştirilmeden okunur).</summary>
