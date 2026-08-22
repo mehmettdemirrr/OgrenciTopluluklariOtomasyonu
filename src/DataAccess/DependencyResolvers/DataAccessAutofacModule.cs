@@ -31,11 +31,22 @@ public sealed class DataAccessAutofacModule(IConfiguration configuration) : Modu
                 .UseSqlServer(configuration.GetConnectionString("Default"))
                 .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
 
-        // K-03 (e-posta doğrulama/parola sıfırlama) Faz 3 kapsamı dışında — token sağlayıcıları
-        // o faz devreye girdiğinde eklenir; Login/Refresh/Logout için gerekli değil.
-        services.AddIdentityCore<ApplicationUser>()
+        // Faz 11 · K-03: e-posta doğrulama/parola sıfırlama token'ları için sağlayıcı gerekir
+        // (UserManager.GenerateEmailConfirmationTokenAsync/GeneratePasswordResetTokenAsync bunsuz
+        // "No IUserTwoFactorTokenProvider... registered" ile patlar). AddDefaultTokenProviders()
+        // (DataProtectorTokenProvider) yalnızca tam Microsoft.AspNetCore.Identity paketinde var —
+        // o paket FrameworkReference gerektirir (bkz. AuthManager'ın SignInManager kullanmama gerekçesi,
+        // aynı kısıt). Microsoft.Extensions.Identity.Core'da bulunan EmailTokenProvider (SecurityStamp
+        // tabanlı, zaman sınırlı) FrameworkReference'sız aynı işi görür — resmî Identity şablonlarının
+        // e-posta doğrulama/parola sıfırlama için zaten kullandığı sağlayıcının aynısı.
+        services.AddIdentityCore<ApplicationUser>(options =>
+            {
+                options.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultEmailProvider;
+                options.Tokens.PasswordResetTokenProvider = TokenOptions.DefaultEmailProvider;
+            })
             .AddRoles<ApplicationRole>()
-            .AddEntityFrameworkStores<AppDbContext>();
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddTokenProvider<EmailTokenProvider<ApplicationUser>>(TokenOptions.DefaultEmailProvider);
 
         builder.Populate(services);
 

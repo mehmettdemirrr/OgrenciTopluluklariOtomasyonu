@@ -46,4 +46,14 @@ public interface IRoleAdminService
     [CacheRemoveAspect("RolePermissionCatalog.")]
     [TransactionAspect]
     Task<IResult> SetUserRolesAsync(int userId, SetUserRolesRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>docs/PLAN-V2.md · Faz 11: yönetici K-03 doğrulama akışını atlayarak doğrudan kullanıcı oluşturur.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.RolesManage)]
+    [ValidationAspect(typeof(CreateUserRequestValidator))]
+    [TransactionAspect]
+    Task<IDataResult<int>> CreateUserAsync(CreateUserRequestDto request, CancellationToken cancellationToken = default);
+
+    [SecuredOperation(IdentitySeedData.Permissions.RolesManage)]
+    [TransactionAspect]
+    Task<IResult> SetLockoutAsync(int userId, SetLockoutRequestDto request, CancellationToken cancellationToken = default);
 }

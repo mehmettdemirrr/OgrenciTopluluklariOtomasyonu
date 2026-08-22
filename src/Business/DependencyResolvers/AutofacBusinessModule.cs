@@ -11,6 +11,7 @@ using Core.Utilities.Email;
 using Core.Utilities.Files;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
+using Core.Utilities.Web;
 using DataAccess.DependencyResolvers;
 using FluentValidation;
 using Microsoft.Extensions.Configuration;
@@ -47,6 +48,10 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
 
         builder.Register(_ => Options.Create(BuildFileStorageSettings(configuration)))
             .As<IOptions<FileStorageSettings>>()
+            .SingleInstance();
+
+        builder.Register(_ => Options.Create(BuildFrontendSettings(configuration)))
+            .As<IOptions<FrontendSettings>>()
             .SingleInstance();
 
         builder.RegisterType<MemoryCacheManager>()
@@ -105,6 +110,10 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .As<IIdentityGateway>()
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<AccountGateway>()
+            .As<IAccountGateway>()
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<IdentitySeeder>()
             .As<IIdentitySeeder>()
             .InstancePerLifetimeScope();
@@ -140,6 +149,12 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
 
         builder.RegisterType<AuthManager>()
             .As<IAuthService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<AccountManager>()
+            .As<IAccountService>()
             .EnableInterfaceInterceptors()
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
@@ -215,6 +230,12 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
         builder.RegisterType<EventDecisionNotificationJob>()
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<EmailConfirmationJob>()
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<PasswordResetEmailJob>()
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<ReportGenerationJob>()
             .InstancePerLifetimeScope();
 
@@ -250,6 +271,9 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             Password = section["Password"],
         };
     }
+
+    private static FrontendSettings BuildFrontendSettings(IConfiguration configuration) =>
+        new() { BaseUrl = (configuration["Frontend:BaseUrl"] ?? string.Empty).TrimEnd('/') };
 
     // Y-49: RootPath boşsa uygulama klasörü altında App_Data/uploads'a düşer — wwwroot dışı, secret değil.
     private static FileStorageSettings BuildFileStorageSettings(IConfiguration configuration)

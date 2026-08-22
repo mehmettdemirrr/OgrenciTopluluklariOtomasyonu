@@ -11,12 +11,17 @@ import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { AuthorizationPage } from './pages/AuthorizationPage'
 import { ClubDetailPage } from './pages/ClubDetailPage'
 import { ClubsPage } from './pages/ClubsPage'
+import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
 import { EventDetailPage } from './pages/EventDetailPage'
 import { EventsPage } from './pages/EventsPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { MembershipReviewPage } from './pages/MembershipReviewPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { ReferenceDataPage } from './pages/ReferenceDataPage'
+import { RegisterPage } from './pages/RegisterPage'
 import { ReportsPage } from './pages/ReportsPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
 const queryClient = new QueryClient()
 
@@ -30,6 +35,10 @@ function App() {
             <AuthProvider>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                 <Route
                   element={
@@ -40,6 +49,7 @@ function App() {
                 >
                   <Route path="/clubs" element={<ClubsPage />} />
                   <Route path="/clubs/:id" element={<ClubDetailPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
 
                   <Route
                     path="/review"

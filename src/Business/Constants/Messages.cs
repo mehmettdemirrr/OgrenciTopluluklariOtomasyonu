@@ -98,4 +98,22 @@ public static class Messages
     public const string AnnouncementCreated = "Duyuru yayınlandı.";
     public const string AnnouncementUpdated = "Duyuru güncellendi.";
     public const string AnnouncementDeleted = "Duyuru kaldırıldı.";
+
+    // Faz 11 — Hesap yaşam döngüsü (K-03, A-40)
+    public const string EmailAlreadyRegistered = "Bu e-posta adresiyle zaten bir hesap var.";
+    public const string DepartmentNotFound = "Bölüm bulunamadı.";
+    public const string WeakPassword = "Parola en az 6 karakter olmalı; büyük harf, küçük harf, rakam ve alfanumerik olmayan bir karakter içermelidir.";
+    public const string RegistrationSucceeded = "Kaydınız alındı. Hesabınızı etkinleştirmek için e-postanıza gönderilen bağlantıya tıklayın.";
+    public const string EmailNotConfirmed = "Hesabınız henüz doğrulanmamış. Lütfen e-postanızı kontrol edin.";
+    public const string InvalidOrExpiredToken = "Bağlantı geçersiz veya süresi dolmuş.";
+    public const string EmailConfirmedSuccessfully = "E-posta adresiniz doğrulandı, artık giriş yapabilirsiniz.";
+    public const string ConfirmationResent = "E-postanız sistemde kayıtlıysa, doğrulama bağlantısı tekrar gönderildi.";
+    public const string PasswordResetRequested = "E-postanız sistemde kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.";
+    public const string PasswordResetSucceeded = "Parolanız güncellendi, yeni parolanızla giriş yapabilirsiniz.";
+    public const string CurrentPasswordIncorrect = "Mevcut parolanız hatalı.";
+    public const string PasswordChanged = "Parolanız güncellendi.";
+    public const string UserCreated = "Kullanıcı oluşturuldu.";
+    public const string UserCreationFailed = "Kullanıcı oluşturulamadı.";
+    public const string LockoutUpdated = "Kullanıcı durumu güncellendi.";
+    public const string CannotLockOwnAccount = "Kendi hesabınızı kilitleyemezsiniz.";
 }

@@ -12,6 +12,7 @@ import {
 } from '@mui/material'
 import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined'
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
@@ -53,6 +54,12 @@ export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?
             </Box>
           )}
           <Divider />
+          <MenuItem onClick={() => { setAnchorEl(null); navigate('/profile') }}>
+            <ListItemIcon>
+              <PersonOutlineOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            Profilim
+          </MenuItem>
           <MenuItem onClick={handleLogout}>
             <ListItemIcon>
               <LogoutOutlinedIcon fontSize="small" />

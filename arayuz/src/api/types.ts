@@ -173,3 +173,17 @@ export interface AnnouncementListItemDto {
   visibility: AnnouncementVisibility
   publishedAtUtc: string
 }
+
+// src/Business/DTOs/Auth/RegistrationDepartmentDto.cs
+export interface RegistrationDepartmentDto {
+  id: number
+  name: string
+  facultyName: string
+}
+
+// src/Business/DTOs/Auth/MeResponseDto.cs
+export interface MeResponseDto {
+  email: string
+  roles: string[]
+  permissions: string[]
+}

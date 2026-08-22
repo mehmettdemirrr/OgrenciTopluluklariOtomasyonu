@@ -173,6 +173,33 @@ public sealed class RoleAdminManager(
         return Result.Success(Messages.RolesUpdated);
     }
 
+    public async Task<IDataResult<int>> CreateUserAsync(CreateUserRequestDto request, CancellationToken cancellationToken = default)
+    {
+        foreach (var roleName in request.RoleNames)
+        {
+            if (!await identityAdminGateway.RoleExistsByNameAsync(roleName).ConfigureAwait(false))
+            {
+                return DataResult<int>.NotFound(Messages.RoleNotFound);
+            }
+        }
+
+        var userId = await identityAdminGateway.CreateUserAsync(request.Email.Trim(), request.Password, request.RoleNames).ConfigureAwait(false);
+        return userId is { } id ? DataResult<int>.Success(id, Messages.UserCreated) : DataResult<int>.Conflict(Messages.UserCreationFailed);
+    }
+
+    public async Task<IResult> SetLockoutAsync(int userId, SetLockoutRequestDto request, CancellationToken cancellationToken = default)
+    {
+        // Y-03: Admin kendi hesabını kilitleyerek K-17 ekranına erişimini kaybedecek şekilde
+        // kendi kendini kilitleyemez — CannotRemoveOwnAdminRole ile aynı öz-kısıtlama sınıfı.
+        if (request.Locked && currentUser.UserId == userId)
+        {
+            return Result.Conflict(Messages.CannotLockOwnAccount);
+        }
+
+        var updated = await identityAdminGateway.SetLockoutAsync(userId, request.Locked).ConfigureAwait(false);
+        return updated ? Result.Success(Messages.LockoutUpdated) : Result.NotFound(Messages.UserNotFound);
+    }
+
     private static int ClampPageSize(int pageSize) =>
         pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);
 }

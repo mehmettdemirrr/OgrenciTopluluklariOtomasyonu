@@ -12,9 +12,64 @@ namespace WebAPI.Controllers;
 /// <summary>docs/MIMARI.md · K-01/Y-39/Y-48: refresh token yalnızca httpOnly çerezde taşınır, asla JSON gövdede değil.</summary>
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService authService, IAntiforgery antiforgery) : ControllerBase
+public sealed class AuthController(IAuthService authService, IAccountService accountService, IAntiforgery antiforgery) : ControllerBase
 {
     private const string RefreshTokenCookieName = "RefreshToken";
+
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Register(RegisterRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await accountService.RegisterAsync(request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpGet("departments")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetRegistrationDepartments(CancellationToken cancellationToken)
+    {
+        var result = await accountService.GetRegistrationDepartmentsAsync(cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpPost("confirm-email")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await accountService.ConfirmEmailAsync(request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpPost("resend-confirmation")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResendConfirmation(ResendConfirmationRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await accountService.ResendConfirmationAsync(request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await accountService.ForgotPasswordAsync(request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await accountService.ResetPasswordAsync(request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await accountService.ChangePasswordAsync(request, cancellationToken);
+        return result.ToActionResult();
+    }
 
     [HttpPost("login")]
     [AllowAnonymous]

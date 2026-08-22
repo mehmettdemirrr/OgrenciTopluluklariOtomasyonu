@@ -18,9 +18,11 @@ public sealed class SmtpEmailSender(IOptions<SmtpSettings> settings) : IEmailSen
 
         if (string.IsNullOrWhiteSpace(smtp.Host))
         {
+            // Gövde de loglanır (yalnızca yerel Serilog konsol çıktısı, kalıcı bir yere yazılmaz) —
+            // SMTP sunucusuz geliştirmede doğrulama/sıfırlama bağlantısı buradan okunup denenebilsin diye.
             Log.Information(
-                "Smtp:Host boş — e-posta gönderilmedi, yalnızca loglandı. Alıcı: {ToAddress}, Konu: {Subject}",
-                toAddress, subject);
+                "Smtp:Host boş — e-posta gönderilmedi, yalnızca loglandı. Alıcı: {ToAddress}, Konu: {Subject}\n{Body}",
+                toAddress, subject, body);
             return;
         }
 

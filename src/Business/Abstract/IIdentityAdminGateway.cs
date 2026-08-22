@@ -29,4 +29,10 @@ public interface IIdentityAdminGateway
 
     /// <summary>Kullanıcı bulunamazsa false döner.</summary>
     Task<bool> SetUserRolesAsync(int userId, IReadOnlyCollection<string> roleNames);
+
+    /// <summary>docs/PLAN-V2.md · Faz 11: yönetici kullanıcıyı doğrudan oluşturur — EmailConfirmed=true (K-03 akışını atlar).</summary>
+    Task<int?> CreateUserAsync(string email, string password, IReadOnlyCollection<string> roleNames);
+
+    /// <summary>Kullanıcı bulunamazsa false döner.</summary>
+    Task<bool> SetLockoutAsync(int userId, bool locked);
 }

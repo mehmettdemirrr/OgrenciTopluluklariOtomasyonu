@@ -51,6 +51,7 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["Seed:DemoStudentEmail"] = "",
                 ["Seed:DemoStudentPassword"] = "",
                 ["FileStorage:RootPath"] = FileStorageRootPath,
+                ["Frontend:BaseUrl"] = "https://localhost.test",
             });
         });
 

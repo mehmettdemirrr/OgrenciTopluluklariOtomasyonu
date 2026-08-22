@@ -297,6 +297,36 @@ Yönetici (`roles.manage`): `POST /api/users` · `PUT /api/users/{id}/lockout`.
 ### Çıkış koşulu
 kayıt ol → giriş **reddedilir** → e-postadaki linkle doğrula → giriş **başarılı** akışı entegrasyon testinde yeşil; mevcut `AuthTests` bozulmamış.
 
+> **Durum:** Tamamlandı. `IdentitySeeder` zaten üç demo hesabı da `EmailConfirmed = true` ile seed
+> ediyordu (Faz 3'ten kalma) — §11.3'ün regresyon riski gerçekleşmedi, `AuthTests` hiç dokunulmadan yeşil kaldı.
+> Backend: `AddIdentityCore` `EmailTokenProvider` ile token sağlayıcısına kavuştu (`AddDefaultTokenProviders()`
+> tam `Microsoft.AspNetCore.Identity` paketini/FrameworkReference'ı gerektirdiği için kullanılmadı — Core
+> paketindeki `EmailTokenProvider` aynı SecurityStamp-tabanlı garantiyi FrameworkReference'sız veriyor).
+> Yeni `IAccountService`/`AccountManager` (Register/ConfirmEmail/ResendConfirmation/ForgotPassword/
+> ResetPassword/ChangePassword/GetMe/GetRegistrationDepartments) + `IAccountGateway` seam'i, yeni
+> `EmailConfirmationJob`/`PasswordResetEmailJob` (Y-54: token job parametresine değil, çalışma anında
+> üretiliyor). `AuthManager.LoginAsync`'e `EmailConfirmed` kontrolü eklendi — kasıtlı olarak parola
+> kontrolünden SONRA (enumeration sızıntısını sınırlamak için). `IRoleAdminService`'e admin
+> `CreateUserAsync`/`SetLockoutAsync` eklendi (K-03 akışını atlayan yönetici yüzeyi, Y-03 kendi-kendini-
+> kilitleme guardı ile). `GET /api/me` uygulandı; `PUT /api/me` **kasıtlı olarak atlandı** — ne
+> `ApplicationUser` ne `Student` üzerinde kullanıcının kendi güncelleyebileceği bir profil alanı yok
+> (StudentNumber/DepartmentId/EnrollmentYear kurumsal alanlar); var olmayan bir alanı düzenlemek için
+> uydurma bir DTO eklemek yerine bu kapsam dışı bırakıldı.
+> **Plan dışı düzeltme:** eşzamanlı iki `confirm-email` isteği (ör. React StrictMode'un geliştirmede
+> effect'i iki kez çalıştırması, çift tıklama, iki sekme) `ApplicationUser.ConcurrencyStamp` çakışmasıyla
+> 500 dönüyordu — `AccountManager.ConfirmEmailAsync` artık `ConcurrencyConflictException`'ı yakalayıp
+> bunu "büyük olasılıkla az önce başka bir istek zaten doğruladı" sayarak başarı döndürüyor.
+> `SmtpEmailSender`, `Smtp:Host` boşken artık e-posta gövdesini de loglar (yalnızca yerel konsol) —
+> SMTP sunucusuz geliştirmede doğrulama/sıfırlama bağlantısı test edilebilsin diye.
+> Frontend: `/register` (bölüm seçimi `GET /api/auth/departments` — anonim, dar izdüşüm), `/confirm-email`,
+> `/forgot-password`, `/reset-password`, `/profile` sayfaları; `LoginPage`'e kayıt/parolamı unuttum linkleri;
+> `TopBar`'a "Profilim" menü öğesi.
+> Test: 219/219 yeşil (149 Business.Tests + 10 Architecture.Tests + 60 WebAPI.IntegrationTests, yeni
+> `AccountLifecycleTests` — planın birebir çıkış koşulu + Y-55 enumeration testi + parola sıfırlama akışı —
+> ve `UserAdministrationTests` dahil). Canlı Playwright doğrulaması yapıldı: kayıt → doğrulanmamışken
+> giriş reddi → e-postadaki linkle doğrula → giriş başarılı → profil sayfası → parolamı unuttum →
+> e-postadaki linkle yeni parola → yeni parolayla giriş.
+
 ---
 
 ## Faz 12 — Dashboard ve öğrenci self-servisi (K-25)

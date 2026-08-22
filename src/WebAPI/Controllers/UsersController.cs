@@ -23,4 +23,18 @@ public sealed class UsersController(IRoleAdminService roleAdminService) : Contro
         var result = await roleAdminService.SetUserRolesAsync(id, request, cancellationToken);
         return result.ToActionResult();
     }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateUser(CreateUserRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await roleAdminService.CreateUserAsync(request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpPut("{id:int}/lockout")]
+    public async Task<IActionResult> SetLockout(int id, SetLockoutRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await roleAdminService.SetLockoutAsync(id, request, cancellationToken);
+        return result.ToActionResult();
+    }
 }

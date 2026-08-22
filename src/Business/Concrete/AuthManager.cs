@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Business.Abstract;
+using Business.Constants;
 using Business.DTOs.Auth;
 using Core.DataAccess;
 using Core.Utilities.Results;
@@ -48,6 +49,15 @@ public sealed class AuthManager(
         {
             await identityGateway.AccessFailedAsync(user).ConfigureAwait(false);
             return DataResult<IssuedTokensDto>.Unauthorized(InvalidCredentialsMessage);
+        }
+
+        // docs/PLAN-V2.md · Faz 11 (K-03): doğrulanmamış e-posta ile giriş reddedilir. Kasıtlı olarak
+        // parola kontrolünden SONRA yapılır — yanlış parolayla denenen bir istekten "bu hesap henüz
+        // doğrulanmamış" bilgisi sızmaz, yalnızca doğru parolayı bilen (yani hesabın gerçek sahibi
+        // olan) kişi bu ayrıntıyı görür.
+        if (!user.EmailConfirmed)
+        {
+            return DataResult<IssuedTokensDto>.Unauthorized(Messages.EmailNotConfirmed);
         }
 
         await identityGateway.ResetAccessFailedCountAsync(user).ConfigureAwait(false);

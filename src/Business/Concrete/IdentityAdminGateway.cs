@@ -105,6 +105,37 @@ public sealed class IdentityAdminGateway(UserManager<ApplicationUser> userManage
         return true;
     }
 
+    public async Task<int?> CreateUserAsync(string email, string password, IReadOnlyCollection<string> roleNames)
+    {
+        // K-17 admin akışı Faz 11'in e-posta doğrulama zincirini atlar — yönetici zaten kimliği doğrulanmış
+        // bir aktördür, hesabı kendisi oluşturuyor.
+        var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+        var result = await userManager.CreateAsync(user, password).ConfigureAwait(false);
+        if (!result.Succeeded)
+        {
+            return null;
+        }
+
+        if (roleNames.Count > 0)
+        {
+            await userManager.AddToRolesAsync(user, roleNames).ConfigureAwait(false);
+        }
+
+        return user.Id;
+    }
+
+    public async Task<bool> SetLockoutAsync(int userId, bool locked)
+    {
+        var user = await FindUserAsync(userId).ConfigureAwait(false);
+        if (user is null)
+        {
+            return false;
+        }
+
+        await userManager.SetLockoutEndDateAsync(user, locked ? DateTimeOffset.MaxValue : null).ConfigureAwait(false);
+        return true;
+    }
+
     private Task<ApplicationRole?> FindRoleAsync(int roleId) =>
         roleManager.FindByIdAsync(roleId.ToString(CultureInfo.InvariantCulture));
 

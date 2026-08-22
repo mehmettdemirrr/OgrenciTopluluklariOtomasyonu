@@ -3,7 +3,7 @@ import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
@@ -122,6 +122,15 @@ export function LoginPage() {
             <Button type="submit" variant="contained" disabled={isSubmitting} size="large">
               Giriş Yap
             </Button>
+
+            <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+              <Button component={RouterLink} to="/register" variant="text" size="small">
+                Hesabınız yok mu? Kayıt olun
+              </Button>
+              <Button component={RouterLink} to="/forgot-password" variant="text" size="small">
+                Parolamı unuttum
+              </Button>
+            </Stack>
           </Box>
         </Box>
       </Box>

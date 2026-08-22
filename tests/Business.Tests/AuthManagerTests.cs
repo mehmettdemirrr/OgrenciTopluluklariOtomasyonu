@@ -44,8 +44,8 @@ public class AuthManagerTests
             _clock.Object);
     }
 
-    private static ApplicationUser CreateUser(int id = 1) =>
-        new() { Id = id, Email = "user@test.local", UserName = "user@test.local" };
+    private static ApplicationUser CreateUser(int id = 1, bool emailConfirmed = true) =>
+        new() { Id = id, Email = "user@test.local", UserName = "user@test.local", EmailConfirmed = emailConfirmed };
 
     [Fact(DisplayName = "Login: yanlış parola reddedilir ve AccessFailedAsync çağrılır")]
     public async Task LoginAsync_WrongPassword_ReturnsUnauthorized()
@@ -77,6 +77,21 @@ public class AuthManagerTests
         _identityGateway.Verify(g => g.ResetAccessFailedCountAsync(user), Times.Once);
         _refreshTokenRepository.Verify(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    [Fact(DisplayName = "Login: doğrulanmamış e-posta ile doğru parola bile girişi reddeder")]
+    public async Task LoginAsync_UnconfirmedEmail_ReturnsUnauthorizedAndDoesNotIssueTokens()
+    {
+        var user = CreateUser(emailConfirmed: false);
+        _identityGateway.Setup(g => g.FindByEmailAsync(user.Email!)).ReturnsAsync(user);
+        _identityGateway.Setup(g => g.IsLockedOutAsync(user)).ReturnsAsync(false);
+        _identityGateway.Setup(g => g.CheckPasswordAsync(user, "correct")).ReturnsAsync(true);
+
+        var result = await _sut.LoginAsync(new LoginRequestDto { Email = user.Email!, Password = "correct" });
+
+        Assert.False(result.IsSuccess);
+        _identityGateway.Verify(g => g.ResetAccessFailedCountAsync(user), Times.Never);
+        _refreshTokenRepository.Verify(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "Login: kilitli hesap reddedilir, parola hiç kontrol edilmez")]

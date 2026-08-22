@@ -183,4 +183,48 @@ public class RoleAdminManagerTests
         Assert.Contains(IdentitySeedData.Permissions.ClubsRead, memberRole.Permissions);
         Assert.Contains(IdentitySeedData.Permissions.RolesManage, editorRole.Permissions);
     }
+
+    [Fact(DisplayName = "CreateUser: geçerli rollerle kullanıcı oluşturulur")]
+    public async Task CreateUserAsync_ValidRoles_ReturnsSuccessWithId()
+    {
+        _identityAdminGateway.Setup(g => g.RoleExistsByNameAsync("Member")).ReturnsAsync(true);
+        _identityAdminGateway
+            .Setup(g => g.CreateUserAsync("new@test.local", "Str0ng!Pass", It.Is<IReadOnlyCollection<string>>(r => r.Contains("Member"))))
+            .ReturnsAsync(77);
+
+        var result = await _sut.CreateUserAsync(new CreateUserRequestDto { Email = "new@test.local", Password = "Str0ng!Pass", RoleNames = ["Member"] });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(77, result.Data);
+    }
+
+    [Fact(DisplayName = "CreateUser: var olmayan role atanmak istenirse NotFound döner, kullanıcı oluşturulmaz")]
+    public async Task CreateUserAsync_UnknownRole_ReturnsNotFound()
+    {
+        _identityAdminGateway.Setup(g => g.RoleExistsByNameAsync("Hayalet")).ReturnsAsync(false);
+
+        var result = await _sut.CreateUserAsync(new CreateUserRequestDto { Email = "new@test.local", Password = "Str0ng!Pass", RoleNames = ["Hayalet"] });
+
+        Assert.False(result.IsSuccess);
+        _identityAdminGateway.Verify(g => g.CreateUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "SetLockout: başka bir kullanıcı kilitlenebilir")]
+    public async Task SetLockoutAsync_OtherUser_ReturnsSuccess()
+    {
+        _identityAdminGateway.Setup(g => g.SetLockoutAsync(123, true)).ReturnsAsync(true);
+
+        var result = await _sut.SetLockoutAsync(123, new SetLockoutRequestDto { Locked = true });
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "SetLockout: yönetici kendi hesabını kilitleyemez")]
+    public async Task SetLockoutAsync_OwnAccount_ReturnsConflict()
+    {
+        var result = await _sut.SetLockoutAsync(999, new SetLockoutRequestDto { Locked = true });
+
+        Assert.False(result.IsSuccess);
+        _identityAdminGateway.Verify(g => g.SetLockoutAsync(It.IsAny<int>(), It.IsAny<bool>()), Times.Never);
+    }
 }
