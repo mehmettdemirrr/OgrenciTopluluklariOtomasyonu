@@ -24,6 +24,46 @@ public sealed class ClubMemberManager(
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
 
+    public async Task<IDataResult<IReadOnlyCollection<MyClubMembershipDto>>> GetMineAsync(CancellationToken cancellationToken = default)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success([]);
+        }
+
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (student is null)
+        {
+            return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success([]);
+        }
+
+        var memberships = await clubMembershipRepository
+            .GetListAsync(m => m.StudentId == student.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        var clubIds = memberships.Select(m => m.ClubId).Distinct().ToList();
+        var clubsById = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(c => c.Id, c => c);
+
+        IReadOnlyCollection<MyClubMembershipDto> items = memberships
+            .OrderByDescending(m => m.JoinedAtUtc)
+            .Select(m =>
+            {
+                clubsById.TryGetValue(m.ClubId, out var club);
+                return new MyClubMembershipDto
+                {
+                    ClubId = m.ClubId,
+                    ClubName = club?.Name ?? string.Empty,
+                    ClubIsActive = club?.IsActive ?? false,
+                    ClubRole = m.ClubRole,
+                    JoinedAtUtc = m.JoinedAtUtc,
+                };
+            })
+            .ToList();
+
+        return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success(items);
+    }
+
     public async Task<IDataResult<PagedResult<ClubMemberListItemDto>>> GetMembersPagedAsync(
         int clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
     {

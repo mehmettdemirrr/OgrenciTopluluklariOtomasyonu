@@ -9,8 +9,11 @@ import {
   Typography,
   alpha,
 } from '@mui/material'
+import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import Groups2OutlinedIcon from '@mui/icons-material/Groups2Outlined'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
+import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined'
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined'
@@ -33,8 +36,11 @@ interface NavItem {
 }
 
 const genelItems: NavItem[] = [
+  { label: 'Panel', to: '/panel', icon: SpaceDashboardOutlinedIcon },
   { label: 'Kulüpler', to: '/clubs', icon: GroupsOutlinedIcon },
+  { label: 'Kulüplerim', to: '/my-clubs', icon: Groups2OutlinedIcon },
   { label: 'Etkinlikler', to: '/events', icon: EventOutlinedIcon, permission: Permissions.EventsRead },
+  { label: 'Etkinliklerim', to: '/my-events', icon: EventAvailableOutlinedIcon, permission: Permissions.EventsRead },
   { label: 'Duyurular', to: '/announcements', icon: CampaignOutlinedIcon, permission: Permissions.ClubsRead },
   { label: 'Başvuru İncele', to: '/review', icon: FactCheckOutlinedIcon, permission: Permissions.MembershipsWrite },
   { label: 'Raporlarım', to: '/reports', icon: BarChartOutlinedIcon, permission: Permissions.ReportsRead },

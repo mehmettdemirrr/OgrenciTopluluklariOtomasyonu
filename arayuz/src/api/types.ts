@@ -187,3 +187,35 @@ export interface MeResponseDto {
   roles: string[]
   permissions: string[]
 }
+
+// src/Business/DTOs/Clubs/MyClubMembershipDto.cs
+export interface MyClubMembershipDto {
+  clubId: number
+  clubName: string
+  clubIsActive: boolean
+  clubRole: ClubRole
+  joinedAtUtc: string
+}
+
+// src/Entities/Dtos/Dashboard/PersonalDashboardStatsDto.cs
+export interface PersonalDashboardStatsDto {
+  myClubCount: number
+  myPendingApplicationCount: number
+  myUpcomingEventCount: number
+}
+
+// src/Entities/Dtos/Dashboard/ManagementDashboardStatsDto.cs
+export interface ManagementDashboardStatsDto {
+  allClubs: boolean
+  scopeClubCount: number
+  scopeMemberCount: number
+  scopePendingApplicationCount: number
+  scopeUpcomingEventCount: number
+}
+
+// src/Business/DTOs/Dashboard/DashboardSummaryDto.cs
+export interface DashboardSummaryDto {
+  personal: PersonalDashboardStatsDto
+  management: ManagementDashboardStatsDto | null
+  termTrend: TermSummaryRowDto[]
+}

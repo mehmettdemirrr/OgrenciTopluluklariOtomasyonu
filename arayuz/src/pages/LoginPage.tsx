@@ -34,7 +34,7 @@ export function LoginPage() {
     setServerError(null)
     try {
       await login(values.email, values.password)
-      navigate('/clubs', { replace: true })
+      navigate('/panel', { replace: true })
     } catch (error) {
       setServerError(extractErrorMessage(error, 'Giriş başarısız. Bilgilerinizi kontrol edin.'))
     }

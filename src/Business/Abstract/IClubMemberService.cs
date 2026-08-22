@@ -13,6 +13,10 @@ namespace Business.Abstract;
 /// </summary>
 public interface IClubMemberService
 {
+    /// <summary>docs/PLAN-V2.md · Faz 12: çağıranın kendi üyelikleri — EventParticipationService.GetMineAsync precedent'i.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ClubsRead)]
+    Task<IDataResult<IReadOnlyCollection<MyClubMembershipDto>>> GetMineAsync(CancellationToken cancellationToken = default);
+
     [SecuredOperation(IdentitySeedData.Permissions.MembershipsRead)]
     Task<IDataResult<PagedResult<ClubMemberListItemDto>>> GetMembersPagedAsync(
         int clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default);

@@ -12,11 +12,14 @@ import { AuthorizationPage } from './pages/AuthorizationPage'
 import { ClubDetailPage } from './pages/ClubDetailPage'
 import { ClubsPage } from './pages/ClubsPage'
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
+import { DashboardPage } from './pages/DashboardPage'
 import { EventDetailPage } from './pages/EventDetailPage'
 import { EventsPage } from './pages/EventsPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { MembershipReviewPage } from './pages/MembershipReviewPage'
+import { MyClubsPage } from './pages/MyClubsPage'
+import { MyEventsPage } from './pages/MyEventsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ReferenceDataPage } from './pages/ReferenceDataPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -47,6 +50,9 @@ function App() {
                     </ProtectedRoute>
                   }
                 >
+                  <Route path="/panel" element={<DashboardPage />} />
+                  <Route path="/my-clubs" element={<MyClubsPage />} />
+                  <Route path="/my-events" element={<MyEventsPage />} />
                   <Route path="/clubs" element={<ClubsPage />} />
                   <Route path="/clubs/:id" element={<ClubDetailPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
@@ -115,7 +121,7 @@ function App() {
                   />
                 </Route>
 
-                <Route path="*" element={<Navigate to="/clubs" replace />} />
+                <Route path="*" element={<Navigate to="/panel" replace />} />
               </Routes>
             </AuthProvider>
           </BrowserRouter>

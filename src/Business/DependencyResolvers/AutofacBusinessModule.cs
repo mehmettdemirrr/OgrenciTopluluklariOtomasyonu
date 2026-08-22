@@ -216,6 +216,12 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<DashboardManager>()
+            .As<IDashboardService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<MaintenanceManager>()
             .As<IMaintenanceService>()
             .EnableInterfaceInterceptors()

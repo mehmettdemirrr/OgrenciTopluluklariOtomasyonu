@@ -116,4 +116,7 @@ public static class Messages
     public const string UserCreationFailed = "Kullanıcı oluşturulamadı.";
     public const string LockoutUpdated = "Kullanıcı durumu güncellendi.";
     public const string CannotLockOwnAccount = "Kendi hesabınızı kilitleyemezsiniz.";
+
+    // Faz 12 — Dashboard (K-25)
+    public const string DashboardAccessDenied = "Panel özetini görüntülemek için oturum açmanız gerekir.";
 }

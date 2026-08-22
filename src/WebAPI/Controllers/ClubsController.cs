@@ -7,12 +7,19 @@ namespace WebAPI.Controllers;
 
 [ApiController]
 [Route("api/clubs")]
-public sealed class ClubsController(IClubService clubService) : ControllerBase
+public sealed class ClubsController(IClubService clubService, IClubMemberService clubMemberService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetList([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
         var result = await clubService.GetListPagedAsync(pageIndex, pageSize, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpGet("mine")]
+    public async Task<IActionResult> GetMine(CancellationToken cancellationToken)
+    {
+        var result = await clubMemberService.GetMineAsync(cancellationToken);
         return result.ToActionResult();
     }
 

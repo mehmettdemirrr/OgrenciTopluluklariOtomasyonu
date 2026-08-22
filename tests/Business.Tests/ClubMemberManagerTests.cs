@@ -192,4 +192,38 @@ public class ClubMemberManagerTests
         // Blanket bypass — danışman/öğrenci sorgularına hiç gidilmemeli.
         _academicStaffRepository.Verify(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact(DisplayName = "GetMineAsync: öğrenci profili olan kullanıcı kendi üyeliklerini kulüp adıyla görür")]
+    public async Task GetMineAsync_StudentWithMemberships_ReturnsOwnClubs()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(500);
+        _studentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Student { Id = 5, ApplicationUserId = 500, StudentNumber = "S1", DepartmentId = 1, EnrollmentYear = 2026 });
+        var membership = new ClubMembership { Id = 1, ClubId = 1, StudentId = 5, AcademicTermId = 1, ClubRole = ClubRole.Officer, JoinedAtUtc = FixedNow };
+        _clubMembershipRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([membership]);
+        _clubRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([_club]);
+
+        var result = await _sut.GetMineAsync();
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Data!);
+        Assert.Equal(_club.Name, item.ClubName);
+        Assert.Equal(ClubRole.Officer, item.ClubRole);
+    }
+
+    [Fact(DisplayName = "GetMineAsync: öğrenci profili olmayan kullanıcı (ör. danışman) için hata değil boş liste döner")]
+    public async Task GetMineAsync_NoStudentProfile_ReturnsEmptySuccess()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _studentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Student?)null);
+
+        var result = await _sut.GetMineAsync();
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Data!);
+        _clubMembershipRepository.Verify(r => r.GetListAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

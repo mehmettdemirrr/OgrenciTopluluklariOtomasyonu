@@ -66,6 +66,10 @@ public sealed class DataAccessAutofacModule(IConfiguration configuration) : Modu
             .As<IReportDal>()
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<EfDashboardDal>()
+            .As<IDashboardDal>()
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<EfIdentityAdminDal>()
             .As<IIdentityAdminDal>()
             .InstancePerLifetimeScope();

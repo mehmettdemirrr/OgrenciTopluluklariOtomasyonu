@@ -18,7 +18,7 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
   }
 
   if (requiredPermission && !hasPermission(requiredPermission)) {
-    return <Navigate to="/clubs" replace />
+    return <Navigate to="/panel" replace />
   }
 
   return <>{children}</>
