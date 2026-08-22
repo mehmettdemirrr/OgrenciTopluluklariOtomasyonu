@@ -48,22 +48,34 @@ public sealed class ReportGenerationManager(
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var parameters = DeserializeParameters(reportRequest.ParametersJson);
+        var reportType = Enum.Parse<ReportType>(reportRequest.ReportType);
 
         // Y-51 (2/3 an): üretim anında TALEP SAHİBİNİN o anki kapsamı kontrol edilir — arka plan
         // işinde HTTP kullanıcısı yok, ICurrentUser'a değil ReportRequest.RequestedByUserId'e bakılır.
         var scope = await scopeResolver.ResolveAsync(reportRequest.RequestedByUserId, cancellationToken).ConfigureAwait(false);
-        var targetClubId = await ResolveClubIdAsync(parameters, cancellationToken).ConfigureAwait(false);
 
-        if (targetClubId is null || !scope.Covers(targetClubId.Value))
+        if (reportType == ReportType.TermSummary)
         {
-            await MarkFailedAsync(reportRequest, Messages.ReportScopeLost, cancellationToken).ConfigureAwait(false);
-            return Result.Success();
+            // TermSummary tek bir kulübe değil TÜM kapsama bağlıdır — targetClubId kavramı uygun değil.
+            if (!scope.AllClubs && scope.ClubIds.Count == 0)
+            {
+                await MarkFailedAsync(reportRequest, Messages.ReportScopeLost, cancellationToken).ConfigureAwait(false);
+                return Result.Success();
+            }
+        }
+        else
+        {
+            var targetClubId = await ResolveClubIdAsync(parameters, cancellationToken).ConfigureAwait(false);
+            if (targetClubId is null || !scope.Covers(targetClubId.Value))
+            {
+                await MarkFailedAsync(reportRequest, Messages.ReportScopeLost, cancellationToken).ConfigureAwait(false);
+                return Result.Success();
+            }
         }
 
         try
         {
             byte[] workbookBytes;
-            var reportType = Enum.Parse<ReportType>(reportRequest.ReportType);
 
             if (reportType == ReportType.ClubMembers)
             {
@@ -78,7 +90,7 @@ public sealed class ReportGenerationManager(
                 var rows = await reportDal.GetClubMemberRowsAsync(clubId, termId, cancellationToken).ConfigureAwait(false);
                 workbookBytes = excelReportBuilder.BuildClubMemberWorkbook(rows, club?.Name ?? string.Empty, term?.Name ?? string.Empty);
             }
-            else
+            else if (reportType == ReportType.EventParticipants)
             {
                 if (parameters.EventId is not { } eventId)
                 {
@@ -89,6 +101,11 @@ public sealed class ReportGenerationManager(
                 var @event = await eventRepository.GetAsync(e => e.Id == eventId, cancellationToken).ConfigureAwait(false);
                 var rows = await reportDal.GetEventParticipationRowsAsync(eventId, cancellationToken).ConfigureAwait(false);
                 workbookBytes = excelReportBuilder.BuildEventParticipationWorkbook(rows, @event?.Title ?? string.Empty);
+            }
+            else
+            {
+                var rows = await reportDal.GetTermSummaryAsync(scope.AllClubs ? null : scope.ClubIds, cancellationToken).ConfigureAwait(false);
+                workbookBytes = excelReportBuilder.BuildTermSummaryWorkbook(rows);
             }
 
             // Fiziksel dosya önce yazılır, DB satırları sonra — yarıda kalan çalışma en fazla

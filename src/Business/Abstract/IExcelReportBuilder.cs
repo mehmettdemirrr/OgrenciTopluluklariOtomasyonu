@@ -8,4 +8,6 @@ public interface IExcelReportBuilder
     byte[] BuildClubMemberWorkbook(IReadOnlyList<ClubMemberExportRowDto> rows, string clubName, string termName);
 
     byte[] BuildEventParticipationWorkbook(IReadOnlyList<EventParticipationExportRowDto> rows, string eventTitle);
+
+    byte[] BuildTermSummaryWorkbook(IReadOnlyList<TermSummaryRowDto> rows);
 }

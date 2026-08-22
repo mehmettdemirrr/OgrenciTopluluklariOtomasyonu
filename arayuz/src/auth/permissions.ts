@@ -17,4 +17,5 @@ export const Permissions = {
   EventsApprove: 'events.approve',
   AnnouncementsWrite: 'announcements.write',
   AnnouncementsGlobal: 'announcements.global',
+  AuditRead: 'audit.read',
 } as const

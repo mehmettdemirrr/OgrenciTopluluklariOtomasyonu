@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Business.Concrete;
 using Business.DTOs.Reference;
 using Core.DataAccess;
@@ -99,6 +100,38 @@ public class AcademicTermManagerTests
 
         Assert.True(result.IsSuccess);
         Assert.False(created!.IsCurrent);
+    }
+
+    [Fact(DisplayName = "UpdateTerm: benzersiz isimle ad ve tarihler güncellenir")]
+    public async Task UpdateTermAsync_UniqueName_Updates()
+    {
+        var target = new AcademicTerm { Id = 1, Name = "2026-Güz", StartDateUtc = DateTime.UtcNow, EndDateUtc = DateTime.UtcNow.AddMonths(4) };
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<AcademicTerm, bool>> filter, CancellationToken _) => new[] { target }.AsQueryable().Where(filter).FirstOrDefault());
+
+        var newStart = DateTime.UtcNow.AddDays(1);
+        var newEnd = newStart.AddMonths(4);
+        var result = await _sut.UpdateTermAsync(1, new UpdateAcademicTermRequestDto { Name = "2026-Güz-Rev", StartDateUtc = newStart, EndDateUtc = newEnd });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("2026-Güz-Rev", target.Name);
+        Assert.Equal(newStart, target.StartDateUtc);
+        _academicTermRepository.Verify(r => r.Update(target), Times.Once);
+    }
+
+    [Fact(DisplayName = "UpdateTerm: aynı isimde başka bir dönem varsa Conflict döner")]
+    public async Task UpdateTermAsync_NameTakenByAnotherTerm_ReturnsConflict()
+    {
+        var target = new AcademicTerm { Id = 1, Name = "2026-Güz", StartDateUtc = DateTime.UtcNow, EndDateUtc = DateTime.UtcNow.AddMonths(4) };
+        var other = new AcademicTerm { Id = 2, Name = "2026-Bahar", StartDateUtc = DateTime.UtcNow.AddMonths(-6), EndDateUtc = DateTime.UtcNow.AddMonths(-2) };
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<AcademicTerm, bool>> filter, CancellationToken _) =>
+                new[] { target, other }.AsQueryable().Where(filter).FirstOrDefault());
+
+        var result = await _sut.UpdateTermAsync(1, new UpdateAcademicTermRequestDto { Name = "2026-Bahar", StartDateUtc = target.StartDateUtc, EndDateUtc = target.EndDateUtc });
+
+        Assert.False(result.IsSuccess);
+        _academicTermRepository.Verify(r => r.Update(It.IsAny<AcademicTerm>()), Times.Never);
     }
 
     private static bool MatchesId(System.Linq.Expressions.Expression<Func<AcademicTerm, bool>> expr, AcademicTerm term) =>

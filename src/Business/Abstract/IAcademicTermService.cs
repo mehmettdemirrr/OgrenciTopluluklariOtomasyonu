@@ -18,6 +18,12 @@ public interface IAcademicTermService
     [TransactionAspect]
     Task<IDataResult<int>> CreateTermAsync(CreateAcademicTermRequestDto request, CancellationToken cancellationToken = default);
 
+    /// <summary>docs/PLAN-V2.md · Faz 13: isim/tarih düzenleme — IsCurrent burada değiştirilmez, bkz. SetCurrentAsync.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [ValidationAspect(typeof(UpdateAcademicTermRequestValidator))]
+    [TransactionAspect]
+    Task<IResult> UpdateTermAsync(int termId, UpdateAcademicTermRequestDto request, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// docs/MIMARI.md: eski güncel dönem önce false yapılıp kaydedilir, SONRA hedef true yapılıp
     /// kaydedilir (iki ayrı SaveChanges, tek [TransactionAspect]) — IX_AcademicTerms_IsCurrent

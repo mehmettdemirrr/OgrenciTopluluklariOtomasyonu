@@ -23,6 +23,13 @@ public sealed class AcademicTermsController(IAcademicTermService academicTermSer
         return result.ToActionResult();
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateTerm(int id, UpdateAcademicTermRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await academicTermService.UpdateTermAsync(id, request, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpPut("{id:int}/current")]
     public async Task<IActionResult> SetCurrent(int id, CancellationToken cancellationToken)
     {

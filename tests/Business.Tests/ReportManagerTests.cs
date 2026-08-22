@@ -112,6 +112,43 @@ public class ReportManagerTests
         _backgroundJobClient.Verify(c => c.Create(It.IsAny<Job>(), It.IsAny<IState>()), Times.Never);
     }
 
+    [Fact(DisplayName = "RequestAsync: TermSummary — kapsamı olan kullanıcı ClubId/EventId olmadan kuyruğa alınır")]
+    public async Task RequestAsync_TermSummaryWithScope_QueuesRequestWithoutClubOrEvent()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(1);
+        _scopeResolver.Setup(s => s.ResolveAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new ReportScope(false, [5]));
+
+        ReportRequest? added = null;
+        _reportRequestRepository
+            .Setup(r => r.AddAsync(It.IsAny<ReportRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<ReportRequest, CancellationToken>((r, _) =>
+            {
+                added = r;
+                r.Id = 100;
+            })
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.RequestAsync(new CreateReportRequestDto { ReportType = ReportType.TermSummary });
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(added);
+        Assert.Equal(ReportStatus.Queued, added!.Status);
+        _clubRepository.Verify(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "RequestAsync: TermSummary — kapsamı olmayan kullanıcı için reddedilir, kuyruğa hiç girmez")]
+    public async Task RequestAsync_TermSummaryNoScope_ReturnsForbiddenAndNeverQueues()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(1);
+        _scopeResolver.Setup(s => s.ResolveAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(ReportScope.None);
+
+        var result = await _sut.RequestAsync(new CreateReportRequestDto { ReportType = ReportType.TermSummary });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+        _reportRequestRepository.Verify(r => r.AddAsync(It.IsAny<ReportRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact(DisplayName = "DownloadAsync: sahip ve kapsam içiyse dosya döner")]
     public async Task DownloadAsync_OwnerWithinScope_ReturnsFileContent()
     {
@@ -181,6 +218,38 @@ public class ReportManagerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ResultStatus.NotFound, result.Status);
+    }
+
+    [Fact(DisplayName = "DownloadAsync: TermSummary — kapsamı olan kullanıcı indirebilir (tekil hedef kulüp aranmaz)")]
+    public async Task DownloadAsync_TermSummaryWithinScope_ReturnsFileContent()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(1);
+        var reportRequest = new ReportRequest
+        {
+            Id = 10, RequestedByUserId = 1, ReportType = "TermSummary", ParametersJson = "{\"ClubId\":null,\"EventId\":null,\"AcademicTermId\":null}",
+            Status = ReportStatus.Ready, OutputFileId = 50, RequestedAtUtc = FixedNow,
+        };
+        _reportRequestRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<ReportRequest, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(reportRequest);
+        _scopeResolver.Setup(s => s.ResolveAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new ReportScope(true, []));
+
+        var storedFile = new StoredFile
+        {
+            Id = 50,
+            GeneratedFileName = "term-summary.xlsx",
+            OriginalFileName = "rapor.xlsx",
+            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            FileSizeBytes = 100,
+            Visibility = FileVisibility.Protected,
+            UploadedByUserId = 1,
+            UploadedAtUtc = FixedNow,
+        };
+        _storedFileRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<StoredFile, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(storedFile);
+        _fileStorage.Setup(s => s.OpenReadAsync("term-summary.xlsx", It.IsAny<CancellationToken>())).ReturnsAsync(new MemoryStream());
+
+        var result = await _sut.DownloadAsync(10);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("rapor.xlsx", result.Data.DownloadFileName);
     }
 
     [Fact(DisplayName = "DownloadAsync: hâlâ Queued olan rapor indirilemez")]

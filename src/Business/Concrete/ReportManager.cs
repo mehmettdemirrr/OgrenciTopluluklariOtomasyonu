@@ -58,55 +58,68 @@ public sealed class ReportManager(
             return Result.Forbidden(Messages.ReportScopeDenied);
         }
 
-        int targetClubId;
-        if (request.ReportType == ReportType.ClubMembers)
+        var scope = await scopeResolver.ResolveAsync(userId, cancellationToken).ConfigureAwait(false);
+        int? academicTermId = null;
+
+        if (request.ReportType == ReportType.TermSummary)
         {
-            if (request.ClubId is not { } clubId)
+            // Y-51 (1/3 an): TermSummary tek bir kulübe değil TÜM kapsama bağlıdır — targetClubId
+            // kavramı uygun değil; kapsamın en az bir kulübü kapsaması yeterlidir.
+            if (!scope.AllClubs && scope.ClubIds.Count == 0)
             {
-                return Result.ValidationError(Messages.InvalidReportParameters);
+                return Result.Forbidden(Messages.ReportScopeDenied);
             }
-
-            var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
-            if (club is null)
-            {
-                return Result.NotFound(Messages.ClubNotFound);
-            }
-
-            targetClubId = clubId;
         }
         else
         {
-            if (request.EventId is not { } eventId)
+            int targetClubId;
+            if (request.ReportType == ReportType.ClubMembers)
             {
-                return Result.ValidationError(Messages.InvalidReportParameters);
+                if (request.ClubId is not { } clubId)
+                {
+                    return Result.ValidationError(Messages.InvalidReportParameters);
+                }
+
+                var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+                if (club is null)
+                {
+                    return Result.NotFound(Messages.ClubNotFound);
+                }
+
+                targetClubId = clubId;
+            }
+            else
+            {
+                if (request.EventId is not { } eventId)
+                {
+                    return Result.ValidationError(Messages.InvalidReportParameters);
+                }
+
+                var @event = await eventRepository.GetAsync(e => e.Id == eventId, cancellationToken).ConfigureAwait(false);
+                if (@event is null)
+                {
+                    return Result.NotFound(Messages.EventNotFound);
+                }
+
+                targetClubId = @event.ClubId;
             }
 
-            var @event = await eventRepository.GetAsync(e => e.Id == eventId, cancellationToken).ConfigureAwait(false);
-            if (@event is null)
+            // Y-51 (1/3 an): kapsam dışıysa talep kuyruğa hiç girmez.
+            if (!scope.Covers(targetClubId))
             {
-                return Result.NotFound(Messages.EventNotFound);
+                return Result.Forbidden(Messages.ReportScopeDenied);
             }
 
-            targetClubId = @event.ClubId;
-        }
-
-        // Y-51 (1/3 an): kapsam dışıysa talep kuyruğa hiç girmez.
-        var scope = await scopeResolver.ResolveAsync(userId, cancellationToken).ConfigureAwait(false);
-        if (!scope.Covers(targetClubId))
-        {
-            return Result.Forbidden(Messages.ReportScopeDenied);
-        }
-
-        int? academicTermId = null;
-        if (request.ReportType == ReportType.ClubMembers)
-        {
-            var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
-            if (term is null)
+            if (request.ReportType == ReportType.ClubMembers)
             {
-                return Result.NotFound(Messages.NoCurrentAcademicTerm);
-            }
+                var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
+                if (term is null)
+                {
+                    return Result.NotFound(Messages.NoCurrentAcademicTerm);
+                }
 
-            academicTermId = term.Id;
+                academicTermId = term.Id;
+            }
         }
 
         var parameters = new ReportParameters(request.ClubId, request.EventId, academicTermId);
@@ -193,11 +206,23 @@ public sealed class ReportManager(
         // Y-51 (3/3 an): indirme anında yetki YENİDEN kontrol edilir — üretim anındaki kontrolden
         // bağımsız ayrı bir kod yolu. Kuyrukta beklerken/hazır olduktan sonra yetki değişmiş olabilir.
         var scope = await scopeResolver.ResolveAsync(userId, cancellationToken).ConfigureAwait(false);
-        var parameters = DeserializeParameters(reportRequest.ParametersJson);
-        var targetClubId = await ResolveClubIdForScopeCheckAsync(parameters, cancellationToken).ConfigureAwait(false);
-        if (targetClubId is null || !scope.Covers(targetClubId.Value))
+
+        if (Enum.Parse<ReportType>(reportRequest.ReportType) == ReportType.TermSummary)
         {
-            return DataResult<FileContentDto>.Forbidden(Messages.ReportScopeLost);
+            // TermSummary'de tekil bir hedef kulüp yok — kapsamın en az bir kulübü kapsaması yeterli.
+            if (!scope.AllClubs && scope.ClubIds.Count == 0)
+            {
+                return DataResult<FileContentDto>.Forbidden(Messages.ReportScopeLost);
+            }
+        }
+        else
+        {
+            var parameters = DeserializeParameters(reportRequest.ParametersJson);
+            var targetClubId = await ResolveClubIdForScopeCheckAsync(parameters, cancellationToken).ConfigureAwait(false);
+            if (targetClubId is null || !scope.Covers(targetClubId.Value))
+            {
+                return DataResult<FileContentDto>.Forbidden(Messages.ReportScopeLost);
+            }
         }
 
         var storedFile = await storedFileRepository

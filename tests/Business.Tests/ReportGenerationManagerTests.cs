@@ -128,4 +128,54 @@ public class ReportGenerationManagerTests
         Assert.Equal(FileVisibility.Protected, addedFile!.Visibility);
         _fileStorage.Verify(s => s.SaveAsync(It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact(DisplayName = "GenerateAsync: TermSummary — kapsam içi kullanıcı için ClubId'ler kapsamdan alınıp dönem özeti üretilir")]
+    public async Task GenerateAsync_TermSummaryWithinScope_ProducesFileFromScopedClubIds()
+    {
+        var reportRequest = new ReportRequest
+        {
+            Id = 1, RequestedByUserId = 1, ReportType = "TermSummary", Status = ReportStatus.Queued, RequestedAtUtc = FixedNow,
+        };
+        _reportRequestRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<ReportRequest, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(reportRequest);
+        _scopeResolver.Setup(s => s.ResolveAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new ReportScope(false, [5, 9]));
+        _reportDal
+            .Setup(d => d.GetTermSummaryAsync(
+                It.Is<IReadOnlyCollection<int>?>(c => c != null && c.OrderBy(x => x).SequenceEqual(new[] { 5, 9 })), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _excelReportBuilder.Setup(b => b.BuildTermSummaryWorkbook(It.IsAny<IReadOnlyList<TermSummaryRowDto>>())).Returns([9, 9, 9]);
+
+        StoredFile? addedFile = null;
+        _storedFileRepository
+            .Setup(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()))
+            .Callback<StoredFile, CancellationToken>((f, _) =>
+            {
+                addedFile = f;
+                f.Id = 88;
+            })
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.GenerateAsync(1);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ReportStatus.Ready, reportRequest.Status);
+        Assert.NotNull(addedFile);
+        _clubRepository.Verify(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "GenerateAsync: TermSummary — kapsamı olmayan kullanıcı için üretim yapılmadan Failed işaretlenir")]
+    public async Task GenerateAsync_TermSummaryNoScope_MarksFailedWithoutGenerating()
+    {
+        var reportRequest = new ReportRequest
+        {
+            Id = 1, RequestedByUserId = 1, ReportType = "TermSummary", Status = ReportStatus.Queued, RequestedAtUtc = FixedNow,
+        };
+        _reportRequestRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<ReportRequest, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(reportRequest);
+        _scopeResolver.Setup(s => s.ResolveAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(ReportScope.None);
+
+        var result = await _sut.GenerateAsync(1);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ReportStatus.Failed, reportRequest.Status);
+        _reportDal.Verify(d => d.GetTermSummaryAsync(It.IsAny<IReadOnlyCollection<int>?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

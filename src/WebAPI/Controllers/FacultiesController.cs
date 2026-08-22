@@ -23,6 +23,13 @@ public sealed class FacultiesController(IReferenceDataService referenceDataServi
         return result.ToActionResult();
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateFaculty(int id, UpdateFacultyRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await referenceDataService.UpdateFacultyAsync(id, request, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpGet("{id:int}/departments")]
     public async Task<IActionResult> GetDepartments(
         int id, [FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
@@ -35,6 +42,20 @@ public sealed class FacultiesController(IReferenceDataService referenceDataServi
     public async Task<IActionResult> CreateDepartment(int id, CreateDepartmentRequestDto request, CancellationToken cancellationToken)
     {
         var result = await referenceDataService.CreateDepartmentAsync(id, request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpPut("{id:int}/departments/{departmentId:int}")]
+    public async Task<IActionResult> UpdateDepartment(int id, int departmentId, UpdateDepartmentRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await referenceDataService.UpdateDepartmentAsync(id, departmentId, request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpDelete("{id:int}/departments/{departmentId:int}")]
+    public async Task<IActionResult> DeleteDepartment(int id, int departmentId, CancellationToken cancellationToken)
+    {
+        var result = await referenceDataService.DeleteDepartmentAsync(id, departmentId, cancellationToken);
         return result.ToActionResult();
     }
 }

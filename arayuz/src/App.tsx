@@ -8,6 +8,7 @@ import { Permissions } from './auth/permissions'
 import { NotifierProvider } from './notifications/NotifierProvider'
 import { theme } from './theme'
 import { AnnouncementsPage } from './pages/AnnouncementsPage'
+import { AuditLogPage } from './pages/AuditLogPage'
 import { AuthorizationPage } from './pages/AuthorizationPage'
 import { ClubDetailPage } from './pages/ClubDetailPage'
 import { ClubsPage } from './pages/ClubsPage'
@@ -116,6 +117,15 @@ function App() {
                     element={
                       <ProtectedRoute requiredPermission={Permissions.ClubsRead}>
                         <AnnouncementsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/audit"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.AuditRead}>
+                        <AuditLogPage />
                       </ProtectedRoute>
                     }
                   />

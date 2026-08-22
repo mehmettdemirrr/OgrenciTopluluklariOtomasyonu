@@ -66,4 +66,32 @@ public sealed class ExcelReportBuilder : IExcelReportBuilder
         workbook.SaveAs(stream);
         return stream.ToArray();
     }
+
+    public byte[] BuildTermSummaryWorkbook(IReadOnlyList<TermSummaryRowDto> rows)
+    {
+        using var workbook = new XLWorkbook();
+        var sheet = workbook.Worksheets.Add("Dönem Özeti");
+
+        sheet.Cell(1, 1).Value = "Dönem";
+        sheet.Cell(1, 2).Value = "Kulüp Sayısı";
+        sheet.Cell(1, 3).Value = "Üye Sayısı";
+        sheet.Cell(1, 4).Value = "Etkinlik Sayısı";
+        sheet.Row(1).Style.Font.Bold = true;
+
+        var rowIndex = 2;
+        foreach (var row in rows)
+        {
+            sheet.Cell(rowIndex, 1).Value = row.TermName;
+            sheet.Cell(rowIndex, 2).Value = row.ClubCount;
+            sheet.Cell(rowIndex, 3).Value = row.MemberCount;
+            sheet.Cell(rowIndex, 4).Value = row.EventCount;
+            rowIndex++;
+        }
+
+        sheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
 }

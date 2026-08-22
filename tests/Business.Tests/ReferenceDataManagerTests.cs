@@ -72,4 +72,87 @@ public class ReferenceDataManagerTests
         Assert.Equal(10, result.Data.Id);
         _departmentRepository.Verify(r => r.AddAsync(It.IsAny<Department>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact(DisplayName = "UpdateFaculty: geçerli yeniden adlandırma güncellenir")]
+    public async Task UpdateFacultyAsync_ValidRename_Updates()
+    {
+        var faculty = new Faculty { Id = 1, Name = "Eski Ad" };
+        _facultyRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Faculty, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<Faculty, bool>> filter, CancellationToken _) => new[] { faculty }.AsQueryable().Where(filter).FirstOrDefault());
+
+        var result = await _sut.UpdateFacultyAsync(1, new UpdateFacultyRequestDto { Name = "Yeni Ad" });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Yeni Ad", faculty.Name);
+        _facultyRepository.Verify(r => r.Update(faculty), Times.Once);
+    }
+
+    [Fact(DisplayName = "UpdateFaculty: başka bir fakültede aynı isim varsa Conflict döner")]
+    public async Task UpdateFacultyAsync_DuplicateNameAtAnotherFaculty_ReturnsConflict()
+    {
+        var faculty = new Faculty { Id = 1, Name = "Fen Fakültesi" };
+        var other = new Faculty { Id = 2, Name = "Mühendislik Fakültesi" };
+        _facultyRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Faculty, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<Faculty, bool>> filter, CancellationToken _) =>
+                new[] { faculty, other }.AsQueryable().Where(filter).FirstOrDefault());
+
+        var result = await _sut.UpdateFacultyAsync(1, new UpdateFacultyRequestDto { Name = "Mühendislik Fakültesi" });
+
+        Assert.False(result.IsSuccess);
+        _facultyRepository.Verify(r => r.Update(It.IsAny<Faculty>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "UpdateDepartment: geçerli yeniden adlandırma güncellenir")]
+    public async Task UpdateDepartmentAsync_ValidRename_Updates()
+    {
+        var department = new Department { Id = 10, Name = "Eski Ad", FacultyId = 1 };
+        _departmentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Department, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<Department, bool>> filter, CancellationToken _) => new[] { department }.AsQueryable().Where(filter).FirstOrDefault());
+
+        var result = await _sut.UpdateDepartmentAsync(1, 10, new UpdateDepartmentRequestDto { Name = "Yeni Ad" });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Yeni Ad", department.Name);
+        _departmentRepository.Verify(r => r.Update(department), Times.Once);
+    }
+
+    [Fact(DisplayName = "UpdateDepartment: aynı fakültede aynı isim varsa Conflict döner")]
+    public async Task UpdateDepartmentAsync_DuplicateNameInSameFaculty_ReturnsConflict()
+    {
+        var department = new Department { Id = 10, Name = "Yazılım Müh.", FacultyId = 1 };
+        var other = new Department { Id = 11, Name = "Bilgisayar Müh.", FacultyId = 1 };
+        _departmentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Department, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<Department, bool>> filter, CancellationToken _) =>
+                new[] { department, other }.AsQueryable().Where(filter).FirstOrDefault());
+
+        var result = await _sut.UpdateDepartmentAsync(1, 10, new UpdateDepartmentRequestDto { Name = "Bilgisayar Müh." });
+
+        Assert.False(result.IsSuccess);
+        _departmentRepository.Verify(r => r.Update(It.IsAny<Department>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "DeleteDepartment: kullanımda olmayan bölüm silinir")]
+    public async Task DeleteDepartmentAsync_NotInUse_DeletesSuccessfully()
+    {
+        var department = new Department { Id = 10, Name = "Bilgisayar Müh.", FacultyId = 1 };
+        _departmentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Department, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(department);
+
+        var result = await _sut.DeleteDepartmentAsync(1, 10);
+
+        Assert.True(result.IsSuccess);
+        _departmentRepository.Verify(r => r.Delete(department), Times.Once);
+    }
+
+    [Fact(DisplayName = "DeleteDepartment: kullanımda olan bölüm (FK Restrict) Conflict döner")]
+    public async Task DeleteDepartmentAsync_InUse_ReturnsConflict()
+    {
+        var department = new Department { Id = 10, Name = "Bilgisayar Müh.", FacultyId = 1 };
+        _departmentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Department, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(department);
+        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ReferentialIntegrityConflictException("fk violation", new Exception()));
+
+        var result = await _sut.DeleteDepartmentAsync(1, 10);
+
+        Assert.False(result.IsSuccess);
+    }
 }

@@ -4,6 +4,7 @@ using DataAccess.Seed;
 using Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace DataAccess;
@@ -60,7 +61,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             throw new ConcurrencyConflictException(ex.Message, ex);
         }
+        catch (DbUpdateException ex) when (IsForeignKeyConstraintViolation(ex))
+        {
+            // docs/PLAN-V2.md · Faz 13 (A-12): kullanımdaki referans veri (FK Restrict) silinmeye
+            // çalışıldığında burada yakalanır — Business'a EF tipi sızmaz. Yalnızca SQL Server'ın
+            // FK ihlali (547) hedeflenir — unique index ihlalleri (A-15 testlerinin doğrudan
+            // DbUpdateException bekleyen sözleşmesi) bilinçli olarak buradan GEÇMEZ.
+            throw new ReferentialIntegrityConflictException(ex.Message, ex);
+        }
     }
+
+    private static bool IsForeignKeyConstraintViolation(DbUpdateException ex) =>
+        ex.InnerException is SqlException { Number: 547 };
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

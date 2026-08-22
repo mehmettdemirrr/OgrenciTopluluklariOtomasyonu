@@ -67,7 +67,7 @@ export interface ProblemDetailsResponse {
 }
 
 // src/Business/DTOs/Reports/ReportType.cs
-export type ReportType = 'ClubMembers' | 'EventParticipants'
+export type ReportType = 'ClubMembers' | 'EventParticipants' | 'TermSummary'
 
 // src/Entities/Enums/ReportStatus.cs (JsonStringEnumConverter ile metin olarak taşınır)
 export type ReportStatus = 'Queued' | 'Processing' | 'Ready' | 'Failed'
@@ -218,4 +218,19 @@ export interface DashboardSummaryDto {
   personal: PersonalDashboardStatsDto
   management: ManagementDashboardStatsDto | null
   termTrend: TermSummaryRowDto[]
+}
+
+// src/Entities/Enums/AuditAction.cs (JsonStringEnumConverter ile metin olarak taşınır)
+export type AuditAction = 'Insert' | 'Update' | 'Delete'
+
+// src/Entities/Dtos/Audit/AuditLogListItemDto.cs
+export interface AuditLogListItemDto {
+  id: number
+  userId: number | null
+  entityType: string
+  entityId: string
+  action: AuditAction
+  timestampUtc: string
+  oldValues: string | null
+  newValues: string | null
 }

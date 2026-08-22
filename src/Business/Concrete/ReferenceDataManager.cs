@@ -84,6 +84,78 @@ public sealed class ReferenceDataManager(
         return DataResult<DepartmentListItemDto>.Success(new DepartmentListItemDto { Id = department.Id, Name = department.Name, FacultyId = department.FacultyId });
     }
 
+    public async Task<IResult> UpdateFacultyAsync(int id, UpdateFacultyRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var faculty = await facultyRepository.GetAsync(f => f.Id == id, cancellationToken).ConfigureAwait(false);
+        if (faculty is null)
+        {
+            return Result.NotFound(Messages.FacultyNotFound);
+        }
+
+        var name = request.Name.Trim();
+        var duplicate = await facultyRepository.GetAsync(f => f.Id != id && f.Name == name, cancellationToken).ConfigureAwait(false);
+        if (duplicate is not null)
+        {
+            return Result.Conflict(Messages.FacultyAlreadyExists);
+        }
+
+        faculty.Name = name;
+        facultyRepository.Update(faculty);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.FacultyUpdated);
+    }
+
+    public async Task<IResult> UpdateDepartmentAsync(
+        int facultyId, int departmentId, UpdateDepartmentRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var department = await departmentRepository
+            .GetAsync(d => d.Id == departmentId && d.FacultyId == facultyId, cancellationToken)
+            .ConfigureAwait(false);
+        if (department is null)
+        {
+            return Result.NotFound(Messages.DepartmentNotFound);
+        }
+
+        var name = request.Name.Trim();
+        var duplicate = await departmentRepository
+            .GetAsync(d => d.Id != departmentId && d.FacultyId == facultyId && d.Name == name, cancellationToken)
+            .ConfigureAwait(false);
+        if (duplicate is not null)
+        {
+            return Result.Conflict(Messages.DepartmentAlreadyExists);
+        }
+
+        department.Name = name;
+        departmentRepository.Update(department);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.DepartmentUpdated);
+    }
+
+    public async Task<IResult> DeleteDepartmentAsync(int facultyId, int departmentId, CancellationToken cancellationToken = default)
+    {
+        var department = await departmentRepository
+            .GetAsync(d => d.Id == departmentId && d.FacultyId == facultyId, cancellationToken)
+            .ConfigureAwait(false);
+        if (department is null)
+        {
+            return Result.NotFound(Messages.DepartmentNotFound);
+        }
+
+        departmentRepository.Delete(department);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (ReferentialIntegrityConflictException)
+        {
+            return Result.Conflict(Messages.DepartmentInUse);
+        }
+
+        return Result.Success(Messages.DepartmentDeleted);
+    }
+
     public async Task<IDataResult<PagedResult<AcademicStaffListItemDto>>> GetAcademicStaffPagedAsync(
         int pageIndex, int pageSize, CancellationToken cancellationToken = default)
     {

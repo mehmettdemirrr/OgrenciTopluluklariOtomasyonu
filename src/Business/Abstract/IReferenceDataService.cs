@@ -33,6 +33,30 @@ public interface IReferenceDataService
     Task<IDataResult<DepartmentListItemDto>> CreateDepartmentAsync(
         int facultyId, CreateDepartmentRequestDto request, CancellationToken cancellationToken = default);
 
+    /// <summary>docs/PLAN-V2.md · Faz 13: isim değişikliğinde diğer fakültelerle çakışma önden kontrol edilir.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [ValidationAspect(typeof(UpdateFacultyRequestValidator))]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IResult> UpdateFacultyAsync(int id, UpdateFacultyRequestDto request, CancellationToken cancellationToken = default);
+
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [ValidationAspect(typeof(UpdateDepartmentRequestValidator))]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IResult> UpdateDepartmentAsync(
+        int facultyId, int departmentId, UpdateDepartmentRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/PLAN-V2.md · Faz 13 (A-12): referans verisi hard delete edilir. Bölüm kullanımdaysa
+    /// (kayıtlı öğrenci var — FK Restrict) <see cref="Core.DataAccess.ReferentialIntegrityConflictException"/>
+    /// yakalanıp Türkçe Conflict'e çevrilir.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IResult> DeleteDepartmentAsync(int facultyId, int departmentId, CancellationToken cancellationToken = default);
+
     /// <summary>docs/PLAN-V2.md §9: kulüp oluşturma diyaloğundaki danışman seçici için sayfalı liste.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
     [CacheAspect(durationMinutes: 5)]

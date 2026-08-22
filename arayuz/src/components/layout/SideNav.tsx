@@ -19,6 +19,7 @@ import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined'
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined'
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined'
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
 import type { ComponentType } from 'react'
@@ -49,6 +50,7 @@ const genelItems: NavItem[] = [
 const yonetimItems: NavItem[] = [
   { label: 'Yetki Matrisi', to: '/authorization', icon: AdminPanelSettingsOutlinedIcon, permission: Permissions.RolesManage },
   { label: 'Referans Verisi', to: '/reference', icon: CategoryOutlinedIcon, permission: Permissions.ReferenceManage },
+  { label: 'Denetim İzi', to: '/audit', icon: HistoryOutlinedIcon, permission: Permissions.AuditRead },
 ]
 
 export const SIDENAV_WIDTH = 248
@@ -105,7 +107,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
           {renderItems(genelItems)}
         </List>
 
-        {(hasPermission(Permissions.RolesManage) || hasPermission(Permissions.ReferenceManage)) && (
+        {(hasPermission(Permissions.RolesManage) || hasPermission(Permissions.ReferenceManage) || hasPermission(Permissions.AuditRead)) && (
           <>
             <Divider sx={{ borderColor: alpha('#ffffff', 0.12), my: 1 }} />
             <List dense subheader={<NavGroupLabel text="Yönetim" />}>

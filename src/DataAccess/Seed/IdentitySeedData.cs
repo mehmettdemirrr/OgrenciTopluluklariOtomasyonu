@@ -62,6 +62,9 @@ public static class IdentitySeedData
 
         /// <summary>Faz 10: kulübe bağlı olmayan sistem duyurusu (ClubId = null) — Admin'e özgü.</summary>
         public const string AnnouncementsGlobal = "announcements.global";
+
+        /// <summary>Faz 13: denetim izi görüntüleme (K-12) — yalnız Admin.</summary>
+        public const string AuditRead = "audit.read";
     }
 
     /// <summary>Y-03: bu roller silinemez/yeniden adlandırılamaz; izinleri değiştirilebilir.</summary>
@@ -88,6 +91,7 @@ public static class IdentitySeedData
         Permissions.EventsApprove,
         Permissions.AnnouncementsWrite,
         Permissions.AnnouncementsGlobal,
+        Permissions.AuditRead,
     ];
 
     public static IEnumerable<ApplicationRole> Roles() =>
@@ -155,6 +159,9 @@ public static class IdentitySeedData
         Claim(33, AdminRoleId, Permissions.AnnouncementsGlobal),
         Claim(34, ClubOfficerRoleId, Permissions.AnnouncementsWrite),
         Claim(35, AdvisorRoleId, Permissions.AnnouncementsWrite),
+
+        // Faz 13 — Denetim izi ve referans veri olgunluğu.
+        Claim(36, AdminRoleId, Permissions.AuditRead),
     ];
 
     private static IdentityRoleClaim<int> Claim(int id, int roleId, string permission) => new()

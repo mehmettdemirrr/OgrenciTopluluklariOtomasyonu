@@ -48,6 +48,30 @@ public sealed class AcademicTermManager(IEntityRepository<AcademicTerm> academic
         return DataResult<int>.Success(term.Id);
     }
 
+    public async Task<IResult> UpdateTermAsync(int termId, UpdateAcademicTermRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var term = await academicTermRepository.GetAsync(t => t.Id == termId, cancellationToken).ConfigureAwait(false);
+        if (term is null)
+        {
+            return Result.NotFound(Messages.AcademicTermNotFound);
+        }
+
+        var name = request.Name.Trim();
+        var duplicate = await academicTermRepository.GetAsync(t => t.Id != termId && t.Name == name, cancellationToken).ConfigureAwait(false);
+        if (duplicate is not null)
+        {
+            return Result.Conflict(Messages.AcademicTermNameTaken);
+        }
+
+        term.Name = name;
+        term.StartDateUtc = request.StartDateUtc;
+        term.EndDateUtc = request.EndDateUtc;
+        academicTermRepository.Update(term);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.AcademicTermUpdated);
+    }
+
     public async Task<IResult> SetCurrentAsync(int termId, CancellationToken cancellationToken = default)
     {
         var target = await academicTermRepository.GetAsync(t => t.Id == termId, cancellationToken).ConfigureAwait(false);

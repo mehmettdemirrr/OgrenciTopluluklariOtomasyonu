@@ -19,11 +19,13 @@ import type { ClubListItemDto, PagedResult, ReportRequestListItemDto, ReportType
 const reportTypeLabels: Record<ReportType, string> = {
   ClubMembers: 'Kulüp Üyeleri',
   EventParticipants: 'Etkinlik Katılımcıları',
+  TermSummary: 'Dönem Özeti',
 }
 
 export function ReportsPage() {
   const queryClient = useQueryClient()
   const notify = useNotifier()
+  const [selectedReportType, setSelectedReportType] = useState<ReportType>('ClubMembers')
   const [selectedClubId, setSelectedClubId] = useState<number | ''>('')
 
   const summaryQuery = useQuery({
@@ -48,7 +50,10 @@ export function ReportsPage() {
 
   const requestMutation = useMutation({
     mutationFn: async () => {
-      await apiClient.post('/reports', { reportType: 'ClubMembers', clubId: selectedClubId })
+      await apiClient.post('/reports', {
+        reportType: selectedReportType,
+        clubId: selectedReportType === 'ClubMembers' ? selectedClubId : undefined,
+      })
     },
     onSuccess: () => {
       notify({ message: 'Talebiniz kuyruğa alındı.', severity: 'success' })
@@ -142,31 +147,43 @@ export function ReportsPage() {
 
       <SectionCard title="Yeni rapor talebi" sx={{ mb: 3 }}>
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-          <Select size="small" value="ClubMembers" sx={{ minWidth: 220 }} disabled>
-            <MenuItem value="ClubMembers">Kulüp Üyeleri (Excel)</MenuItem>
-          </Select>
-
           <Select
             size="small"
-            displayEmpty
-            value={selectedClubId}
-            onChange={(e) => {
-              const raw = String(e.target.value)
-              setSelectedClubId(raw === '' ? '' : Number(raw))
-            }}
+            value={selectedReportType}
+            onChange={(e) => setSelectedReportType(e.target.value as ReportType)}
             sx={{ minWidth: 220 }}
           >
-            <MenuItem value="">
-              <em>Kulüp seçin</em>
-            </MenuItem>
-            {clubsQuery.data?.items.map((club) => (
-              <MenuItem key={club.id} value={club.id}>
-                {club.name}
-              </MenuItem>
-            ))}
+            <MenuItem value="ClubMembers">Kulüp Üyeleri (Excel)</MenuItem>
+            <MenuItem value="TermSummary">Dönem Özeti (Excel)</MenuItem>
           </Select>
 
-          <Button variant="contained" disabled={requestMutation.isPending || selectedClubId === ''} onClick={() => requestMutation.mutate()}>
+          {selectedReportType === 'ClubMembers' && (
+            <Select
+              size="small"
+              displayEmpty
+              value={selectedClubId}
+              onChange={(e) => {
+                const raw = String(e.target.value)
+                setSelectedClubId(raw === '' ? '' : Number(raw))
+              }}
+              sx={{ minWidth: 220 }}
+            >
+              <MenuItem value="">
+                <em>Kulüp seçin</em>
+              </MenuItem>
+              {clubsQuery.data?.items.map((club) => (
+                <MenuItem key={club.id} value={club.id}>
+                  {club.name}
+                </MenuItem>
+              ))}
+            </Select>
+          )}
+
+          <Button
+            variant="contained"
+            disabled={requestMutation.isPending || (selectedReportType === 'ClubMembers' && selectedClubId === '')}
+            onClick={() => requestMutation.mutate()}
+          >
             Excel Talep Et
           </Button>
         </Stack>

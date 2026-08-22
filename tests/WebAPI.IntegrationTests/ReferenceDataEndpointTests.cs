@@ -89,6 +89,117 @@ public sealed class ReferenceDataEndpointTests : IClassFixture<CustomWebApplicat
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact(DisplayName = "Faz 13: PUT ile fakülte adı güncellenir ve liste yeni adı yansıtır")]
+    public async Task UpdateFaculty_ValidRename_ReflectedInList()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var adminToken = await LoginAndGetAccessTokenAsync();
+
+        var createResponse = await SendWithBearerAsync(HttpMethod.Post, "/api/faculties", adminToken, new { Name = $"rds-upd-old-{suffix}" });
+        var created = await createResponse.Content.ReadFromJsonAsync<FacultyDto>();
+
+        var newName = $"rds-upd-new-{suffix}";
+        var updateResponse = await SendWithBearerAsync(HttpMethod.Put, $"/api/faculties/{created!.Id}", adminToken, new { Name = newName });
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var getResponse = await SendWithBearerAsync(HttpMethod.Get, "/api/faculties?pageIndex=0&pageSize=200", adminToken);
+        Assert.Contains(newName, await getResponse.Content.ReadAsStringAsync());
+    }
+
+    [Fact(DisplayName = "Faz 13: PUT ile bölüm adı güncellenir")]
+    public async Task UpdateDepartment_ValidRename_Succeeds()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var adminToken = await LoginAndGetAccessTokenAsync();
+
+        var facultyResponse = await SendWithBearerAsync(HttpMethod.Post, "/api/faculties", adminToken, new { Name = $"rds-dept-fac-{suffix}" });
+        var faculty = await facultyResponse.Content.ReadFromJsonAsync<FacultyDto>();
+
+        var deptResponse = await SendWithBearerAsync(HttpMethod.Post, $"/api/faculties/{faculty!.Id}/departments", adminToken, new { Name = $"rds-dept-old-{suffix}" });
+        var department = await deptResponse.Content.ReadFromJsonAsync<FacultyDto>();
+
+        var newName = $"rds-dept-new-{suffix}";
+        var updateResponse = await SendWithBearerAsync(
+            HttpMethod.Put, $"/api/faculties/{faculty.Id}/departments/{department!.Id}", adminToken, new { Name = newName });
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var getResponse = await SendWithBearerAsync(HttpMethod.Get, $"/api/faculties/{faculty.Id}/departments?pageIndex=0&pageSize=200", adminToken);
+        Assert.Contains(newName, await getResponse.Content.ReadAsStringAsync());
+    }
+
+    [Fact(DisplayName = "Faz 13 (A-12): kullanımda olmayan bölüm hard delete edilir (204/200)")]
+    public async Task DeleteDepartment_NotInUse_Succeeds()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var adminToken = await LoginAndGetAccessTokenAsync();
+
+        var facultyResponse = await SendWithBearerAsync(HttpMethod.Post, "/api/faculties", adminToken, new { Name = $"rds-del-fac-{suffix}" });
+        var faculty = await facultyResponse.Content.ReadFromJsonAsync<FacultyDto>();
+        var deptResponse = await SendWithBearerAsync(HttpMethod.Post, $"/api/faculties/{faculty!.Id}/departments", adminToken, new { Name = $"rds-del-dept-{suffix}" });
+        var department = await deptResponse.Content.ReadFromJsonAsync<FacultyDto>();
+
+        var deleteResponse = await SendWithBearerAsync(HttpMethod.Delete, $"/api/faculties/{faculty.Id}/departments/{department!.Id}", adminToken);
+        Assert.True(deleteResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent);
+
+        var getResponse = await SendWithBearerAsync(HttpMethod.Get, $"/api/faculties/{faculty.Id}/departments?pageIndex=0&pageSize=200", adminToken);
+        Assert.DoesNotContain($"rds-del-dept-{suffix}", await getResponse.Content.ReadAsStringAsync());
+    }
+
+    [Fact(DisplayName = "Faz 13 (A-12): kullanımda olan bölüm (kayıtlı öğrenci var) 409 ile silinemez")]
+    public async Task DeleteDepartment_InUse_ReturnsConflict()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var adminToken = await LoginAndGetAccessTokenAsync();
+
+        var facultyResponse = await SendWithBearerAsync(HttpMethod.Post, "/api/faculties", adminToken, new { Name = $"rds-inuse-fac-{suffix}" });
+        var faculty = await facultyResponse.Content.ReadFromJsonAsync<FacultyDto>();
+        var deptResponse = await SendWithBearerAsync(HttpMethod.Post, $"/api/faculties/{faculty!.Id}/departments", adminToken, new { Name = $"rds-inuse-dept-{suffix}" });
+        var department = await deptResponse.Content.ReadFromJsonAsync<FacultyDto>();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+            var studentEmail = $"rds-inuse-student-{suffix}@test.local";
+            var studentUser = new ApplicationUser { UserName = studentEmail, Email = studentEmail, EmailConfirmed = true };
+            var createResult = await userManager.CreateAsync(studentUser, "Student!Test123456");
+            Assert.True(createResult.Succeeded, string.Join("; ", createResult.Errors.Select(e => e.Description)));
+            await userManager.AddToRoleAsync(studentUser, "Member");
+
+            db.Students.Add(new Student
+            {
+                ApplicationUserId = studentUser.Id, StudentNumber = $"S{Guid.NewGuid():N}"[..12], DepartmentId = department!.Id, EnrollmentYear = 2026,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var deleteResponse = await SendWithBearerAsync(HttpMethod.Delete, $"/api/faculties/{faculty.Id}/departments/{department!.Id}", adminToken);
+        Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
+    }
+
+    [Fact(DisplayName = "Faz 13: PUT ile akademik dönem adı/tarihleri güncellenir")]
+    public async Task UpdateAcademicTerm_ValidChange_Succeeds()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var adminToken = await LoginAndGetAccessTokenAsync();
+
+        var start = DateTime.UtcNow.AddMonths(6);
+        var end = start.AddMonths(4);
+        var createResponse = await SendWithBearerAsync(
+            HttpMethod.Post, "/api/academic-terms", adminToken, new { Name = $"rds-term-old-{suffix}", StartDateUtc = start, EndDateUtc = end });
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        var createdTermId = await createResponse.Content.ReadFromJsonAsync<int>();
+
+        var newName = $"rds-term-new-{suffix}";
+        var updateResponse = await SendWithBearerAsync(
+            HttpMethod.Put, $"/api/academic-terms/{createdTermId}", adminToken, new { Name = newName, StartDateUtc = start, EndDateUtc = end });
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var getResponse = await SendWithBearerAsync(HttpMethod.Get, "/api/academic-terms?pageIndex=0&pageSize=200", adminToken);
+        Assert.Contains(newName, await getResponse.Content.ReadAsStringAsync());
+    }
+
     private async Task<string> LoginAndGetAccessTokenAsync()
     {
         var response = await _client.PostAsJsonAsync("/api/auth/login", new { Email = AdminEmail, Password = AdminPassword });

@@ -60,6 +60,13 @@ public static class Messages
     public const string AcademicTermSetCurrent = "Güncel dönem güncellendi.";
     public const string InvalidAcademicTermDateRange = "Bitiş tarihi başlangıç tarihinden sonra olmalıdır.";
 
+    // Faz 13 — Referans veri olgunluğu (A-12)
+    public const string FacultyUpdated = "Fakülte güncellendi.";
+    public const string DepartmentUpdated = "Bölüm güncellendi.";
+    public const string DepartmentDeleted = "Bölüm silindi.";
+    public const string DepartmentInUse = "Bu bölüm kullanımda olduğu için silinemiyor (kayıtlı öğrenci var).";
+    public const string AcademicTermUpdated = "Akademik dönem güncellendi.";
+
     // Faz 7 — Etkinlik onay kuyruğu
     public const string NotClubAdvisorOrOfficer = "Bu işlem için bu topluluğun danışmanı ya da yetkilisi/başkanı olmanız gerekir.";
     public const string EventNotInDraft = "Etkinlik taslak durumunda değil.";
