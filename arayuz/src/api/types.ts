@@ -162,7 +162,7 @@ export interface AcademicTermListItemDto {
 }
 
 // src/Entities/Enums/EventStatus.cs (JsonStringEnumConverter ile metin olarak taşınır)
-export type EventStatus = 'Draft' | 'PendingApproval' | 'Published' | 'Rejected'
+export type EventStatus = 'Draft' | 'PendingApproval' | 'Published' | 'Rejected' | 'Cancelled'
 
 // src/Business/DTOs/Events/EventListItemDto.cs
 export interface EventListItemDto {
@@ -176,6 +176,7 @@ export interface EventListItemDto {
   endDateUtc: string
   capacity: number | null
   status: EventStatus
+  cancellationReason: string | null
 }
 
 // src/Business/DTOs/Events/EventParticipantListItemDto.cs

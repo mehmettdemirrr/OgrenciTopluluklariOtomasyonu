@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material'
+import { z } from 'zod'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -107,6 +108,27 @@ export function EventDetailPage() {
     onError: (error) => notify({ message: extractErrorMessage(error, 'Etkinlik güncellenemedi.'), severity: 'error' }),
   })
 
+  const cancelDialog = useFormDialog()
+  const cancelForm = useForm<{ cancellationReason: string }>({
+    resolver: zodResolver(z.object({ cancellationReason: z.string().min(1, 'İptal gerekçesi gerekli.') })),
+    defaultValues: { cancellationReason: '' },
+  })
+
+  // Not: aşağıdaki `cancelMutation` öğrencinin KENDİ KAYDINI iptal etmesi; bu ise etkinliğin
+  // tamamının iptali (A-49). İkisi farklı yetki ve farklı uç.
+  const cancelEventMutation = useMutation({
+    mutationFn: async (values: { cancellationReason: string }) => {
+      await apiClient.put(`/events/${eventId}/cancellation`, values)
+    },
+    onSuccess: () => {
+      notify({ message: 'Etkinlik iptal edildi, katılımcılara bildirim gönderiliyor.', severity: 'success' })
+      cancelDialog.closeDialog()
+      cancelForm.reset({ cancellationReason: '' })
+      invalidateEvent()
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Etkinlik iptal edilemedi.'), severity: 'error' }),
+  })
+
   const posterMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData()
@@ -174,6 +196,8 @@ export function EventDetailPage() {
   const canEdit = canManage && (event.status === 'Draft' || event.status === 'Rejected')
   const canDelete = canManage && event.status === 'Draft'
   const canSubmit = canManage && event.status === 'Draft'
+  // A-49: yayınlanmış etkinlik silinmez, iptal edilir.
+  const canCancel = canManage && event.status === 'Published'
 
   return (
     <>
@@ -197,6 +221,11 @@ export function EventDetailPage() {
                 Düzenle
               </Button>
             )}
+            {canCancel && (
+              <Button variant="outlined" color="error" onClick={cancelDialog.openDialog}>
+                Etkinliği İptal Et
+              </Button>
+            )}
             {canDelete && (
               <Button variant="outlined" color="error" onClick={() => setDeleteConfirmOpen(true)}>
                 Sil
@@ -215,6 +244,13 @@ export function EventDetailPage() {
               {new Date(event.startDateUtc).toLocaleString('tr-TR')} — {new Date(event.endDateUtc).toLocaleString('tr-TR')}
             </Typography>
           </Stack>
+          {/* A-49: iptal gerekçesi kalıcı hata değil ama kalıcı bir durum — snackbar değil sayfa içi Alert. */}
+          {event.status === 'Cancelled' && (
+            <Alert severity="error">
+              Bu etkinlik iptal edildi.{event.cancellationReason ? ` Gerekçe: ${event.cancellationReason}` : ''}
+            </Alert>
+          )}
+
           {event.location && <Typography variant="body2">Yer: {event.location}</Typography>}
           <Typography variant="body2" color="text.secondary">
             {event.capacity ? `Kontenjan: ${event.capacity}` : 'Kontenjan sınırsız'}
@@ -340,6 +376,58 @@ export function EventDetailPage() {
         onConfirm={() => deleteMutation.mutate()}
         onCancel={() => setDeleteConfirmOpen(false)}
       />
+
+      <Dialog
+        open={cancelDialog.open}
+        onClose={() => {
+          cancelDialog.closeDialog()
+          cancelForm.reset({ cancellationReason: '' })
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Etkinliği İptal Et</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Etkinlik silinmez, iptal edildi olarak işaretlenir. Kayıtlı katılımcılara gerekçenizle birlikte e-posta gönderilir.
+          </Typography>
+          <Controller
+            name="cancellationReason"
+            control={cancelForm.control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                autoFocus
+                fullWidth
+                multiline
+                minRows={2}
+                margin="dense"
+                label="İptal gerekçesi"
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              />
+            )}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              cancelDialog.closeDialog()
+              cancelForm.reset({ cancellationReason: '' })
+            }}
+          >
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={cancelForm.formState.isSubmitting || cancelEventMutation.isPending}
+            onClick={cancelForm.handleSubmit((values) => cancelEventMutation.mutate(values))}
+          >
+            Etkinliği İptal Et
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   )
 }

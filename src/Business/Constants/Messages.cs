@@ -127,6 +127,10 @@ public static class Messages
     // Faz 12 — Dashboard (K-25)
     public const string DashboardAccessDenied = "Panel özetini görüntülemek için oturum açmanız gerekir.";
 
+    // Faz 20 — Etkinlik iptali (K-22, A-49, Y-61)
+    public const string OnlyPublishedEventsCanBeCancelled = "Yalnızca yayındaki etkinlikler iptal edilebilir.";
+    public const string EventCancelled = "Etkinlik iptal edildi, kayıtlı katılımcılara bildirim gönderiliyor.";
+
     // Faz 19 — Öğrenci self-servisi (K-25'in tamamlanması, A-48)
     public const string ApplicationNotYours = "Bu başvuru size ait değil.";
     public const string ApplicationWithdrawn = "Başvurunuz geri çekildi.";

@@ -263,6 +263,9 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
         builder.RegisterType<EventDecisionNotificationJob>()
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<EventCancellationNotificationJob>()
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<EmailConfirmationJob>()
             .InstancePerLifetimeScope();
 

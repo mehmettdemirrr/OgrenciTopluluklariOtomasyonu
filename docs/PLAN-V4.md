@@ -180,7 +180,7 @@ profilde öğrenci numarası salt okunur, bölüm/kayıt yılı düzenlenebilir.
 
 ---
 
-## Faz 20 — Etkinlik iptali (K-22, A-49, Y-61)
+## Faz 20 — Etkinlik iptali (K-22, A-49, Y-61) — ✅ tamamlandı
 
 ### 20.1 Durum makinesi genişler
 
@@ -232,10 +232,22 @@ rozetiyle görür. Bu bilinçli: kaydın kaybolması öğrenciye "ben kaydolmam�
 diyaloğu · `StatusChip`'e `Cancelled` → gri/kırmızı rozet · `MyEventsPage` ve `EventsPage` kartlarında
 iptal rozeti ve gerekçe.
 
-### Çıkış koşulu
+### Çıkış koşulu — hepsi ✅
 Yayındaki bir etkinlik iptal edilir → durumu `İptal Edildi` olur, **kaydı silinmez** · anonim
 `/etkinlikler` sayfasında **görünmez** · yeni kayıt denemesi `Conflict` · kayıtlı öğrencilere e-posta
 gider (Hangfire `Succeeded`) · `Draft` etkinlik hâlâ silinebiliyor (regresyon yok).
+
+**Doğrulandı.** `EventCancellationTests` (3 test) dahil **286/286 backend testi yeşil**. Playwright ile
+canlı: etkinlik iptalden önce anonim vitrinde görünüyor → danışman gerekçeyle iptal ediyor → vitrinden
+düşüyor (`CacheRemoveAspect` çalışıyor) → öğrencinin "Etkinliklerim"inde `Cancelled` durumuyla **duruyor**
+→ katılımcı listesi bozulmamış.
+
+> **Y-61'in "tek tek doğrulanır" maddesi uygulandı:** `EventStatus` karşılaştırması yapan **13 nokta**
+> tarandı (`grep -rn "EventStatus\."`). Hepsi `== Published` / `!= Draft` gibi **pozitif** karşılaştırma
+> kullandığı için `Cancelled` eklenmesi otomatik doğru davrandı; hiçbirinde "Draft değilse yayındadır"
+> gibi bir çıkarım yoktu. `EventParticipationManager.GetMineAsync`'in **durum filtresi taşımaması** ise
+> A-49'un istediği davranış (öğrenci iptal edilen kaydını görmeye devam eder) — kasıtlı olarak
+> değiştirilmedi.
 
 ---
 
@@ -408,7 +420,7 @@ K-14…K-20 ertelenmiş kalır.
 |---|---|---|---|
 | **0** | `docs/MIMARI.md` güncellemesi | — | Belge K-30, A-48…A-52, Y-61/Y-62 ve Faz 19-23'ü içeriyor |
 | **19** | Öğrenci self-servisi + IP düzeltmesi + rate limiting | — (şema değişmez) | ✅ tamamlandı — başvuru geri çekilebiliyor ve yeniden başvurulabiliyor, kulüpten ayrılınabiliyor, profil düzenlenebiliyor; son başkan ayrılamıyor; `forgot-password` sınır aşımında 429 + ProblemDetails |
-| **20** | Etkinlik iptali | `EventStatus.Cancelled` + `CancellationReason` | Yayındaki etkinlik iptal ediliyor, vitrinden düşüyor, katılımcılara e-posta gidiyor |
+| **20** | Etkinlik iptali | `EventStatus.Cancelled` + `CancellationReason` | ✅ tamamlandı — yayındaki etkinlik iptal ediliyor, vitrinden düşüyor, kayıtlar duruyor, katılımcılara e-posta gidiyor |
 | **21** | Arama ve sayfalama | — | `git grep "pageSize: 200"` boş; 101. kayıt bulunabiliyor |
 | **22** | Otomatik dönem devri | — (şema değişmez) | Devirden sonra başkan yetkisini koruyor; ikinci çalıştırma idempotent |
 | **23** | Arayüz cilası | — | `git diff --stat src/` boş; menü kaydırmasız sığıyor |

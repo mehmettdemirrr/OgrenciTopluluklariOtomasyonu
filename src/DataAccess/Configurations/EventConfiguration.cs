@@ -15,6 +15,10 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
             .IsRequired()
             .HasMaxLength(300);
 
+        // A-49: iptal gerekçesi — serbest metin, yalnızca Cancelled durumunda dolu.
+        builder.Property(e => e.CancellationReason)
+            .HasMaxLength(500);
+
         builder.HasOne<Club>()
             .WithMany()
             .HasForeignKey(e => e.ClubId)

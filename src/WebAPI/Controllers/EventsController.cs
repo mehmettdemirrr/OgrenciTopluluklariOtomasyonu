@@ -80,6 +80,14 @@ public sealed class EventsController(IEventService eventService, IEventParticipa
         return result.ToActionResult();
     }
 
+    /// <summary>docs/MIMARI.md · A-49/Y-61: yayınlanmış etkinlik silinmez, iptal edilir.</summary>
+    [HttpPut("events/{id:int}/cancellation")]
+    public async Task<IActionResult> Cancel(int id, CancelEventRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await eventService.CancelAsync(id, request, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpDelete("events/{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {

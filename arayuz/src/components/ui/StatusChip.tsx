@@ -16,6 +16,7 @@ const eventStatusMap: Record<EventStatus, { label: string; color: ChipColor }> =
   PendingApproval: { label: 'Onay Bekliyor', color: 'warning' },
   Published: { label: 'Yayında', color: 'success' },
   Rejected: { label: 'Reddedildi', color: 'error' },
+  Cancelled: { label: 'İptal Edildi', color: 'error' },
 }
 
 const reportStatusMap: Record<ReportStatus, { label: string; color: ChipColor }> = {

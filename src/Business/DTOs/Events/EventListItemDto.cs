@@ -23,4 +23,7 @@ public sealed class EventListItemDto
     public int? Capacity { get; set; }
 
     public EventStatus Status { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-49: yalnızca `Cancelled` durumunda dolu.</summary>
+    public string? CancellationReason { get; set; }
 }

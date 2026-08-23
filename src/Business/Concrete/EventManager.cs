@@ -149,6 +149,63 @@ public sealed class EventManager(
         return Result.Success(request.Status == EventStatus.Published ? Messages.EventPublished : Messages.EventRejected);
     }
 
+    public async Task<IResult> CancelAsync(int eventId, CancelEventRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var @event = await eventRepository.GetAsync(e => e.Id == eventId, cancellationToken).ConfigureAwait(false);
+        if (@event is null)
+        {
+            return Result.NotFound(Messages.EventNotFound);
+        }
+
+        // A-49: yalnızca yayındaki etkinlik iptal edilir. Draft/Rejected zaten kimseye görünmedi
+        // (silinebilirler); PendingApproval için karar mekanizması ayrı (reddet).
+        if (@event.Status != EventStatus.Published)
+        {
+            return Result.Conflict(Messages.OnlyPublishedEventsCanBeCancelled);
+        }
+
+        var club = await clubRepository.GetAsync(c => c.Id == @event.ClubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return Result.NotFound(Messages.ClubNotFound);
+        }
+
+        // Y-23: events.write izni yeterli değil — danışman ya da kulübün Officer/President'i.
+        var accessError = await EnsureClubWriteAccessAsync(club, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return Result.Forbidden(accessError);
+        }
+
+        // Y-46/Y-06: [TransactionAspect] kasıtlı olarak kullanılmaz — commit'ten SONRA katılımcı
+        // bildirimi kuyruğa eklenebilsin diye transaction elle yönetilir (DecideAsync precedent'i).
+        var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        await using (transaction.ConfigureAwait(false))
+        {
+            try
+            {
+                // Y-61: katılımcı kayıtlarına DOKUNULMAZ — öğrenci kaydını iptal rozetiyle görmeye
+                // devam etmeli. Kaydın kaybolması "ben kaydolmamış mıydım?" sorusunu doğurur.
+                @event.Status = EventStatus.Cancelled;
+                @event.CancellationReason = request.CancellationReason.Trim();
+                eventRepository.Update(@event);
+
+                await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        // Y-46: kuyruğa ekleme yalnızca commit'ten sonra — worker henüz yazılmamış durumu okumasın.
+        backgroundJobClient.Enqueue<EventCancellationNotificationJob>(job => job.SendAsync(@event.Id));
+
+        return Result.Success(Messages.EventCancelled);
+    }
+
     public async Task<IDataResult<PagedResult<EventListItemDto>>> GetApprovalQueueAsync(
         int pageIndex, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -317,6 +374,7 @@ public sealed class EventManager(
         EndDateUtc = e.EndDateUtc,
         Capacity = e.Capacity,
         Status = e.Status,
+        CancellationReason = e.CancellationReason,
     };
 
     private async Task<List<EventListItemDto>> MapWithClubNamesAsync(PagedResult<Event> paged, List<int> clubIds, CancellationToken cancellationToken)

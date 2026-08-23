@@ -28,6 +28,9 @@ public sealed class Event : IEntity, ISoftDeletable
 
     public EventStatus Status { get; set; }
 
+    /// <summary>docs/MIMARI.md · A-49: iptal gerekçesi — katılımcılara gönderilen e-postada ve etkinlik sayfasında görünür.</summary>
+    public string? CancellationReason { get; set; }
+
     public int? PosterFileId { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }

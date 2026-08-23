@@ -182,6 +182,7 @@ public sealed class EventParticipationManager(
             EndDateUtc = e.EndDateUtc,
             Capacity = e.Capacity,
             Status = e.Status,
+            CancellationReason = e.CancellationReason,
         }).ToList();
 
         var result = new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize);

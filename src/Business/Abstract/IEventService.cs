@@ -58,8 +58,19 @@ public interface IEventService
     [TransactionAspect]
     Task<IResult> UpdateAsync(int eventId, UpdateEventRequestDto request, CancellationToken cancellationToken = default);
 
-    /// <summary>Y-16: soft delete. Yalnızca Draft iken silinebilir.</summary>
+    /// <summary>Y-16: soft delete. Yalnızca Draft iken silinebilir — yayınlanmış etkinlik silinmez, iptal edilir (A-49).</summary>
     [SecuredOperation(IdentitySeedData.Permissions.EventsWrite)]
     [TransactionAspect]
     Task<IResult> DeleteAsync(int eventId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · A-49/Y-61: yayınlanmış etkinliği iptal eder. Kayıtlar **silinmez** — katılımcılar
+    /// kaydını iptal rozetiyle görmeye devam eder; yeni kayıt kabul edilmez ve vitrinde listelenmez.
+    /// Y-46/Y-06: transaction elle yönetilir (bkz. EventManager) — commit sonrası katılımcılara
+    /// bildirim işi kuyruğa eklenir, bu yüzden [TransactionAspect] kasıtlı olarak kullanılmaz.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.EventsWrite)]
+    [ValidationAspect(typeof(CancelEventRequestValidator))]
+    [CacheRemoveAspect("PublicContentManager.")]
+    Task<IResult> CancelAsync(int eventId, CancelEventRequestDto request, CancellationToken cancellationToken = default);
 }
