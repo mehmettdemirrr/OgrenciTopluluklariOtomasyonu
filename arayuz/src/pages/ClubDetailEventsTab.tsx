@@ -1,16 +1,19 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from '@mui/material'
 import type { GridColDef } from '@mui/x-data-grid'
-import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { DataTable } from '../components/ui/DataTable'
 import { EventStatusChip } from '../components/ui/StatusChip'
+import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { EventListItemDto, PagedResult } from '../api/types'
 
 export function ClubEventsTab({ clubId }: { clubId: number }) {
@@ -19,10 +22,16 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
   const { hasPermission } = useAuth()
   const canWrite = hasPermission(Permissions.EventsWrite)
 
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [startDateTime, setStartDateTime] = useState('')
-  const [endDateTime, setEndDateTime] = useState('')
+  const createDialog = useFormDialog()
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting: isFormSubmitting },
+  } = useForm<EventFormValues>({
+    resolver: zodResolver(eventFormSchema),
+    defaultValues: emptyEventFormValues,
+  })
 
   const { paginationModel, setPaginationModel, query: eventsQuery } = usePagedQuery({
     queryKey: ['club-events', clubId],
@@ -31,19 +40,13 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
   })
 
   const createEventMutation = useMutation({
-    mutationFn: async () => {
-      await apiClient.post(`/clubs/${clubId}/events`, {
-        title,
-        startDateUtc: new Date(startDateTime).toISOString(),
-        endDateUtc: new Date(endDateTime).toISOString(),
-      })
+    mutationFn: async (values: EventFormValues) => {
+      await apiClient.post(`/clubs/${clubId}/events`, toEventPayload(values))
     },
     onSuccess: () => {
       notify({ message: 'Etkinlik oluşturuldu (taslak).', severity: 'success' })
-      setCreateDialogOpen(false)
-      setTitle('')
-      setStartDateTime('')
-      setEndDateTime('')
+      createDialog.closeDialog()
+      reset(emptyEventFormValues)
       queryClient.invalidateQueries({ queryKey: ['club-events', clubId] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Etkinlik oluşturulamadı.'), severity: 'error' }),
@@ -76,7 +79,7 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
     <>
       {canWrite && (
         <Stack direction="row" sx={{ mb: 2 }}>
-          <Button variant="contained" onClick={() => setCreateDialogOpen(true)}>
+          <Button variant="contained" onClick={createDialog.openDialog}>
             Etkinlik Oluştur
           </Button>
         </Stack>
@@ -94,35 +97,91 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
         emptyTitle="Bu toplulukta etkinlik yok"
       />
 
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={createDialog.open}
+        onClose={() => {
+          createDialog.closeDialog()
+          reset(emptyEventFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Yeni Etkinlik</DialogTitle>
         <DialogContent>
-          <TextField autoFocus fullWidth margin="dense" label="Başlık" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Başlangıç"
-            type="datetime-local"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={startDateTime}
-            onChange={(e) => setStartDateTime(e.target.value)}
+          <Controller
+            name="title"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField {...field} autoFocus fullWidth margin="dense" label="Başlık" error={!!fieldState.error} helperText={fieldState.error?.message} />
+            )}
           />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Bitiş"
-            type="datetime-local"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={endDateTime}
-            onChange={(e) => setEndDateTime(e.target.value)}
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
+          />
+          <Controller name="location" control={control} render={({ field }) => <TextField {...field} fullWidth margin="dense" label="Yer" />} />
+          <Controller
+            name="startDateTime"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                fullWidth
+                margin="dense"
+                label="Başlangıç"
+                type="datetime-local"
+                slotProps={{ inputLabel: { shrink: true } }}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              />
+            )}
+          />
+          <Controller
+            name="endDateTime"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                fullWidth
+                margin="dense"
+                label="Bitiş"
+                type="datetime-local"
+                slotProps={{ inputLabel: { shrink: true } }}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              />
+            )}
+          />
+          <Controller
+            name="capacity"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                fullWidth
+                margin="dense"
+                label="Kontenjan (boş = sınırsız)"
+                type="number"
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              />
+            )}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Vazgeç</Button>
+          <Button
+            onClick={() => {
+              createDialog.closeDialog()
+              reset(emptyEventFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
           <Button
             variant="contained"
-            disabled={title.trim() === '' || !startDateTime || !endDateTime || createEventMutation.isPending}
-            onClick={() => createEventMutation.mutate()}
+            disabled={isFormSubmitting || createEventMutation.isPending}
+            onClick={handleSubmit((values) => createEventMutation.mutate(values))}
           >
             Oluştur
           </Button>

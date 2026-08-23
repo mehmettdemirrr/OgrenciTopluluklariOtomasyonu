@@ -1,18 +1,24 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import { useState } from 'react'
+import { Controller, useForm, type Control } from 'react-hook-form'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import { AnnouncementVisibilityChip } from '../components/ui/StatusChip'
-import type { AnnouncementListItemDto, AnnouncementVisibility, PagedResult } from '../api/types'
+import { announcementFormSchema, type AnnouncementFormValues } from '../schemas/announcementForm'
+import type { AnnouncementListItemDto, PagedResult } from '../api/types'
+
+const emptyAnnouncementFormValues: AnnouncementFormValues = { title: '', content: '', visibility: 'Public' }
 
 export function AnnouncementsPage() {
   const queryClient = useQueryClient()
@@ -20,10 +26,17 @@ export function AnnouncementsPage() {
   const { hasPermission } = useAuth()
   const canCreateGlobal = hasPermission(Permissions.AnnouncementsGlobal)
 
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [visibility, setVisibility] = useState<AnnouncementVisibility>('Public')
+  const createDialog = useFormDialog()
+  const [editTarget, setEditTarget] = useState<AnnouncementListItemDto | null>(null)
+
+  const createForm = useForm<AnnouncementFormValues>({
+    resolver: zodResolver(announcementFormSchema),
+    defaultValues: emptyAnnouncementFormValues,
+  })
+  const editForm = useForm<AnnouncementFormValues>({
+    resolver: zodResolver(announcementFormSchema),
+    defaultValues: emptyAnnouncementFormValues,
+  })
 
   const { paginationModel, setPaginationModel, query: feedQuery } = usePagedQuery({
     queryKey: ['announcements-feed'],
@@ -32,19 +45,35 @@ export function AnnouncementsPage() {
   })
 
   const createGlobalMutation = useMutation({
-    mutationFn: async () => {
-      await apiClient.post('/announcements', { title, content, visibility })
+    mutationFn: async (values: AnnouncementFormValues) => {
+      await apiClient.post('/announcements', values)
     },
     onSuccess: () => {
       notify({ message: 'Duyuru yayınlandı.', severity: 'success' })
-      setCreateDialogOpen(false)
-      setTitle('')
-      setContent('')
-      setVisibility('Public')
+      createDialog.closeDialog()
+      createForm.reset(emptyAnnouncementFormValues)
       queryClient.invalidateQueries({ queryKey: ['announcements-feed'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Duyuru oluşturulamadı.'), severity: 'error' }),
   })
+
+  const updateGlobalMutation = useMutation({
+    mutationFn: async (values: AnnouncementFormValues) => {
+      if (!editTarget) return
+      await apiClient.put(`/announcements/${editTarget.id}`, values)
+    },
+    onSuccess: () => {
+      notify({ message: 'Duyuru güncellendi.', severity: 'success' })
+      setEditTarget(null)
+      queryClient.invalidateQueries({ queryKey: ['announcements-feed'] })
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Duyuru güncellenemedi.'), severity: 'error' }),
+  })
+
+  const openEditDialog = (announcement: AnnouncementListItemDto) => {
+    editForm.reset({ title: announcement.title, content: announcement.content, visibility: announcement.visibility })
+    setEditTarget(announcement)
+  }
 
   const items = feedQuery.data?.items ?? []
 
@@ -55,7 +84,7 @@ export function AnnouncementsPage() {
         description="Topluluk ve sistem duyurularının akışı."
         action={
           canCreateGlobal && (
-            <Button variant="contained" onClick={() => setCreateDialogOpen(true)}>
+            <Button variant="contained" onClick={createDialog.openDialog}>
               Sistem Duyurusu Oluştur
             </Button>
           )
@@ -67,7 +96,17 @@ export function AnnouncementsPage() {
       ) : (
         <Stack spacing={2}>
           {items.map((announcement) => (
-            <SectionCard key={announcement.id}>
+            <SectionCard
+              key={announcement.id}
+              action={
+                canCreateGlobal &&
+                announcement.clubId === null && (
+                  <Button size="small" onClick={() => openEditDialog(announcement)}>
+                    Düzenle
+                  </Button>
+                )
+              }
+            >
               <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                   {announcement.title}
@@ -104,27 +143,85 @@ export function AnnouncementsPage() {
         </Stack>
       )}
 
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={createDialog.open}
+        onClose={() => {
+          createDialog.closeDialog()
+          createForm.reset(emptyAnnouncementFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Sistem Duyurusu</DialogTitle>
         <DialogContent>
-          <TextField autoFocus fullWidth margin="dense" label="Başlık" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <TextField fullWidth multiline minRows={3} margin="dense" label="İçerik" value={content} onChange={(e) => setContent(e.target.value)} />
-          <TextField select fullWidth margin="dense" label="Görünürlük" value={visibility} onChange={(e) => setVisibility(e.target.value as AnnouncementVisibility)}>
-            <MenuItem value="Public">Herkese Açık</MenuItem>
-            <MenuItem value="Members">Yalnızca Üyeler</MenuItem>
-          </TextField>
+          <AnnouncementFormFields control={createForm.control} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Vazgeç</Button>
+          <Button
+            onClick={() => {
+              createDialog.closeDialog()
+              createForm.reset(emptyAnnouncementFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
           <Button
             variant="contained"
-            disabled={title.trim() === '' || content.trim() === '' || createGlobalMutation.isPending}
-            onClick={() => createGlobalMutation.mutate()}
+            disabled={createForm.formState.isSubmitting || createGlobalMutation.isPending}
+            onClick={createForm.handleSubmit((values) => createGlobalMutation.mutate(values))}
           >
             Yayınla
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog open={editTarget !== null} onClose={() => setEditTarget(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Sistem Duyurusunu Düzenle</DialogTitle>
+        <DialogContent>
+          <AnnouncementFormFields control={editForm.control} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditTarget(null)}>Vazgeç</Button>
+          <Button
+            variant="contained"
+            disabled={editForm.formState.isSubmitting || updateGlobalMutation.isPending}
+            onClick={editForm.handleSubmit((values) => updateGlobalMutation.mutate(values))}
+          >
+            Kaydet
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  )
+}
+
+function AnnouncementFormFields({ control }: { control: Control<AnnouncementFormValues> }) {
+  return (
+    <>
+      <Controller
+        name="title"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField {...field} autoFocus fullWidth margin="dense" label="Başlık" error={!!fieldState.error} helperText={fieldState.error?.message} />
+        )}
+      />
+      <Controller
+        name="content"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField {...field} fullWidth multiline minRows={3} margin="dense" label="İçerik" error={!!fieldState.error} helperText={fieldState.error?.message} />
+        )}
+      />
+      <Controller
+        name="visibility"
+        control={control}
+        render={({ field }) => (
+          <TextField {...field} select fullWidth margin="dense" label="Görünürlük">
+            <MenuItem value="Public">Herkese Açık</MenuItem>
+            <MenuItem value="Members">Yalnızca Üyeler</MenuItem>
+          </TextField>
+        )}
+      />
     </>
   )
 }

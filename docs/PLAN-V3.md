@@ -137,33 +137,48 @@ Playwright ile doğrulandı (kimlik sayfalarında 0px taşma) · logo dört yerd
 
 ---
 
-## Faz 16 — Form ve arayüz olgunluğu (A-46)
+## Faz 16 — Form ve arayüz olgunluğu (A-46) — ✅ 16.1/16.2 tamamlandı, 16.3 ertelendi
 
-Backend'e **hiç dokunulmaz** — üç uç zaten var, yalnızca çağıran yok. Faz 8'in "backend'de sıfır
-değişiklik" disiplini birebir tekrar eder (`git diff --stat src/` boş kalmalı).
+Backend'e **hiç dokunulmadı** — `git diff --stat src/ tests/` boş kaldı, üç uç zaten vardı, yalnızca
+çağıran eklendi.
 
-### 16.1 Ölü uçların canlandırılması
+### 16.1 Ölü uçların canlandırılması — ✅ tamamlandı
 
-| Uç | Nereye bağlanır |
+| Uç | Nereye bağlandı |
 |---|---|
-| `POST /api/events/{id}/poster` | `EventDetailPage`'e "Afiş Yükle" (yalnızca `files.upload` + kapsam sahibi). `ClubsPage`'in logo yükleme akışı (`ClubsPage.tsx:80`) birebir kalıp. **Faz 14'ün vitrin afişi ancak bununla dolar.** |
-| `PUT /api/announcements/{id}` | `ClubDetailAnnouncementsTab` ve `AnnouncementsPage`'e düzenle diyaloğu (başlık/içerik/görünürlük). Silme zaten var. |
-| `CreateEventRequestDto`'nun eksik alanları | `EventsPage` oluşturma diyaloğuna Açıklama/Yer/Kontenjan eklenir → düzenleme diyaloğuyla **simetrik** olur. |
+| `POST /api/events/{id}/poster` | `EventDetailPage`'e "Afiş Yükle" (`Permissions.FilesUpload` + backend'de danışman kapsamı). `ClubsPage`'in logo yükleme kalıbı (`FormData`, gizli `<input type="file">`) birebir kopyalandı. |
+| **Ek bulgu:** anonim vitrin `posterFileId`'yi hiç render etmiyordu | `PublicEventsPage`, `HomePage`, `PublicClubDetailPage` üçüne de `CardMedia` eklendi — uç açık olsa da görsel hiçbir yerde çıkmıyordu. |
+| `PUT /api/announcements/{id}` | `ClubAnnouncementsTab`'a (kulüp duyurusu) ve `AnnouncementsPage`'e (yalnızca `clubId === null` sistem duyurusu, `AnnouncementsGlobal` izniyle) düzenle diyaloğu. |
+| `CreateEventRequestDto`'nun eksik alanları | `EventsPage`'in oluşturma diyaloğuna Açıklama/Yer/Kontenjan eklendi. |
+| **Ek bulgu:** `ClubDetailEventsTab.tsx`'te **ikinci, unutulmuş bir kopya** oluşturma diyaloğu vardı | Aynı eksik alan sorununu taşıyordu (yalnızca başlık/tarih); aynı paylaşılan şema ile düzeltildi. |
 
-### 16.2 Form sözleşmesi
+Canlı doğrulama (Playwright, danışman hesabıyla): etkinlik oluştur (tam alan seti) → afiş yükle → onaya
+gönder → aynı danışman kendi kulübünün onay kuyruğunda görüp onaylar → anonim `/etkinlikler` sayfasında
+afiş **görselle** çıkıyor. Duyuru: oluştur → düzenle → güncellenmiş içerik uçtan uca görünüyor.
 
-**A-46 (yeni karar):** her yazma diyaloğu react-hook-form + zod kullanır; alan hataları alanın altında
-gösterilir. Bugün yalnızca `LoginPage`/`RegisterPage` böyle; kalan ~10 diyalog ham `useState` ile çalışıyor
-ve tek geri bildirimi "Kaydet" butonunun pasif kalması.
+> **Bulunan ama kasıtlı olarak değiştirilmeyen:** `GetApprovalQueueAsync` yalnızca isteği yapanın
+> **danışmanı olduğu** kulüplerin `PendingApproval` etkinliklerini döner (`EventManager.cs:157-172`) —
+> yani bir kulübün onay kuyruğunu yalnızca o kulübün danışmanı görür, admin dahil kimse başkasınınkini
+> göremez. Bu Faz 9'dan kalma mevcut ve kasıtlı bir kapsam kuralı; Faz 16 dokunmadı, yalnızca doğrulama
+> sırasında keşfedildi ve doğru hesapla test edildi.
 
-Y-35 sınırı korunur: **yalnızca biçim** doğrulanır (zorunlu alan, uzunluk, tarih sırası, pozitif sayı).
-"Bu isimde kulüp var mı", "kontenjan doldu mu" gibi kararlar API'de kalır ve dönen `Conflict` mesajı
-`extractErrorMessage` ile gösterilir.
+### 16.2 Form sözleşmesi — ✅ tamamlandı
 
-Ortak `hooks/useFormDialog.ts` çıkarılır — `open/close + reset + isSubmitting` kalıbı bugün her sayfada
-elle tekrarlanıyor (Faz 8'in `usePagedQuery` ile yaptığının form karşılığı).
+**A-46:** yazma diyalogları react-hook-form + zod'a geçirildi — etkinlik (oluştur/düzenle, iki kopya),
+duyuru (oluştur/düzenle, iki yer), topluluk (oluştur/düzenle), fakülte/bölüm (oluştur/düzenle × 2),
+akademik dönem (oluştur/düzenle), rol (oluştur). Ortak `hooks/useFormDialog.ts` (open/close) ve
+`schemas/{eventForm,announcementForm,clubForm,referenceForm}.ts` (zod şeması + boş değer + DTO dönüşümü)
+çıkarıldı — aynı şema birden çok yazma noktasında tekrar kullanıldığında (ör. `EventsPage` +
+`ClubDetailEventsTab`) tek yerden düzeltilir.
 
-### 16.3 Arayüz iyileştirmeleri
+**Bilinçli olarak dönüştürülmeyenler:** yalnızca `<select>`'ten oluşan, boş/geçersiz durumu olmayan
+diyaloglar (üye rolü değiştirme, rol izin matrisi checkbox'ları, kullanıcı-rol atama checkbox'ları).
+Bunlarda doğrulanacak bir "biçim" yok — RHF+zod eklemek saf ceremony olurdu.
+
+Y-35 sınırı korundu: yalnızca biçim doğrulanıyor (zorunlu alan, tarih sırası, pozitif sayı); "bu isimde
+kulüp var mı" gibi kararlar API'de kalıyor, dönen `Conflict` `extractErrorMessage` ile gösteriliyor.
+
+### 16.3 Arayüz iyileştirmeleri — ertelendi
 
 | Konu | Bugün | Sonra |
 |---|---|---|
@@ -173,10 +188,13 @@ elle tekrarlanıyor (Faz 8'in `usePagedQuery` ile yaptığının form karşılı
 | Mobil | `AppShell` drawer var ama tablolar taşıyor | `DataTable` dar ekranda kolon gizleme (`columnVisibilityModel`) |
 | Hata gösterimi | Yalnızca snackbar | Kalıcı hatalar için sayfa içi `Alert` (ör. detay 404) |
 
-### Çıkış koşulu
-`git diff --stat src/` **boş** · afiş yüklenen bir etkinlik anonim vitrinde görselle çıkıyor ·
-duyuru düzenleme uçtan uca çalışıyor · etkinlik oluşturma ve düzenleme formları **aynı alan kümesini**
-soruyor · `npm run build` + `npm run lint` temiz.
+> Bu dört madde Faz 16'nın çıkış koşuluna bağlı değildi (kod kalitesi/görsel cila, işlevsel boşluk değil);
+> zaman kısıtı nedeniyle bilinçli olarak bu turda yapılmadı. İstenirse ayrı, küçük bir faz olarak açılabilir.
+
+### Çıkış koşulu — 16.1/16.2 hepsi ✅
+`git diff --stat src/` **boş** · afiş yüklenen bir etkinlik anonim vitrinde görselle çıkıyor (üç sayfada
+da) · duyuru düzenleme uçtan uca çalışıyor · etkinlik oluşturma ve düzenleme formları **aynı alan
+kümesini** soruyor (iki oluşturma kopyasında da) · `npm run build` + `npm run lint` temiz.
 
 ---
 
@@ -374,7 +392,7 @@ saklama sınırı bunun karşılığıdır."*
 |---|---|---|---|
 | **0** | `docs/MIMARI.md` güncellemesi | — | Belge K-28/K-29, A-44…A-47, Y-59/Y-60 ve Faz 15-18'i içeriyor |
 | **15** | Acil düzeltmeler + kurumsal kimlik | — | ✅ tamamlandı: SMTP + footer + logo |
-| **16** | Form ve arayüz olgunluğu | — | `git diff --stat src/` **boş**; afiş vitrinde çıkıyor; oluşturma/düzenleme formları simetrik |
+| **16** | Form ve arayüz olgunluğu | — | ✅ 16.1/16.2 tamamlandı (afiş vitrinde çıkıyor, formlar simetrik, RHF+zod); 16.3 (Skeleton/başlık/mobil) ertelendi |
 | **17** | Topluluk kurma başvurusu | `ClubApplication` + filtreli unique index | Öğrenci başvurur → admin onaylar → kulüp doğar, öğrenci President olur |
 | **18** | Trafik ve erişim izi | `TrafficLog` + `AuditLog.CorrelationId` | İstek satırı audit değişikliğine bağlanıyor; token loga sızmıyor; 30 gün temizliği çalışıyor |
 

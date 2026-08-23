@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Box, Card, CardContent, Chip, Grid, Skeleton, Stack, Typography } from '@mui/material'
+import { Box, Card, CardContent, CardMedia, Chip, Grid, Skeleton, Stack, Typography } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import { useParams } from 'react-router-dom'
@@ -68,6 +68,9 @@ export function PublicClubDetailPage() {
             {eventsQuery.data!.items.map((event) => (
               <Grid key={event.id} size={{ xs: 12, sm: 6 }}>
                 <Card variant="outlined">
+                  {event.posterFileId && (
+                    <CardMedia component="img" height={120} image={`/api/files/${event.posterFileId}`} alt="" sx={{ objectFit: 'cover' }} />
+                  )}
                   <CardContent>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                       {event.title}

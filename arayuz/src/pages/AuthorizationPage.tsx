@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
@@ -18,13 +19,16 @@ import {
 } from '@mui/material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useMemo, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
+import { emptyNameFormValues, nameFormSchema, type NameFormValues } from '../schemas/referenceForm'
 import type { PagedResult, PermissionCatalogItemDto, RoleListItemDto, UserListItemDto } from '../api/types'
 
 function groupByCategory(catalog: PermissionCatalogItemDto[]): Map<string, PermissionCatalogItemDto[]> {
@@ -66,8 +70,8 @@ function RolesTab({ permissionCatalog }: { permissionCatalog: PermissionCatalogI
   const notify = useNotifier()
   const [editingRole, setEditingRole] = useState<RoleListItemDto | null>(null)
   const [editingPermissions, setEditingPermissions] = useState<Set<string>>(new Set())
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [newRoleName, setNewRoleName] = useState('')
+  const createDialog = useFormDialog()
+  const createForm = useForm<NameFormValues>({ resolver: zodResolver(nameFormSchema), defaultValues: emptyNameFormValues })
   const [deleteTarget, setDeleteTarget] = useState<RoleListItemDto | null>(null)
 
   const { paginationModel, setPaginationModel, query: rolesQuery } = usePagedQuery({
@@ -79,13 +83,13 @@ function RolesTab({ permissionCatalog }: { permissionCatalog: PermissionCatalogI
   const permissionGroups = useMemo(() => groupByCategory(permissionCatalog), [permissionCatalog])
 
   const createRoleMutation = useMutation({
-    mutationFn: async (name: string) => {
-      await apiClient.post('/roles', { name })
+    mutationFn: async (values: NameFormValues) => {
+      await apiClient.post('/roles', { name: values.name })
     },
     onSuccess: () => {
       notify({ message: 'Rol oluşturuldu.', severity: 'success' })
-      setCreateDialogOpen(false)
-      setNewRoleName('')
+      createDialog.closeDialog()
+      createForm.reset(emptyNameFormValues)
       queryClient.invalidateQueries({ queryKey: ['roles'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Rol oluşturulamadı.'), severity: 'error' }),
@@ -176,7 +180,7 @@ function RolesTab({ permissionCatalog }: { permissionCatalog: PermissionCatalogI
   return (
     <>
       <Box sx={{ mb: 2 }}>
-        <Button variant="contained" onClick={() => setCreateDialogOpen(true)}>
+        <Button variant="contained" onClick={createDialog.openDialog}>
           Yeni Rol
         </Button>
       </Box>
@@ -194,24 +198,38 @@ function RolesTab({ permissionCatalog }: { permissionCatalog: PermissionCatalogI
         emptyTitle="Rol bulunamadı"
       />
 
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={createDialog.open}
+        onClose={() => {
+          createDialog.closeDialog()
+          createForm.reset(emptyNameFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Yeni Rol</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            margin="dense"
-            label="Rol Adı"
-            value={newRoleName}
-            onChange={(event) => setNewRoleName(event.target.value)}
+          <Controller
+            name="name"
+            control={createForm.control}
+            render={({ field, fieldState }) => (
+              <TextField {...field} autoFocus fullWidth margin="dense" label="Rol Adı" error={!!fieldState.error} helperText={fieldState.error?.message} />
+            )}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Vazgeç</Button>
+          <Button
+            onClick={() => {
+              createDialog.closeDialog()
+              createForm.reset(emptyNameFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
           <Button
             variant="contained"
-            disabled={newRoleName.trim() === '' || createRoleMutation.isPending}
-            onClick={() => createRoleMutation.mutate(newRoleName.trim())}
+            disabled={createForm.formState.isSubmitting || createRoleMutation.isPending}
+            onClick={createForm.handleSubmit((values) => createRoleMutation.mutate(values))}
           >
             Oluştur
           </Button>

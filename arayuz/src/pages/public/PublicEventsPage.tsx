@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Card, CardContent, Chip, Grid, Stack, Typography } from '@mui/material'
+import { Card, CardContent, CardMedia, Chip, Grid, Stack, Typography } from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import { apiClient } from '../../api/client'
@@ -26,6 +26,9 @@ export function PublicEventsPage() {
           {items.map((event) => (
             <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
               <Card variant="outlined" sx={{ height: '100%' }}>
+                {event.posterFileId && (
+                  <CardMedia component="img" height={140} image={`/api/files/${event.posterFileId}`} alt="" sx={{ objectFit: 'cover' }} />
+                )}
                 <CardContent>
                   <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>

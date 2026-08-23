@@ -1,12 +1,15 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material'
 import type { GridColDef } from '@mui/x-data-grid'
-import { useState } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
@@ -14,6 +17,7 @@ import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import { EventStatusChip } from '../components/ui/StatusChip'
+import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { EventListItemDto, EventParticipantListItemDto, PagedResult } from '../api/types'
 
 export function EventDetailPage() {
@@ -25,14 +29,20 @@ export function EventDetailPage() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission(Permissions.EventsWrite)
 
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const editDialog = useFormDialog()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [location, setLocation] = useState('')
-  const [startDateTime, setStartDateTime] = useState('')
-  const [endDateTime, setEndDateTime] = useState('')
-  const [capacity, setCapacity] = useState('')
+  const posterInputRef = useRef<HTMLInputElement>(null)
+  const canUploadPoster = hasPermission(Permissions.FilesUpload)
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting: isFormSubmitting },
+  } = useForm<EventFormValues>({
+    resolver: zodResolver(eventFormSchema),
+    defaultValues: emptyEventFormValues,
+  })
 
   const eventQuery = useQuery({
     queryKey: ['events', eventId],
@@ -86,23 +96,34 @@ export function EventDetailPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: async () => {
-      await apiClient.put(`/events/${eventId}`, {
-        title,
-        description: description.trim() || null,
-        location: location.trim() || null,
-        startDateUtc: new Date(startDateTime).toISOString(),
-        endDateUtc: new Date(endDateTime).toISOString(),
-        capacity: capacity.trim() === '' ? null : Number(capacity),
-      })
+    mutationFn: async (values: EventFormValues) => {
+      await apiClient.put(`/events/${eventId}`, toEventPayload(values))
     },
     onSuccess: () => {
       notify({ message: 'Etkinlik güncellendi.', severity: 'success' })
-      setEditDialogOpen(false)
+      editDialog.closeDialog()
       invalidateEvent()
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Etkinlik güncellenemedi.'), severity: 'error' }),
   })
+
+  const posterMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      await apiClient.post(`/events/${eventId}/poster`, formData)
+    },
+    onSuccess: () => notify({ message: 'Afiş güncellendi.', severity: 'success' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Afiş yüklenemedi.'), severity: 'error' }),
+  })
+
+  const handlePosterFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) {
+      posterMutation.mutate(file)
+    }
+  }
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -124,13 +145,15 @@ export function EventDetailPage() {
 
   const openEditDialog = () => {
     if (!eventQuery.data) return
-    setTitle(eventQuery.data.title)
-    setDescription(eventQuery.data.description ?? '')
-    setLocation(eventQuery.data.location ?? '')
-    setStartDateTime(toLocalInput(eventQuery.data.startDateUtc))
-    setEndDateTime(toLocalInput(eventQuery.data.endDateUtc))
-    setCapacity(eventQuery.data.capacity?.toString() ?? '')
-    setEditDialogOpen(true)
+    reset({
+      title: eventQuery.data.title,
+      description: eventQuery.data.description ?? '',
+      location: eventQuery.data.location ?? '',
+      startDateTime: toLocalInput(eventQuery.data.startDateUtc),
+      endDateTime: toLocalInput(eventQuery.data.endDateUtc),
+      capacity: eventQuery.data.capacity?.toString() ?? '',
+    })
+    editDialog.openDialog()
   }
 
   const participantColumns: GridColDef<EventParticipantListItemDto>[] = [
@@ -159,6 +182,11 @@ export function EventDetailPage() {
         description={event.clubName}
         action={
           <Stack direction="row" spacing={1}>
+            {canUploadPoster && (
+              <Button variant="outlined" disabled={posterMutation.isPending} onClick={() => posterInputRef.current?.click()}>
+                Afiş Yükle
+              </Button>
+            )}
             {canSubmit && (
               <Button variant="outlined" disabled={submitMutation.isPending} onClick={() => submitMutation.mutate()}>
                 Onaya Gönder
@@ -177,6 +205,7 @@ export function EventDetailPage() {
           </Stack>
         }
       />
+      <input ref={posterInputRef} type="file" accept="image/*" hidden onChange={handlePosterFileChange} />
 
       <SectionCard sx={{ mb: 3 }}>
         <Stack spacing={1.5}>
@@ -225,38 +254,76 @@ export function EventDetailPage() {
         </SectionCard>
       )}
 
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={editDialog.open} onClose={editDialog.closeDialog} fullWidth maxWidth="xs">
         <DialogTitle>Etkinliği Düzenle</DialogTitle>
         <DialogContent>
-          <TextField autoFocus fullWidth margin="dense" label="Başlık" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <TextField fullWidth multiline minRows={2} margin="dense" label="Açıklama" value={description} onChange={(e) => setDescription(e.target.value)} />
-          <TextField fullWidth margin="dense" label="Yer" value={location} onChange={(e) => setLocation(e.target.value)} />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Başlangıç"
-            type="datetime-local"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={startDateTime}
-            onChange={(e) => setStartDateTime(e.target.value)}
+          <Controller
+            name="title"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField {...field} autoFocus fullWidth margin="dense" label="Başlık" error={!!fieldState.error} helperText={fieldState.error?.message} />
+            )}
           />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Bitiş"
-            type="datetime-local"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={endDateTime}
-            onChange={(e) => setEndDateTime(e.target.value)}
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
           />
-          <TextField fullWidth margin="dense" label="Kontenjan (boş = sınırsız)" type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
+          <Controller name="location" control={control} render={({ field }) => <TextField {...field} fullWidth margin="dense" label="Yer" />} />
+          <Controller
+            name="startDateTime"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                fullWidth
+                margin="dense"
+                label="Başlangıç"
+                type="datetime-local"
+                slotProps={{ inputLabel: { shrink: true } }}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              />
+            )}
+          />
+          <Controller
+            name="endDateTime"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                fullWidth
+                margin="dense"
+                label="Bitiş"
+                type="datetime-local"
+                slotProps={{ inputLabel: { shrink: true } }}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              />
+            )}
+          />
+          <Controller
+            name="capacity"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                fullWidth
+                margin="dense"
+                label="Kontenjan (boş = sınırsız)"
+                type="number"
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              />
+            )}
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Vazgeç</Button>
+          <Button onClick={editDialog.closeDialog}>Vazgeç</Button>
           <Button
             variant="contained"
-            disabled={title.trim() === '' || !startDateTime || !endDateTime || updateMutation.isPending}
-            onClick={() => updateMutation.mutate()}
+            disabled={isFormSubmitting || updateMutation.isPending}
+            onClick={handleSubmit((values) => updateMutation.mutate(values))}
           >
             Kaydet
           </Button>

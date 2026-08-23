@@ -1,0 +1,43 @@
+import { z } from 'zod'
+
+// Y-35: yalnızca biçim doğrulanır — zorunlu alan, tarih sırası, pozitif sayı.
+// "Etkinlik yayınlanabilir mi", kontenjan doldu mu gibi kararlar API'de kalır.
+export const eventFormSchema = z
+  .object({
+    title: z.string().min(1, 'Başlık gerekli.'),
+    description: z.string(),
+    location: z.string(),
+    startDateTime: z.string().min(1, 'Başlangıç tarihi gerekli.'),
+    endDateTime: z.string().min(1, 'Bitiş tarihi gerekli.'),
+    capacity: z.string(),
+  })
+  .refine((values) => new Date(values.endDateTime) > new Date(values.startDateTime), {
+    message: 'Bitiş tarihi başlangıçtan sonra olmalı.',
+    path: ['endDateTime'],
+  })
+  .refine((values) => values.capacity.trim() === '' || Number(values.capacity) > 0, {
+    message: 'Kontenjan pozitif bir sayı olmalı.',
+    path: ['capacity'],
+  })
+
+export type EventFormValues = z.infer<typeof eventFormSchema>
+
+export const emptyEventFormValues: EventFormValues = {
+  title: '',
+  description: '',
+  location: '',
+  startDateTime: '',
+  endDateTime: '',
+  capacity: '',
+}
+
+export function toEventPayload(values: EventFormValues) {
+  return {
+    title: values.title,
+    description: values.description.trim() || null,
+    location: values.location.trim() || null,
+    startDateUtc: new Date(values.startDateTime).toISOString(),
+    endDateUtc: new Date(values.endDateTime).toISOString(),
+    capacity: values.capacity.trim() === '' ? null : Number(values.capacity),
+  }
+}

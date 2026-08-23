@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
@@ -16,11 +17,13 @@ import {
 } from '@mui/material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { useParams } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
@@ -28,6 +31,7 @@ import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import { ClubRoleChip } from '../components/ui/StatusChip'
+import { clubFormSchema, emptyClubFormValues, type ClubFormValues } from '../schemas/clubForm'
 import type { ClubDetailDto, ClubMemberListItemDto, ClubRole, PagedResult } from '../api/types'
 import { ClubAnnouncementsTab } from './ClubDetailAnnouncementsTab'
 import { ClubEventsTab } from './ClubDetailEventsTab'
@@ -73,17 +77,24 @@ export function ClubDetailPage() {
 function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDetailDto | undefined; canManage: boolean }) {
   const queryClient = useQueryClient()
   const notify = useNotifier()
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
+  const editDialog = useFormDialog()
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting: isFormSubmitting },
+  } = useForm<ClubFormValues>({
+    resolver: zodResolver(clubFormSchema),
+    defaultValues: emptyClubFormValues,
+  })
 
   const updateMutation = useMutation({
-    mutationFn: async () => {
-      await apiClient.put(`/clubs/${clubId}`, { name: name.trim(), description: description.trim() || null })
+    mutationFn: async (values: ClubFormValues) => {
+      await apiClient.put(`/clubs/${clubId}`, { name: values.name.trim(), description: values.description.trim() || null })
     },
     onSuccess: () => {
       notify({ message: 'Topluluk güncellendi.', severity: 'success' })
-      setEditDialogOpen(false)
+      editDialog.closeDialog()
       queryClient.invalidateQueries({ queryKey: ['clubs'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Topluluk güncellenemedi.'), severity: 'error' }),
@@ -101,9 +112,8 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
   })
 
   const openEditDialog = () => {
-    setName(club?.name ?? '')
-    setDescription(club?.description ?? '')
-    setEditDialogOpen(true)
+    reset({ name: club?.name ?? '', description: club?.description ?? '' })
+    editDialog.openDialog()
   }
 
   if (!club) {
@@ -140,23 +150,29 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
         <Typography variant="body2">{club.description || 'Açıklama eklenmemiş.'}</Typography>
       </Stack>
 
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={editDialog.open} onClose={editDialog.closeDialog} fullWidth maxWidth="xs">
         <DialogTitle>Topluluğu Düzenle</DialogTitle>
         <DialogContent>
-          <TextField autoFocus fullWidth margin="dense" label="Topluluk Adı" value={name} onChange={(event) => setName(event.target.value)} />
-          <TextField
-            fullWidth
-            multiline
-            minRows={2}
-            margin="dense"
-            label="Açıklama"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
+          <Controller
+            name="name"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField {...field} autoFocus fullWidth margin="dense" label="Topluluk Adı" error={!!fieldState.error} helperText={fieldState.error?.message} />
+            )}
+          />
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Vazgeç</Button>
-          <Button variant="contained" disabled={name.trim() === '' || updateMutation.isPending} onClick={() => updateMutation.mutate()}>
+          <Button onClick={editDialog.closeDialog}>Vazgeç</Button>
+          <Button
+            variant="contained"
+            disabled={isFormSubmitting || updateMutation.isPending}
+            onClick={handleSubmit((values) => updateMutation.mutate(values))}
+          >
             Kaydet
           </Button>
         </DialogActions>

@@ -1,18 +1,41 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
 import { DataGrid, type GridColDef, type GridRowSelectionModel } from '@mui/x-data-grid'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import { useState } from 'react'
+import { Controller, useForm, type Control } from 'react-hook-form'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
+import {
+  academicTermFormSchema,
+  emptyAcademicTermFormValues,
+  emptyNameFormValues,
+  nameFormSchema,
+  type AcademicTermFormValues,
+  type NameFormValues,
+} from '../schemas/referenceForm'
 import type { AcademicTermListItemDto, DepartmentListItemDto, FacultyListItemDto, PagedResult } from '../api/types'
+
+function NameFormField({ control, label }: { control: Control<NameFormValues>; label: string }) {
+  return (
+    <Controller
+      name="name"
+      control={control}
+      render={({ field, fieldState }) => (
+        <TextField {...field} autoFocus fullWidth margin="dense" label={label} error={!!fieldState.error} helperText={fieldState.error?.message} />
+      )}
+    />
+  )
+}
 
 export function ReferenceDataPage() {
   const [tab, setTab] = useState(0)
@@ -36,15 +59,16 @@ function FacultiesTab() {
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const [selectedFacultyId, setSelectedFacultyId] = useState<number | null>(null)
-  const [facultyDialogOpen, setFacultyDialogOpen] = useState(false)
-  const [newFacultyName, setNewFacultyName] = useState('')
-  const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false)
-  const [newDepartmentName, setNewDepartmentName] = useState('')
+  const facultyDialog = useFormDialog()
+  const departmentDialog = useFormDialog()
   const [editFacultyTarget, setEditFacultyTarget] = useState<FacultyListItemDto | null>(null)
-  const [editFacultyName, setEditFacultyName] = useState('')
   const [editDepartmentTarget, setEditDepartmentTarget] = useState<DepartmentListItemDto | null>(null)
-  const [editDepartmentName, setEditDepartmentName] = useState('')
   const [deleteDepartmentTarget, setDeleteDepartmentTarget] = useState<DepartmentListItemDto | null>(null)
+
+  const createFacultyForm = useForm<NameFormValues>({ resolver: zodResolver(nameFormSchema), defaultValues: emptyNameFormValues })
+  const createDepartmentForm = useForm<NameFormValues>({ resolver: zodResolver(nameFormSchema), defaultValues: emptyNameFormValues })
+  const editFacultyForm = useForm<NameFormValues>({ resolver: zodResolver(nameFormSchema), defaultValues: emptyNameFormValues })
+  const editDepartmentForm = useForm<NameFormValues>({ resolver: zodResolver(nameFormSchema), defaultValues: emptyNameFormValues })
 
   const { paginationModel, setPaginationModel, query: facultiesQuery } = usePagedQuery({
     queryKey: ['faculties'],
@@ -64,33 +88,34 @@ function FacultiesTab() {
   })
 
   const createFacultyMutation = useMutation({
-    mutationFn: async (name: string) => (await apiClient.post<FacultyListItemDto>('/faculties', { name })).data,
-    onSuccess: (_data, name) => {
-      notify({ message: `"${name}" kaydedildi (zaten varsa mevcut satır kullanıldı).`, severity: 'success' })
-      setFacultyDialogOpen(false)
-      setNewFacultyName('')
+    mutationFn: async (values: NameFormValues) => (await apiClient.post<FacultyListItemDto>('/faculties', { name: values.name })).data,
+    onSuccess: (_data, values) => {
+      notify({ message: `"${values.name}" kaydedildi (zaten varsa mevcut satır kullanıldı).`, severity: 'success' })
+      facultyDialog.closeDialog()
+      createFacultyForm.reset(emptyNameFormValues)
       queryClient.invalidateQueries({ queryKey: ['faculties'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Fakülte eklenemedi.'), severity: 'error' }),
   })
 
   const createDepartmentMutation = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async (values: NameFormValues) => {
       if (selectedFacultyId === null) throw new Error('Önce bir fakülte seçin.')
-      return (await apiClient.post<DepartmentListItemDto>(`/faculties/${selectedFacultyId}/departments`, { name })).data
+      return (await apiClient.post<DepartmentListItemDto>(`/faculties/${selectedFacultyId}/departments`, { name: values.name })).data
     },
-    onSuccess: (_data, name) => {
-      notify({ message: `"${name}" kaydedildi (zaten varsa mevcut satır kullanıldı).`, severity: 'success' })
-      setDepartmentDialogOpen(false)
-      setNewDepartmentName('')
+    onSuccess: (_data, values) => {
+      notify({ message: `"${values.name}" kaydedildi (zaten varsa mevcut satır kullanıldı).`, severity: 'success' })
+      departmentDialog.closeDialog()
+      createDepartmentForm.reset(emptyNameFormValues)
       queryClient.invalidateQueries({ queryKey: ['departments', selectedFacultyId] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Bölüm eklenemedi.'), severity: 'error' }),
   })
 
   const updateFacultyMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: number; name: string }) => {
-      await apiClient.put(`/faculties/${id}`, { name })
+    mutationFn: async (values: NameFormValues) => {
+      if (!editFacultyTarget) return
+      await apiClient.put(`/faculties/${editFacultyTarget.id}`, { name: values.name })
     },
     onSuccess: () => {
       notify({ message: 'Fakülte güncellendi.', severity: 'success' })
@@ -101,9 +126,9 @@ function FacultiesTab() {
   })
 
   const updateDepartmentMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: number; name: string }) => {
-      if (selectedFacultyId === null) throw new Error('Önce bir fakülte seçin.')
-      await apiClient.put(`/faculties/${selectedFacultyId}/departments/${id}`, { name })
+    mutationFn: async (values: NameFormValues) => {
+      if (selectedFacultyId === null || !editDepartmentTarget) return
+      await apiClient.put(`/faculties/${selectedFacultyId}/departments/${editDepartmentTarget.id}`, { name: values.name })
     },
     onSuccess: () => {
       notify({ message: 'Bölüm güncellendi.', severity: 'success' })
@@ -143,7 +168,7 @@ function FacultiesTab() {
           onClick={(event) => {
             event.stopPropagation()
             setEditFacultyTarget(params.row)
-            setEditFacultyName(params.row.name)
+            editFacultyForm.reset({ name: params.row.name })
           }}
         >
           <EditOutlinedIcon fontSize="small" />
@@ -166,7 +191,7 @@ function FacultiesTab() {
             onClick={(event) => {
               event.stopPropagation()
               setEditDepartmentTarget(params.row)
-              setEditDepartmentName(params.row.name)
+              editDepartmentForm.reset({ name: params.row.name })
             }}
           >
             <EditOutlinedIcon fontSize="small" />
@@ -195,7 +220,7 @@ function FacultiesTab() {
       <SectionCard
         title="Fakülteler"
         action={
-          <Button variant="contained" size="small" onClick={() => setFacultyDialogOpen(true)}>
+          <Button variant="contained" size="small" onClick={facultyDialog.openDialog}>
             Yeni Fakülte
           </Button>
         }
@@ -225,7 +250,7 @@ function FacultiesTab() {
         <SectionCard
           title="Bölümler"
           action={
-            <Button variant="outlined" size="small" onClick={() => setDepartmentDialogOpen(true)}>
+            <Button variant="outlined" size="small" onClick={departmentDialog.openDialog}>
               Yeni Bölüm
             </Button>
           }
@@ -236,48 +261,64 @@ function FacultiesTab() {
         </SectionCard>
       )}
 
-      <Dialog open={facultyDialogOpen} onClose={() => setFacultyDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={facultyDialog.open}
+        onClose={() => {
+          facultyDialog.closeDialog()
+          createFacultyForm.reset(emptyNameFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Yeni Fakülte</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            margin="dense"
-            label="Fakülte Adı"
-            value={newFacultyName}
-            onChange={(event) => setNewFacultyName(event.target.value)}
-          />
+          <NameFormField control={createFacultyForm.control} label="Fakülte Adı" />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFacultyDialogOpen(false)}>Vazgeç</Button>
+          <Button
+            onClick={() => {
+              facultyDialog.closeDialog()
+              createFacultyForm.reset(emptyNameFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
           <Button
             variant="contained"
-            disabled={newFacultyName.trim() === '' || createFacultyMutation.isPending}
-            onClick={() => createFacultyMutation.mutate(newFacultyName.trim())}
+            disabled={createFacultyForm.formState.isSubmitting || createFacultyMutation.isPending}
+            onClick={createFacultyForm.handleSubmit((values) => createFacultyMutation.mutate(values))}
           >
             Ekle
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={departmentDialogOpen} onClose={() => setDepartmentDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={departmentDialog.open}
+        onClose={() => {
+          departmentDialog.closeDialog()
+          createDepartmentForm.reset(emptyNameFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Yeni Bölüm</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            margin="dense"
-            label="Bölüm Adı"
-            value={newDepartmentName}
-            onChange={(event) => setNewDepartmentName(event.target.value)}
-          />
+          <NameFormField control={createDepartmentForm.control} label="Bölüm Adı" />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDepartmentDialogOpen(false)}>Vazgeç</Button>
+          <Button
+            onClick={() => {
+              departmentDialog.closeDialog()
+              createDepartmentForm.reset(emptyNameFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
           <Button
             variant="contained"
-            disabled={newDepartmentName.trim() === '' || createDepartmentMutation.isPending}
-            onClick={() => createDepartmentMutation.mutate(newDepartmentName.trim())}
+            disabled={createDepartmentForm.formState.isSubmitting || createDepartmentMutation.isPending}
+            onClick={createDepartmentForm.handleSubmit((values) => createDepartmentMutation.mutate(values))}
           >
             Ekle
           </Button>
@@ -287,21 +328,14 @@ function FacultiesTab() {
       <Dialog open={editFacultyTarget !== null} onClose={() => setEditFacultyTarget(null)} fullWidth maxWidth="xs">
         <DialogTitle>Fakülteyi Düzenle</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            margin="dense"
-            label="Fakülte Adı"
-            value={editFacultyName}
-            onChange={(event) => setEditFacultyName(event.target.value)}
-          />
+          <NameFormField control={editFacultyForm.control} label="Fakülte Adı" />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditFacultyTarget(null)}>Vazgeç</Button>
           <Button
             variant="contained"
-            disabled={editFacultyName.trim() === '' || updateFacultyMutation.isPending}
-            onClick={() => editFacultyTarget && updateFacultyMutation.mutate({ id: editFacultyTarget.id, name: editFacultyName.trim() })}
+            disabled={editFacultyForm.formState.isSubmitting || updateFacultyMutation.isPending}
+            onClick={editFacultyForm.handleSubmit((values) => updateFacultyMutation.mutate(values))}
           >
             Kaydet
           </Button>
@@ -311,21 +345,14 @@ function FacultiesTab() {
       <Dialog open={editDepartmentTarget !== null} onClose={() => setEditDepartmentTarget(null)} fullWidth maxWidth="xs">
         <DialogTitle>Bölümü Düzenle</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            margin="dense"
-            label="Bölüm Adı"
-            value={editDepartmentName}
-            onChange={(event) => setEditDepartmentName(event.target.value)}
-          />
+          <NameFormField control={editDepartmentForm.control} label="Bölüm Adı" />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDepartmentTarget(null)}>Vazgeç</Button>
           <Button
             variant="contained"
-            disabled={editDepartmentName.trim() === '' || updateDepartmentMutation.isPending}
-            onClick={() => editDepartmentTarget && updateDepartmentMutation.mutate({ id: editDepartmentTarget.id, name: editDepartmentName.trim() })}
+            disabled={editDepartmentForm.formState.isSubmitting || updateDepartmentMutation.isPending}
+            onClick={editDepartmentForm.handleSubmit((values) => updateDepartmentMutation.mutate(values))}
           >
             Kaydet
           </Button>
@@ -349,14 +376,11 @@ function FacultiesTab() {
 function TermsTab() {
   const queryClient = useQueryClient()
   const notify = useNotifier()
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const dialog = useFormDialog()
   const [editTarget, setEditTarget] = useState<AcademicTermListItemDto | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editStartDate, setEditStartDate] = useState('')
-  const [editEndDate, setEditEndDate] = useState('')
+
+  const createForm = useForm<AcademicTermFormValues>({ resolver: zodResolver(academicTermFormSchema), defaultValues: emptyAcademicTermFormValues })
+  const editForm = useForm<AcademicTermFormValues>({ resolver: zodResolver(academicTermFormSchema), defaultValues: emptyAcademicTermFormValues })
 
   const { paginationModel, setPaginationModel, query: termsQuery } = usePagedQuery({
     queryKey: ['academic-terms'],
@@ -365,19 +389,17 @@ function TermsTab() {
   })
 
   const createTermMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: AcademicTermFormValues) => {
       await apiClient.post('/academic-terms', {
-        name,
-        startDateUtc: new Date(startDate).toISOString(),
-        endDateUtc: new Date(endDate).toISOString(),
+        name: values.name,
+        startDateUtc: new Date(values.startDate).toISOString(),
+        endDateUtc: new Date(values.endDate).toISOString(),
       })
     },
     onSuccess: () => {
       notify({ message: 'Dönem oluşturuldu.', severity: 'success' })
-      setDialogOpen(false)
-      setName('')
-      setStartDate('')
-      setEndDate('')
+      dialog.closeDialog()
+      createForm.reset(emptyAcademicTermFormValues)
       queryClient.invalidateQueries({ queryKey: ['academic-terms'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Dönem oluşturulamadı.'), severity: 'error' }),
@@ -395,12 +417,12 @@ function TermsTab() {
   })
 
   const updateTermMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: AcademicTermFormValues) => {
       if (editTarget === null) throw new Error('Düzenlenecek dönem seçilmedi.')
       await apiClient.put(`/academic-terms/${editTarget.id}`, {
-        name: editName,
-        startDateUtc: new Date(editStartDate).toISOString(),
-        endDateUtc: new Date(editEndDate).toISOString(),
+        name: values.name,
+        startDateUtc: new Date(values.startDate).toISOString(),
+        endDateUtc: new Date(values.endDate).toISOString(),
       })
     },
     onSuccess: () => {
@@ -413,9 +435,7 @@ function TermsTab() {
 
   const openEditDialog = (term: AcademicTermListItemDto) => {
     setEditTarget(term)
-    setEditName(term.name)
-    setEditStartDate(term.startDateUtc.slice(0, 10))
-    setEditEndDate(term.endDateUtc.slice(0, 10))
+    editForm.reset({ name: term.name, startDate: term.startDateUtc.slice(0, 10), endDate: term.endDateUtc.slice(0, 10) })
   }
 
   const columns: GridColDef<AcademicTermListItemDto>[] = [
@@ -465,7 +485,7 @@ function TermsTab() {
   return (
     <>
       <Box sx={{ mb: 2 }}>
-        <Button variant="contained" onClick={() => setDialogOpen(true)}>
+        <Button variant="contained" onClick={dialog.openDialog}>
           Yeni Dönem
         </Button>
       </Box>
@@ -482,35 +502,32 @@ function TermsTab() {
         emptyTitle="Akademik dönem yok"
       />
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={dialog.open}
+        onClose={() => {
+          dialog.closeDialog()
+          createForm.reset(emptyAcademicTermFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Yeni Akademik Dönem</DialogTitle>
         <DialogContent>
-          <TextField autoFocus fullWidth margin="dense" label="Dönem Adı" value={name} onChange={(event) => setName(event.target.value)} />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Başlangıç Tarihi"
-            type="date"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
-          />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Bitiş Tarihi"
-            type="date"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={endDate}
-            onChange={(event) => setEndDate(event.target.value)}
-          />
+          <AcademicTermFormFields control={createForm.control} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Vazgeç</Button>
+          <Button
+            onClick={() => {
+              dialog.closeDialog()
+              createForm.reset(emptyAcademicTermFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
           <Button
             variant="contained"
-            disabled={name.trim() === '' || !startDate || !endDate || createTermMutation.isPending}
-            onClick={() => createTermMutation.mutate()}
+            disabled={createForm.formState.isSubmitting || createTermMutation.isPending}
+            onClick={createForm.handleSubmit((values) => createTermMutation.mutate(values))}
           >
             Oluştur
           </Button>
@@ -520,37 +537,65 @@ function TermsTab() {
       <Dialog open={editTarget !== null} onClose={() => setEditTarget(null)} fullWidth maxWidth="xs">
         <DialogTitle>Akademik Dönemi Düzenle</DialogTitle>
         <DialogContent>
-          <TextField autoFocus fullWidth margin="dense" label="Dönem Adı" value={editName} onChange={(event) => setEditName(event.target.value)} />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Başlangıç Tarihi"
-            type="date"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={editStartDate}
-            onChange={(event) => setEditStartDate(event.target.value)}
-          />
-          <TextField
-            fullWidth
-            margin="dense"
-            label="Bitiş Tarihi"
-            type="date"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={editEndDate}
-            onChange={(event) => setEditEndDate(event.target.value)}
-          />
+          <AcademicTermFormFields control={editForm.control} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditTarget(null)}>Vazgeç</Button>
           <Button
             variant="contained"
-            disabled={editName.trim() === '' || !editStartDate || !editEndDate || updateTermMutation.isPending}
-            onClick={() => updateTermMutation.mutate()}
+            disabled={editForm.formState.isSubmitting || updateTermMutation.isPending}
+            onClick={editForm.handleSubmit((values) => updateTermMutation.mutate(values))}
           >
             Kaydet
           </Button>
         </DialogActions>
       </Dialog>
+    </>
+  )
+}
+
+function AcademicTermFormFields({ control }: { control: Control<AcademicTermFormValues> }) {
+  return (
+    <>
+      <Controller
+        name="name"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField {...field} autoFocus fullWidth margin="dense" label="Dönem Adı" error={!!fieldState.error} helperText={fieldState.error?.message} />
+        )}
+      />
+      <Controller
+        name="startDate"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            fullWidth
+            margin="dense"
+            label="Başlangıç Tarihi"
+            type="date"
+            slotProps={{ inputLabel: { shrink: true } }}
+            error={!!fieldState.error}
+            helperText={fieldState.error?.message}
+          />
+        )}
+      />
+      <Controller
+        name="endDate"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            fullWidth
+            margin="dense"
+            label="Bitiş Tarihi"
+            type="date"
+            slotProps={{ inputLabel: { shrink: true } }}
+            error={!!fieldState.error}
+            helperText={fieldState.error?.message}
+          />
+        )}
+      />
     </>
   )
 }

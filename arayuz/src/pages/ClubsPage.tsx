@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
@@ -23,14 +24,17 @@ import {
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { useFormDialog } from '../hooks/useFormDialog'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
+import { createClubFormSchema, emptyCreateClubFormValues, type CreateClubFormValues } from '../schemas/clubForm'
 import type { AcademicStaffListItemDto, ClubListItemDto, PagedResult } from '../api/types'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
@@ -46,10 +50,17 @@ export function ClubsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [logoTargetClubId, setLogoTargetClubId] = useState<number | null>(null)
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newDescription, setNewDescription] = useState('')
-  const [newAdvisorId, setNewAdvisorId] = useState<number | ''>('')
+  const createDialog = useFormDialog()
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting: isFormSubmitting },
+  } = useForm<CreateClubFormValues>({
+    resolver: zodResolver(createClubFormSchema),
+    defaultValues: emptyCreateClubFormValues,
+  })
 
   const clubsQuery = useQuery({
     queryKey: ['clubs', 0, 200],
@@ -58,7 +69,7 @@ export function ClubsPage() {
 
   const academicStaffQuery = useQuery({
     queryKey: ['academic-staff', 0, 200],
-    enabled: canManageClubs && createDialogOpen,
+    enabled: canManageClubs && createDialog.open,
     queryFn: async () => (await apiClient.get<PagedResult<AcademicStaffListItemDto>>('/academic-staff', { params: { pageIndex: 0, pageSize: 200 } })).data,
   })
 
@@ -87,15 +98,13 @@ export function ClubsPage() {
   })
 
   const createClubMutation = useMutation({
-    mutationFn: async () => {
-      await apiClient.post('/clubs', { name: newName.trim(), description: newDescription.trim() || null, advisorId: newAdvisorId });
+    mutationFn: async (values: CreateClubFormValues) => {
+      await apiClient.post('/clubs', { name: values.name.trim(), description: values.description.trim() || null, advisorId: values.advisorId })
     },
     onSuccess: () => {
       notify({ message: 'Topluluk oluşturuldu.', severity: 'success' })
-      setCreateDialogOpen(false)
-      setNewName('')
-      setNewDescription('')
-      setNewAdvisorId('')
+      createDialog.closeDialog()
+      reset(emptyCreateClubFormValues)
       queryClient.invalidateQueries({ queryKey: ['clubs'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Topluluk oluşturulamadı.'), severity: 'error' }),
@@ -132,7 +141,7 @@ export function ClubsPage() {
         description="Kampüsteki tüm öğrenci topluluklarını keşfedin ve üyelik başvurusu yapın."
         action={
           canManageClubs && (
-            <Button variant="contained" onClick={() => setCreateDialogOpen(true)}>
+            <Button variant="contained" onClick={createDialog.openDialog}>
               Yeni Topluluk
             </Button>
           )
@@ -206,40 +215,66 @@ export function ClubsPage() {
         ))}
       </Grid>
 
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={createDialog.open}
+        onClose={() => {
+          createDialog.closeDialog()
+          reset(emptyCreateClubFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Yeni Topluluk</DialogTitle>
         <DialogContent>
-          <TextField autoFocus fullWidth margin="dense" label="Topluluk Adı" value={newName} onChange={(event) => setNewName(event.target.value)} />
-          <TextField
-            fullWidth
-            multiline
-            minRows={2}
-            margin="dense"
-            label="Açıklama"
-            value={newDescription}
-            onChange={(event) => setNewDescription(event.target.value)}
+          <Controller
+            name="name"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField {...field} autoFocus fullWidth margin="dense" label="Topluluk Adı" error={!!fieldState.error} helperText={fieldState.error?.message} />
+            )}
           />
-          <TextField
-            select
-            fullWidth
-            margin="dense"
-            label="Danışman"
-            value={newAdvisorId}
-            onChange={(event) => setNewAdvisorId(event.target.value === '' ? '' : Number(event.target.value))}
-          >
-            {(academicStaffQuery.data?.items ?? []).map((staff) => (
-              <MenuItem key={staff.id} value={staff.id}>
-                {staff.title} — {staff.email}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
+          />
+          <Controller
+            name="advisorId"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                select
+                fullWidth
+                margin="dense"
+                label="Danışman"
+                value={field.value || ''}
+                onChange={(event) => field.onChange(Number(event.target.value))}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              >
+                {(academicStaffQuery.data?.items ?? []).map((staff) => (
+                  <MenuItem key={staff.id} value={staff.id}>
+                    {staff.title} — {staff.email}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Vazgeç</Button>
+          <Button
+            onClick={() => {
+              createDialog.closeDialog()
+              reset(emptyCreateClubFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
           <Button
             variant="contained"
-            disabled={newName.trim() === '' || newAdvisorId === '' || createClubMutation.isPending}
-            onClick={() => createClubMutation.mutate()}
+            disabled={isFormSubmitting || createClubMutation.isPending}
+            onClick={handleSubmit((values) => createClubMutation.mutate(values))}
           >
             Oluştur
           </Button>
