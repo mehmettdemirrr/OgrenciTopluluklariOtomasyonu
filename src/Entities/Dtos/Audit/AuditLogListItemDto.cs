@@ -21,4 +21,7 @@ public sealed class AuditLogListItemDto
     public string? OldValues { get; set; }
 
     public string? NewValues { get; set; }
+
+    /// <summary>docs/PLAN-V3.md · K-28: aynı isteğin TrafficLog satırına bağlar.</summary>
+    public string? CorrelationId { get; set; }
 }

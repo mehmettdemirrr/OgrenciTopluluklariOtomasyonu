@@ -15,11 +15,12 @@ public sealed class AuditLogsController(IAuditLogService auditLogService) : Cont
         [FromQuery] int? userId = null,
         [FromQuery] DateTime? fromUtc = null,
         [FromQuery] DateTime? toUtc = null,
+        [FromQuery] string? correlationId = null,
         [FromQuery] int pageIndex = 0,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await auditLogService.GetPagedAsync(entityType, entityId, userId, fromUtc, toUtc, pageIndex, pageSize, cancellationToken);
+        var result = await auditLogService.GetPagedAsync(entityType, entityId, userId, fromUtc, toUtc, correlationId, pageIndex, pageSize, cancellationToken);
         return result.ToActionResult();
     }
 }

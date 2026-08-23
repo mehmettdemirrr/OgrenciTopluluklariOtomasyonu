@@ -1,5 +1,9 @@
 # V3 — Operasyonel olgunluk ve kurumsal kimlik (Faz 15 → 18)
 
+> **Durum: ✅ tamamlandı (23 Ağustos 2026).** Dört fazın tamamı (15-18) uygulandı, test edildi
+> (277/277 backend testi yeşil) ve Playwright ile canlı doğrulandı. Faz 16.3 (Skeleton/başlık/mobil
+> arayüz cilası) bilinçli olarak ertelendi — bkz. §16.3.
+
 ## Context
 
 `docs/PLAN-V2.md`'nin yedi fazı (8-14) bitti, test edildi ve pushlandı (son commit `a21dd66`; 271 test yeşil).
@@ -297,7 +301,7 @@ başvurur → "Başvurularım"da görür → admin kuyrukta görür → onaylar 
 
 ---
 
-## Faz 18 — Trafik ve erişim izi (K-28, A-44)
+## Faz 18 — Trafik ve erişim izi (K-28, A-44) — ✅ tamamlandı
 
 Kullanıcı isteğinin birebir karşılığı: *kullanıcı id, ip, tarayıcı, method, url, neler değişti, süre (ms)*.
 **Y-26'ya belgelenmiş bir istisna gerektirdiği için en sona konuldu** — plandaki tek kural gevşetmesi budur
@@ -363,16 +367,36 @@ Kaydedilmeyen: başarılı `GET`'ler, `/api/files/*` (görsel), `/api/public/*` 
 > O-2'nin ikinci seçeneği bunu açar; karşılığı tablo hacminin ~10 katına çıkması ve KVKK yüzeyinin
 > büyümesidir. Hacim yönetilebilirse sonradan tek `if` ile genişletilebilir.
 
-### 18.5 Frontend
+### 18.5 Frontend — ✅ tamamlandı
 
-`/audit` sayfası iki sekmeye çevrilir: **Veri Değişiklikleri** (mevcut `AuditLogPage`) ve **Erişim İzi**
-(yeni). İkincisinde kullanıcı/IP/tarih/method filtreleri + satır genişletince ilgili audit değişiklikleri.
+`/audit` sayfası iki sekmeye çevrildi: **Veri Değişiklikleri** (mevcut `AuditLogPage`, artık `correlationId`
+filtresi de alıyor) ve **Erişim İzi** (yeni — kullanıcı/IP/method filtreleri). Erişim İzi'ndeki her satırda
+"İlişkili Değişiklikler" butonu Veri Değişiklikleri sekmesine geçip o `CorrelationId`'ye göre filtreler.
 
-### Çıkış koşulu
-Bir kullanıcı giriş yapıp bir kulüp adını değiştirir → `/audit` → Erişim İzi sekmesinde `PUT /api/clubs/{id}`
-satırı IP/tarayıcı/süre ile görünür, satır açılınca eski→yeni değer gelir · `?access_token=...` içeren bir
-istek atılır ve **token veritabanında hiçbir yerde bulunmaz** (`PublicSurfaceLeakTests` ruhunda bir sızıntı
-testi) · 30 günden eski satır gecelik işten sonra kalmıyor · `audit.read` taşımayan kullanıcı 403 alıyor.
+> **Uygulamada bulunan bir tasarım hatası — middleware sırası:** ilk taslak `RequestLoggingMiddleware`'i
+> `UseAuthorization()`'dan **sonra** kaydediyordu ("kullanıcı kimliği çözülmüş olsun" diye). Bu, 401/403
+> ile biten isteklerin **hiç loglanmamasına** yol açtı — ASP.NET Core'un authorization middleware'i
+> yetkisiz istekte `next()`'i hiç çağırmadan kısa devre yapıyor, yani ondan SONRAKİ hiçbir middleware
+> çalışmıyor. O-2'nin en somut hedefi (başarısız giriş denemeleri, 403'ler) tam olarak bu yüzden
+> kaybolabilirdi — entegrasyon testi (`GetTrafficLogs_WithoutAuditRead_ReturnsForbidden` yazılırken
+> `Y-59` testi 401 satırını bulamayınca) bunu yakaladı. Düzeltme: middleware `UseAuthentication`'dan
+> **önceye** taşındı — `UseAuthentication` yine de `next()` içinde önce çalışıp `context.User`'ı
+> doldurduğu için kullanıcı kimliği hâlâ doğru okunuyor, ama artık authorization'ın kısa devre kararı
+> `next()` DÖNDÜKTEN sonra görülüyor, kaçırılmıyor.
+
+**Doğrulandı:** `TrafficLogTests` (3 test — yetkisiz 403, Y-59 redaksiyon, CorrelationId eşleşmesi) +
+`MaintenanceManagerTests`'e eklenen saklama testi dahil **277/277 backend testi yeşil**. Playwright ile
+canlı doğrulama: Erişim İzi'nde başarılı `POST /api/auth/login` satırı görünüyor (başarılı `GET`'ler
+görünmüyor — O-2 filtresi çalışıyor); "İlişkili Değişiklikler" tıklanınca aynı `CorrelationId`'ye sahip
+`RefreshToken` (Oluşturma) **ve** `TrafficLog`'un kendi audit satırı (Y-44 gereği o da denetleniyor —
+AuditLog kendini hariç tutar ama TrafficLog tutmaz, bu kasıtlı) doğru şekilde listeleniyor.
+
+### Çıkış koşulu — hepsi ✅
+Bir kullanıcı giriş yapıp bir kulüp adını değiştirir → `/audit` → Erişim İzi sekmesinde `PUT /api/faculties/{id}`
+satırı IP/tarayıcı/süre ile görünür, "İlişkili Değişiklikler" ile eski→yeni değere gidilir · `?access_token=...`
+içeren bir istek atılır ve **token veritabanında hiçbir yerde bulunmaz** (test: ham JWT payload'ı hiçbir
+`TrafficLog` satırında yok) · 30 günden eski satır gecelik işten sonra kalmıyor (birim testle doğrulandı) ·
+`audit.read` taşımayan kullanıcı 403 alıyor.
 
 ---
 
@@ -415,7 +439,7 @@ saklama sınırı bunun karşılığıdır."*
 | **15** | Acil düzeltmeler + kurumsal kimlik | — | ✅ tamamlandı: SMTP + footer + logo |
 | **16** | Form ve arayüz olgunluğu | — | ✅ 16.1/16.2 tamamlandı (afiş vitrinde çıkıyor, formlar simetrik, RHF+zod); 16.3 (Skeleton/başlık/mobil) ertelendi |
 | **17** | Topluluk kurma başvurusu | `ClubApplication` + filtreli unique index | ✅ tamamlandı — öğrenci başvurur → admin onaylar → kulüp doğar, öğrenci President olur |
-| **18** | Trafik ve erişim izi | `TrafficLog` + `AuditLog.CorrelationId` | İstek satırı audit değişikliğine bağlanıyor; token loga sızmıyor; 30 gün temizliği çalışıyor |
+| **18** | Trafik ve erişim izi | `TrafficLog` + `AuditLog.CorrelationId` | ✅ tamamlandı — istek satırı audit değişikliğine bağlanıyor; token loga sızmıyor; 30 gün temizliği çalışıyor |
 
 *Sessiz onay korunur: her PR'da en fazla bir migration; adlandırma `YYYYMMDD_AçıklayıcıAd`.*
 

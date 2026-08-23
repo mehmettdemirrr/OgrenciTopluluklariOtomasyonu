@@ -234,6 +234,12 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<TrafficLogManager>()
+            .As<ITrafficLogService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<PublicContentManager>()
             .As<IPublicContentService>()
             .EnableInterfaceInterceptors()

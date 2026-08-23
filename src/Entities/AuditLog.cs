@@ -25,4 +25,7 @@ public sealed class AuditLog
 
     /// <summary>Değişen alanların yeni değerlerinin JSON serileştirmesi. Delete'te null.</summary>
     public string? NewValues { get; set; }
+
+    /// <summary>docs/PLAN-V3.md · K-28: bu değişikliği tetikleyen isteğin TrafficLog satırına bağlar. Arka plan işlerinde null.</summary>
+    public string? CorrelationId { get; set; }
 }

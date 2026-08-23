@@ -59,6 +59,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
+builder.Services.AddScoped<ICorrelationContext, HttpContextCorrelationContext>();
 builder.Services.AddMemoryCache();
 
 // K-01/Y-38: access token 15 dk, ClockSkew=Zero — varsayılan 5 dk tolerans olmasaydı
@@ -183,6 +184,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// K-28/A-44: UseAuthentication/UseAuthorization'dan ÖNCE — yetkisiz (401/403) istekler authorization
+// middleware'inde kısa devre yapıp next()'i hiç çağırmaz; bu middleware SARMALAYICI olmazsa o istekler
+// hiç loglanmaz (O-2 tam olarak bunları istiyor). UseAuthentication yine de önce çalışıp context.User'ı
+// doldurduğu için kullanıcı kimliği burada doğru okunur — yalnızca UseAuthorization'ın kararı (ve varsa
+// asıl endpoint'in çalışması) next() döndükten sonra görülür.
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();

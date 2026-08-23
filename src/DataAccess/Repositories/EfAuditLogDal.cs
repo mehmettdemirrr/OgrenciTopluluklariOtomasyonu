@@ -13,6 +13,7 @@ public sealed class EfAuditLogDal(AppDbContext context) : IAuditLogDal
         int? userId,
         DateTime? fromUtc,
         DateTime? toUtc,
+        string? correlationId,
         int pageIndex,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -44,6 +45,11 @@ public sealed class EfAuditLogDal(AppDbContext context) : IAuditLogDal
             query = query.Where(a => a.TimestampUtc <= toUtc);
         }
 
+        if (!string.IsNullOrWhiteSpace(correlationId))
+        {
+            query = query.Where(a => a.CorrelationId == correlationId);
+        }
+
         query = query.OrderByDescending(a => a.TimestampUtc);
 
         var totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
@@ -60,6 +66,7 @@ public sealed class EfAuditLogDal(AppDbContext context) : IAuditLogDal
                 TimestampUtc = a.TimestampUtc,
                 OldValues = a.OldValues,
                 NewValues = a.NewValues,
+                CorrelationId = a.CorrelationId,
             })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

@@ -16,6 +16,7 @@ public interface IAuditLogService
         int? userId,
         DateTime? fromUtc,
         DateTime? toUtc,
+        string? correlationId,
         int pageIndex,
         int pageSize,
         CancellationToken cancellationToken = default);

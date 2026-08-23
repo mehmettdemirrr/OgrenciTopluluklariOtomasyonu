@@ -74,6 +74,10 @@ public sealed class DataAccessAutofacModule(IConfiguration configuration) : Modu
             .As<IAuditLogDal>()
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<EfTrafficLogDal>()
+            .As<ITrafficLogDal>()
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<EfIdentityAdminDal>()
             .As<IIdentityAdminDal>()
             .InstancePerLifetimeScope();

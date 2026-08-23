@@ -297,4 +297,20 @@ export interface AuditLogListItemDto {
   timestampUtc: string
   oldValues: string | null
   newValues: string | null
+  correlationId: string | null
+}
+
+// src/Entities/Dtos/Traffic/TrafficLogListItemDto.cs
+export interface TrafficLogListItemDto {
+  id: number
+  correlationId: string
+  userId: number | null
+  ipAddress: string
+  userAgent: string | null
+  httpMethod: string
+  path: string
+  redactedQueryString: string | null
+  statusCode: number
+  durationMs: number
+  timestampUtc: string
 }

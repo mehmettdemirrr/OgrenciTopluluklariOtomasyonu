@@ -3,6 +3,7 @@ using Business.Concrete;
 using Core.DataAccess;
 using Core.Utilities.Files;
 using Core.Utilities.Time;
+using DataAccess.Repositories;
 using Entities;
 using Entities.Enums;
 using Moq;
@@ -10,7 +11,7 @@ using Xunit;
 
 namespace Business.Tests;
 
-/// <summary>docs/MIMARI.md · §7 sessiz onay: gecelik tek iş, tam olarak iki görev.</summary>
+/// <summary>docs/MIMARI.md · §7 sessiz onay: gecelik tek iş; K-28/A-44 ile trafik logu temizliği eklendi.</summary>
 public class MaintenanceManagerTests
 {
     private static readonly DateTime FixedNow = new(2026, 9, 10, 12, 0, 0, DateTimeKind.Utc);
@@ -18,6 +19,7 @@ public class MaintenanceManagerTests
     private readonly Mock<IEntityRepository<RefreshToken>> _refreshTokenRepository = new();
     private readonly Mock<IEntityRepository<StoredFile>> _storedFileRepository = new();
     private readonly Mock<IEntityRepository<ReportRequest>> _reportRequestRepository = new();
+    private readonly Mock<ITrafficLogDal> _trafficLogDal = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<IClock> _clock = new();
     private readonly Mock<IFileStorage> _fileStorage = new();
@@ -31,6 +33,7 @@ public class MaintenanceManagerTests
             _refreshTokenRepository.Object,
             _storedFileRepository.Object,
             _reportRequestRepository.Object,
+            _trafficLogDal.Object,
             _unitOfWork.Object,
             _clock.Object,
             _fileStorage.Object);
@@ -134,5 +137,14 @@ public class MaintenanceManagerTests
         var result = await _sut.RunNightlyMaintenanceAsync();
 
         Assert.True(result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "RunNightlyMaintenanceAsync: A-44 — 30 günden eski trafik logu satırları temizlenir")]
+    public async Task RunNightlyMaintenanceAsync_DeletesTrafficLogsOlderThan30Days()
+    {
+        var result = await _sut.RunNightlyMaintenanceAsync();
+
+        Assert.True(result.IsSuccess);
+        _trafficLogDal.Verify(d => d.DeleteOlderThanAsync(FixedNow.AddDays(-30), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

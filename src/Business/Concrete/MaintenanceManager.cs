@@ -3,21 +3,26 @@ using Core.DataAccess;
 using Core.Utilities.Files;
 using Core.Utilities.Results;
 using Core.Utilities.Time;
+using DataAccess.Repositories;
 using Entities;
 using Entities.Enums;
 
 namespace Business.Concrete;
 
-/// <summary>docs/MIMARI.md · §7 sessiz onay: tam olarak iki görev, tek yinelenen işte.</summary>
+/// <summary>docs/MIMARI.md · §7 sessiz onay: gecelik bakım işi; K-28/A-44 ile trafik logu temizliği üçüncü adım olarak eklendi.</summary>
 public sealed class MaintenanceManager(
     IEntityRepository<RefreshToken> refreshTokenRepository,
     IEntityRepository<StoredFile> storedFileRepository,
     IEntityRepository<ReportRequest> reportRequestRepository,
+    ITrafficLogDal trafficLogDal,
     IUnitOfWork unitOfWork,
     IClock clock,
     IFileStorage fileStorage) : IMaintenanceService
 {
     private static readonly TimeSpan StaleReportFileAge = TimeSpan.FromDays(7);
+
+    /// <summary>A-44: erişim izi yalnızca 30 gün saklanır.</summary>
+    private static readonly TimeSpan TrafficLogRetention = TimeSpan.FromDays(30);
 
     public async Task<IResult> RunNightlyMaintenanceAsync(CancellationToken cancellationToken = default)
     {
@@ -67,6 +72,10 @@ public sealed class MaintenanceManager(
                 await fileStorage.DeleteAsync(file.GeneratedFileName, cancellationToken).ConfigureAwait(false);
             }
         }
+
+        // A-44: erişim izi tablosu kendi DAL'ıyla temizlenir — TrafficLog IEntity implemente etmediği
+        // için generic repository üzerinden erişilemez (bkz. TrafficLog.cs).
+        await trafficLogDal.DeleteOlderThanAsync(now - TrafficLogRetention, cancellationToken).ConfigureAwait(false);
 
         return Result.Success();
     }

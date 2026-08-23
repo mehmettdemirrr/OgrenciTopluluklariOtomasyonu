@@ -17,12 +17,13 @@ public sealed class AuditLogManager(IAuditLogDal auditLogDal) : IAuditLogService
         int? userId,
         DateTime? fromUtc,
         DateTime? toUtc,
+        string? correlationId,
         int pageIndex,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
         var result = await auditLogDal
-            .GetPagedAsync(entityType, entityId, userId, fromUtc, toUtc, pageIndex, ClampPageSize(pageSize), cancellationToken)
+            .GetPagedAsync(entityType, entityId, userId, fromUtc, toUtc, correlationId, pageIndex, ClampPageSize(pageSize), cancellationToken)
             .ConfigureAwait(false);
 
         return DataResult<PagedResult<AuditLogListItemDto>>.Success(result);

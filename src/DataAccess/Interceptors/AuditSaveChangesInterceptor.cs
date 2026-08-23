@@ -21,7 +21,7 @@ namespace DataAccess.Interceptors;
 /// AuditLog'un kendisi asla audit edilmez (BuildPendingEntries'te hariç tutulur) — bu, ikinci
 /// SaveChangesAsync çağrısının sonsuz döngüye girmesini de engeller.
 /// </summary>
-public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock clock) : SaveChangesInterceptor
+public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock clock, ICorrelationContext correlationContext) : SaveChangesInterceptor
 {
     private static readonly HashSet<string> SensitivePropertyNames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -64,7 +64,7 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
             var pending = _pending;
             _pending = [];
 
-            context.Set<AuditLog>().AddRange(pending.Select(p => p.ToAuditLog(currentUser.UserId, clock.UtcNow)));
+            context.Set<AuditLog>().AddRange(pending.Select(p => p.ToAuditLog(currentUser.UserId, clock.UtcNow, correlationContext.CorrelationId)));
             context.SaveChanges();
         }
 
@@ -79,7 +79,7 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
             var pending = _pending;
             _pending = [];
 
-            context.Set<AuditLog>().AddRange(pending.Select(p => p.ToAuditLog(currentUser.UserId, clock.UtcNow)));
+            context.Set<AuditLog>().AddRange(pending.Select(p => p.ToAuditLog(currentUser.UserId, clock.UtcNow, correlationContext.CorrelationId)));
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -167,7 +167,7 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
         string? NewValues,
         IReadOnlyList<PropertyEntry> PrimaryKeyProperties)
     {
-        public AuditLog ToAuditLog(int? userId, DateTime timestampUtc) => new()
+        public AuditLog ToAuditLog(int? userId, DateTime timestampUtc, string? correlationId) => new()
         {
             UserId = userId,
             EntityType = EntityType,
@@ -176,6 +176,7 @@ public sealed class AuditSaveChangesInterceptor(ICurrentUser currentUser, IClock
             TimestampUtc = timestampUtc,
             OldValues = OldValues,
             NewValues = NewValues,
+            CorrelationId = correlationId,
         };
     }
 }
