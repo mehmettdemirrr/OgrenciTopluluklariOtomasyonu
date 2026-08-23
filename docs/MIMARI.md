@@ -1,14 +1,15 @@
 # Öğrenci Toplulukları Otomasyonu — Mimari Taslak
 
-**Sürüm:** v3.0 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
-eklendi) · v3.0: 23 Ağustos 2026 (Faz 15-18 eklendi)
+**Sürüm:** v4.0 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
+eklendi) · v3.0: 23 Ağustos 2026 (Faz 15-18 eklendi) · v4.0: 23 Ağustos 2026 (Faz 19-23 eklendi)
 **Referans mimari:** [engindemirog/NetCoreBackend](https://github.com/engindemirog/NetCoreBackend)
 **Uygulama planları:** [docs/PLAN-V2.md](PLAN-V2.md) (Faz 8-14) · [docs/PLAN-V3.md](PLAN-V3.md) (Faz 15-18)
-— gerekçe, sıra ve doğrulama adımları
+· [docs/PLAN-V4.md](PLAN-V4.md) (Faz 19-23) — gerekçe, sıra ve doğrulama adımları
 
 Tek uygulama, beş katman, tek veritabanı. v1.0'ın 36 kararı, v2.0'ın 7 yeni kararı (A-37…A-43) verildi;
-v3.0 dört yeni fazla (K-28, K-29) 4 yeni karar (A-44…A-47) ve 2 yeni kural (Y-59, Y-60) ekledi. Yığın,
-kapsam ve kurallar sabit; bundan sonrası uygulama.
+v3.0 dört yeni fazla (K-28, K-29) 4 karar (A-44…A-47) ve 2 kural (Y-59, Y-60) ekledi; v4.0 beş yeni fazla
+(K-30) 6 karar (A-48…A-53) ve 3 kural (Y-61…Y-63) ekledi. Yığın, kapsam ve kurallar sabit; bundan sonrası
+uygulama.
 
 > **Bu belge tek doğruluk kaynağıdır.** Bir kural veya kapsam değişikliği gerekirse önce burası
 > güncellenir, sonra kod. Aksi hâlde belge ile kod arasındaki fark sessizce büyür ve mimari testler
@@ -16,10 +17,10 @@ kapsam ve kurallar sabit; bundan sonrası uygulama.
 
 | | |
 |---|---|
-| Karar | 47 (36 v1.0 + 7 v2.0 + 4 v3.0) |
-| Yasak kural | 60 (52 v1.0 + 6 v2.0 + 2 v3.0) |
-| V1 dışı madde | 13 (değişmedi — bkz. §3) |
-| Uygulama fazı | 18 (7 v1.0 + 7 v2.0 + 4 v3.0) |
+| Karar | 53 (36 v1.0 + 7 v2.0 + 4 v3.0 + 6 v4.0) |
+| Yasak kural | 63 (52 v1.0 + 6 v2.0 + 2 v3.0 + 3 v4.0) |
+| V1 dışı madde | 13 (K-13 v4.0'da **ikiye bölündü** — bkz. §3) |
+| Uygulama fazı | 23 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0) |
 
 **Yığın:** .NET 8 LTS · ASP.NET Core Identity · EF Core 8 / MSSQL · Autofac + async AOP ·
 FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · React 18 + Vite + TypeScript + MUI
@@ -29,11 +30,11 @@ FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · 
 ## İçindekiler
 
 1. [Katmanlar ve bağımlılık yönü](#1-katmanlar-ve-bağımlılık-yönü)
-2. [Açıkça yasak (Y-01 … Y-60)](#2-açıkça-yasak)
-3. [V1 kapsamı (K-01 … K-29)](#3-v1-kapsamı)
+2. [Açıkça yasak (Y-01 … Y-63)](#2-açıkça-yasak)
+3. [V1 kapsamı (K-01 … K-30)](#3-v1-kapsamı)
 4. [Teknoloji ve domain](#4-teknoloji-ve-domain)
 5. [Uygulama sırası](#5-uygulama-sırası)
-6. [Karar kaydı (A-01 … A-47)](#6-karar-kaydı)
+6. [Karar kaydı (A-01 … A-53)](#6-karar-kaydı)
 7. [Sessiz onaylar](#7-sessiz-onaylar)
 
 ---
@@ -196,6 +197,14 @@ değiştiririz — ama önce belge değişir, sonra kod.
 | **Y-59** | Trafik logunun istek/cevap gövdesini, header'ları veya ham query string'i kaydetmesi | Yalnızca meta veri (IP, tarayıcı, method, URL, süre); bilinen hassas anahtarlar (`access_token`, `token`, `password`, `code`) query string'den redakte edilir — `SideNav.tsx`'in `?access_token=` içeren Hangfire linki bunun somut örneği (A-44) |
 | **Y-60** | Dış servis kimlik bilgisini (SMTP, API anahtarı, bağlantı dizesi) C# property varsayılan değeri, `const` veya `readonly` alan olarak kaynak koda yazmak | Yalnızca user-secrets (dev) / ortam değişkeni (prod); property varsayılanları boş döner. Y-20'nin güçlendirilmesi — o kural `appsettings.json`'ı sayıyordu, gerçek ihlal kaynak kodda (`SmtpSettings.cs`) yaşandı |
 
+### V4 eklentileri (Faz 19-23)
+
+| # | Yasak | Bunun yerine |
+|---|---|---|
+| **Y-61** | İptal edilen etkinliğe yeni katılımcı kaydı almak; iptal edilmiş etkinliği anonim vitrinde veya "yaklaşan etkinlikler"de listelemek | `EventStatus.Cancelled` her okuma filtresinde `Published` dışında sayılır. Mevcut katılımcı kayıtları **silinmez** — öğrenci kaydını iptal rozetiyle görmeye devam eder (A-49) |
+| **Y-62** | Liste ucunun tamamını çekip filtrelemeyi/aramayı istemcide yapmak (`pageSize: 200` + `.filter()`) | Arama ve filtre sunucuda, sayfalama `PagedResult` sözleşmesiyle. Y-11'in arayüz tarafındaki karşılığı: Y-11 sunucunun tüm tabloyu dönmesini yasaklıyordu, Y-62 arayüzün "hepsini iste, ben ayıklarım" kaçamağını kapatır (A-50) |
+| **Y-63** | E-posta üreten anonim ucu (`register`, `forgot-password`, `resend-confirmation`) oran sınırı olmadan yayına almak | `[EnableRateLimiting]` ile IP bazlı sınır (A-53). Gerekçe: tek uçtan SMTP kotasının tüketilmesi **tüm** bildirim altyapısını durdurur — kayıt doğrulama dahil |
+
 ---
 
 ## 3. V1 kapsamı
@@ -238,13 +247,27 @@ değiştiririz — ama önce belge değişir, sonra kod.
 > saklama sınırı ve dar okuma yetkisi (yalnızca `audit.read`) bunun karşılığıdır — KVKK silme/anonimleştirme
 > akışının kendisi hâlâ V1 dışıdır.
 
+### V4'e alınanlar (Faz 19-23)
+
+| # | Özellik | Ne var | Getirdiği iş |
+|---|---|---|---|
+| **K-30** | Dönem devri | Yeni dönem güncel yapıldığında aktif üyelikler rolleriyle birlikte yeni döneme otomatik kopyalanır | `AcademicTermManager.SetCurrentAsync` genişler; idempotent, pasif kulüp ve soft-delete üyelik atlanır (A-51) |
+| **K-13** *(kısmi)* | **Rate limiting** — API versiyonlama V1 dışında kalır | Anonim kimlik uçlarında (`register`, `forgot-password`, `resend-confirmation`, `login`) IP bazlı oran sınırı | `AddRateLimiter` (çerçeve içi, paket yok), 429 → ProblemDetails (Y-25), `UseRateLimiter` erişim izinden **sonra** (A-53, Y-63) |
+
+> **K-25 notu (v4.0):** "Dashboard ve öğrenci self-servisi" Faz 19'da tamamlanır — öğrenci artık üyelik
+> başvurusunun durumunu görebiliyor, geri çekebiliyor, kulüpten ayrılabiliyor ve profilini düzenleyebiliyor.
+> Faz 12'de yalnızca *okuma* tarafı yapılmıştı (A-48).
+
+> **K-22 notu (v4.0):** etkinlik yaşam döngüsüne `Cancelled` eklenir (A-49) — yayınlanmış etkinlik
+> **silinmez, iptal edilir** ve kayıtlı katılımcılara e-posta gider. Silme yalnızca `Draft` için kalır.
+
 ### V1 dışında kalanlar — bilinçli kararlar
 
 Bunlar eksik değil, ertelenmiş özellikler. "Kapı" sütunu, bugün ne yapmamız gerektiğini söyler ki
-sonradan eklemek pahalı olmasın. **v2.0 (Faz 8-14) ve v3.0 (Faz 15-18) bu tabloyu değiştirmez** —
-K-02, K-04, K-07, K-09…K-20'nin tamamı ertelenmiş kalır; özellikle aidat/ödeme (K-15), forum/anket/QR
-(K-16), gerçek zamanlı bildirim (K-04), rate limiting (K-13) ve KVKK silme/anonimleştirme akışının
-kendisi (K-19) planın hiçbir fazında yapılmaz.
+sonradan eklemek pahalı olmasın. **v2.0 ve v3.0 bu tabloyu hiç değiştirmedi; v4.0 yalnızca K-13'ü
+ikiye böldü** (rate limiting kapsama girdi, API versiyonlama kaldı). Geri kalan her şey — aidat/ödeme
+(K-15), forum/anket/QR (K-16), gerçek zamanlı bildirim (K-04), KVKK silme/anonimleştirme akışının
+kendisi (K-19) — hiçbir fazda yapılmaz.
 
 | # | Ertelenen | Kapı |
 |---|---|---|
@@ -254,7 +277,7 @@ kendisi (K-19) planın hiçbir fazında yapılmaz.
 | **K-09** | Gelişmiş arama (Elasticsearch, full-text) | Arama tek DAL metodunda |
 | **K-10** | Çok kampüslü / çok kiracılı yapı | Fakülte/Bölüm tablosu var |
 | **K-11** | Çok dillilik | Mesajlar `Messages` sabitlerinde toplu |
-| **K-13** | API versiyonlama ve rate limiting | Giriş denemeleri Identity'nin hesap kilitlemesiyle sınırlanır |
+| **K-13** *(yarısı)* | **API versiyonlama** — rate limiting v4.0'da kapsama alındı (A-53, §V4'e alınanlar) | Tek sürüm; kırıcı değişiklik gerekirse rota öneki (`/api/v2`) eklenebilir, mevcut controller'lar taşınmaz |
 | **K-14** | Docker, CI/CD, observability | Konfigürasyon ortam değişkeniyle geçersiz kılınabilir. **Hangfire paneli V1'in tek izleme aracı** |
 | **K-15** | Aidat, ödeme, bütçe | Bağımsız modül olarak sonradan |
 | **K-16** | Sosyal özellikler (forum, mesajlaşma, anket, QR yoklama, takvim) | Etkinlik katılım kaydı V1'de var |
@@ -346,9 +369,9 @@ Sıra önemlidir: **yetki → validasyon → transaction → cache.** Hepsi asyn
 | `Faculty` · `Department` | Referans verisi, hard delete serbest | A-12, A-27 |
 | `AcademicTerm` | Akademik dönem | A-13 |
 | `Club` | Topluluk, danışmanı, logosu, durumu | K-05, A-31 |
-| `ClubMembership` | Dönemsel üyelik + topluluk rolü; `(ClubId, StudentId, TermId)` unique | A-13, A-15 |
+| `ClubMembership` | Dönemsel üyelik + topluluk rolü; `(ClubId, StudentId, TermId)` unique. **Dönem devrinde rolüyle birlikte yeni döneme kopyalanır** | A-13, A-15, K-30, A-51 |
 | `MembershipApplication` | Başvuru, onay/ret, soft delete, bildirim tetikler | A-12, K-03 |
-| `Event` | Taslak → onay bekliyor → yayında/reddedildi; kontenjan `rowversion` | A-25, A-15, K-05 |
+| `Event` | Taslak → onay bekliyor → yayında/reddedildi → **iptal edildi** (gerekçesiyle); kontenjan `rowversion` | A-25, A-15, K-05, A-49, Y-61 |
 | `EventParticipation` | `(EventId, StudentId)` unique | A-15 |
 | `Announcement` | Topluluk duyurusu; `ClubId` nullable (sistem duyurusu) + **görünürlük** (üye/herkese açık) | K-23, A-43, Y-57 |
 | `AuditLog` | Kim, ne zaman, hangi alan; interceptor yazar; **`CorrelationId`** (nullable) trafik logu satırına bağlar | K-12, A-33, Y-44, K-28 |
@@ -463,6 +486,38 @@ token veritabanında hiçbir yerde bulunmaz (Y-59); 30 günden eski satır gecel
 
 ---
 
+### v4.0 — Faz 19-23
+
+Ayrıntılı gerekçe, uçlar ve testler için [docs/PLAN-V4.md](PLAN-V4.md).
+
+### 19 — Öğrenci self-servisi, ters proxy IP'si ve oran sınırı
+K-25'in tamamlanması (A-48): başvuru takibi/geri çekme, kulüpten ayrılma, profil düzenleme.
+Ön iş olarak `UseForwardedHeaders` (Faz 18'in IP kolonunu ters proxy arkasında doğrular) ve ardından
+anonim kimlik uçlarına oran sınırı (A-53, Y-63).
+**Bitti sayılır:** öğrenci başvurusunu geri çekip yeniden başvurabiliyor; son başkan kulüpten ayrılamıyor;
+`forgot-password`'e 6. istek 429 + ProblemDetails alıyor ve bu 429 erişim izinde görünüyor.
+
+### 20 — Etkinlik iptali
+`EventStatus.Cancelled` + gerekçe (A-49); katılımcılara Hangfire ile e-posta (Y-41/Y-46).
+**Bitti sayılır:** yayındaki etkinlik iptal ediliyor, anonim vitrinden düşüyor, yeni kayıt `Conflict`
+veriyor, katılımcı kayıtları **silinmiyor** (Y-61).
+
+### 21 — Sunucu taraflı arama ve gerçek sayfalama
+Arayüzün `pageSize: 200` isteyip 100 alması ve kalanı istemcide filtrelemesi düzeltilir (A-50, Y-62).
+**Bitti sayılır:** 101. kayıt aranarak bulunabiliyor; `git grep "pageSize: 200"` sıfır sonuç.
+
+### 22 — Otomatik dönem devri
+`SetCurrentAsync` üyelikleri rolleriyle yeni döneme taşır (K-30, A-51); `GetMineAsync`'in dönem
+filtresi eksikliği düzeltilir.
+**Bitti sayılır:** devirden sonra başkan yetkisini koruyup etkinlik oluşturabiliyor; ikinci çalıştırma
+sıfır yeni satır üretiyor (idempotent).
+
+### 23 — Arayüz cilası
+Sidebar yeniden gruplanır, `Skeleton`/`useDocumentTitle`/mobil kolon gizleme eklenir (A-52). Backend'e dokunulmaz.
+**Bitti sayılır:** `git diff --stat src/` boş; 1400×900'de admin menüsü kaydırmasız sığıyor.
+
+---
+
 ## 6. Karar kaydı
 
 Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
@@ -516,6 +571,12 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | **A-45** | Topluluk kurma başvurusu | B | Öğrenci danışman seçer → admin onaylar; onayda `Club` oluşur, başvuran `President` olur (K-29) |
 | **A-46** | Form sözleşmesi | A | Her yazma diyaloğu react-hook-form + zod; yalnızca biçim doğrulanır (Y-35) |
 | **A-47** | Kurumsal kimlik | A | Ortak footer (tek metin, tek bileşen) + üniversite logosu; marka rengi Y-56'ya tabi |
+| **A-48** | Self-servis simetrisi | A | Her başvuru/üyelik akışının öğrenci tarafında karşılığı olur: *başvur → durumu gör → geri çek*. K-25'in tamamlanması |
+| **A-49** | Etkinlik iptali | B | Yayınlanmış etkinlik **silinmez, iptal edilir** (`EventStatus.Cancelled` + gerekçe); katılımcı kayıtları durur, e-posta gider. Silme yalnızca `Draft` (Y-61) |
+| **A-50** | Arama sözleşmesi | A | Liste uçları `search` alır, filtreleme SQL'de (`LIKE`), sayfalama sunucuda. K-09'un kapısının kullanılması — full-text/Elasticsearch V1 dışı kalır (Y-62) |
+| **A-51** | Dönem devri | A · otomatik | `SetCurrentAsync` aktif üyelikleri rolleriyle yeni döneme kopyalar; idempotent, pasif kulüp ve soft-delete üyelik atlanır (K-30) |
+| **A-52** | Arayüz cilası sözleşmesi | A | Her sayfa `useDocumentTitle` ile kendi sekme başlığını yazar; veri çeken her görünüm yüklenirken `Skeleton` gösterir |
+| **A-53** | Anonim kimlik uçlarında oran sınırı | B | `AddRateLimiter` (çerçeve içi, NuGet paketi yok), IP bazlı `FixedWindow`; **global limiter yok**, giriş yapmış kullanıcı sınırlanmaz; 429 → ProblemDetails (Y-25, Y-63) |
 
 ### Kararların birbirini etkilediği yerler
 
@@ -537,6 +598,11 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | A-44 × Y-26 × K-19 | Kurala bağlandı | Trafik logu Y-26'yı sessizce esnetmez — dar istisna (tek tablo, 30 gün, tek izin, gövde/header yazılmaz); K-19'un KVKK akışı hâlâ V1 dışı (Y-59) |
 | A-45 × A-39 | Uyumlu | Onayda üyelik `ClubRole.President` ile yazılır; A-39'un filtreli unique index'i başkan tekilliğini zaten koruyor |
 | A-46 × Y-35 | Çözüldü | Form kütüphanesi yalnızca biçim doğrular; "bu isimde kulüp var mı" gibi kararlar API'de kalır |
+| A-51 × A-13 × Y-44 | **Dikkat** | Dönem devri tek transaction'da binlerce `ClubMembership` yazar; audit interceptor entity başına bir satır ürettiği için audit patlaması kaçınılmaz. Baskılanamaz (Y-44). Karşılık: idempotent + yılda 2-3 çalışır. Hangfire'a taşımak audit'te "kim" bilgisini kaybettirir (`ICurrentUser` sistem kullanıcısına düşer) |
+| A-51 × A-39 | Uyumlu | Devir 1:1 kopya olduğu için `(ClubId, AcademicTermId)` filtreli başkan unique index'i ihlal edilmez |
+| A-53 × A-44 | Kurala bağlandı | `UseRateLimiter`, `RequestLoggingMiddleware`'den **sonra** kaydedilir — aksi hâlde 429'lar erişim izine hiç düşmez (Faz 18'in `UseAuthorization` tuzağının aynısı) |
+| A-53 × K-28 | Ön koşul | IP bazlı bölümleme doğru IP ister: `UseForwardedHeaders` olmadan ters proxy arkasında hem trafik logu hem limiter tek IP görür. Faz 19.0 ikisinin de ön koşulu |
+| A-49 × Y-52 × Y-58 | Uyumlu | İptal edilen etkinlik anonim vitrinden düşer; görünürlük kararı yine yazma anındaki `Status` alanından okunur, okuma anında yorumlanmaz |
 
 ---
 
@@ -564,4 +630,4 @@ Ayrı karar beklemeyen, itiraz gelmedikçe geçerli varsayılan kurallar.
 
 ---
 
-*Mimari taslak v3.0 · 47 karar, 60 kural, 13 V1 dışı madde, 18 faz · referans: engindemirog/NetCoreBackend*
+*Mimari taslak v4.0 · 53 karar, 63 kural, 13 V1 dışı madde (K-13 yarısı kapsama alındı), 23 faz · referans: engindemirog/NetCoreBackend*
