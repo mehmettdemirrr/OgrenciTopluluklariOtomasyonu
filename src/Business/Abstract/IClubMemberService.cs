@@ -28,4 +28,12 @@ public interface IClubMemberService
     [SecuredOperation(IdentitySeedData.Permissions.MembershipsWrite)]
     [TransactionAspect]
     Task<IResult> RemoveMemberAsync(int clubId, int membershipId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/PLAN-V4.md §19.1 (A-48): öğrenci **kendi** üyeliğinden ayrılır. `RemoveMemberAsync`
+    /// `memberships.write` istiyor (danışman/başkan işi) — bu, öğrencinin kendi tarafındaki karşılığı,
+    /// bu yüzden [SecuredOperation] taşımaz. Son başkan ayrılamaz (§19.2).
+    /// </summary>
+    [TransactionAspect]
+    Task<IResult> LeaveAsync(int clubId, CancellationToken cancellationToken = default);
 }

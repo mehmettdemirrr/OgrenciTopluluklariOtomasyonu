@@ -24,7 +24,6 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next)
                 throw;
             }
 
-            context.Response.ContentType = "application/problem+json";
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
             var problemDetails = new ProblemDetails
@@ -34,7 +33,9 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next)
                 Detail = $"Destek ekibine başvururken bu kimliği paylaşın: {correlationId}",
             };
 
-            await context.Response.WriteAsJsonAsync(problemDetails);
+            // contentType parametresi zorunlu: WriteAsJsonAsync önceden set edilmiş Response.ContentType'ı
+            // "application/json" ile ezer. (Faz 19'da rate limiter'ın 429 gövdesini yazarken fark edildi.)
+            await context.Response.WriteAsJsonAsync(problemDetails, options: null, contentType: "application/problem+json");
         }
     }
 }

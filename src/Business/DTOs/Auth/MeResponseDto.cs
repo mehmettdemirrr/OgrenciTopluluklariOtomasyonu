@@ -7,4 +7,18 @@ public sealed class MeResponseDto
     public required IReadOnlyCollection<string> Roles { get; set; }
 
     public required IReadOnlyCollection<string> Permissions { get; set; }
+
+    /// <summary>
+    /// docs/PLAN-V4.md §19.3 (A-48): öğrenci profili alanları. Danışman/admin hesaplarında
+    /// `Student` kaydı olmadığı için hepsi <c>null</c> döner.
+    /// </summary>
+    public string? StudentNumber { get; set; }
+
+    public int? DepartmentId { get; set; }
+
+    public string? DepartmentName { get; set; }
+
+    public string? FacultyName { get; set; }
+
+    public int? EnrollmentYear { get; set; }
 }

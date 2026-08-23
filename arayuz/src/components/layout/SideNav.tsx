@@ -44,7 +44,7 @@ const genelItems: NavItem[] = [
   { label: 'Etkinlikler', to: '/events', icon: EventOutlinedIcon, permission: Permissions.EventsRead },
   { label: 'Etkinliklerim', to: '/my-events', icon: EventAvailableOutlinedIcon, permission: Permissions.EventsRead },
   { label: 'Duyurular', to: '/announcements', icon: CampaignOutlinedIcon, permission: Permissions.ClubsRead },
-  { label: 'Topluluk Başvurularım', to: '/my-club-applications', icon: FactCheckOutlinedIcon },
+  { label: 'Başvurularım', to: '/my-applications', icon: FactCheckOutlinedIcon },
   { label: 'Başvuru İncele', to: '/review', icon: FactCheckOutlinedIcon, permission: Permissions.MembershipsWrite },
   { label: 'Topluluk Kurma Başvuruları', to: '/club-applications', icon: FactCheckOutlinedIcon, permission: Permissions.ClubsWrite },
   { label: 'Raporlarım', to: '/reports', icon: BarChartOutlinedIcon, permission: Permissions.ReportsRead },

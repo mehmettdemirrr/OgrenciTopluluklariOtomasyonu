@@ -17,6 +17,22 @@ public sealed class MembershipApplicationsController(IMembershipApplicationServi
         return result.ToActionResult();
     }
 
+    /// <summary>docs/PLAN-V4.md §19.1 (A-48): çağıranın kendi başvuruları — `club-applications/mine` ile simetrik.</summary>
+    [HttpGet("membership-applications/mine")]
+    public async Task<IActionResult> GetMine(CancellationToken cancellationToken)
+    {
+        var result = await membershipApplicationService.GetMineAsync(cancellationToken);
+        return result.ToActionResult();
+    }
+
+    /// <summary>docs/PLAN-V4.md §19.1: öğrenci kendi bekleyen başvurusunu geri çeker.</summary>
+    [HttpDelete("membership-applications/{id:int}")]
+    public async Task<IActionResult> Withdraw(int id, CancellationToken cancellationToken)
+    {
+        var result = await membershipApplicationService.WithdrawAsync(id, cancellationToken);
+        return result.ToActionResult();
+    }
+
     /// <summary>Çağıranın danışmanı olduğu kulüplerdeki bekleyen başvurular (Y-23: sorgu zaten scoped).</summary>
     [HttpGet("membership-applications")]
     public async Task<IActionResult> GetPending([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)

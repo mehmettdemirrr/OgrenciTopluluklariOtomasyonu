@@ -30,4 +30,15 @@ public sealed class ClubMembersController(IClubMemberService clubMemberService) 
         var result = await clubMemberService.RemoveMemberAsync(clubId, membershipId, cancellationToken);
         return result.ToActionResult();
     }
+
+    /// <summary>
+    /// docs/PLAN-V4.md §19.1 (A-48): öğrencinin kendi üyeliğinden ayrılması. `membershipId` almaz —
+    /// hedef üyelik `ICurrentUser` + güncel dönemden çözülür (Y-22).
+    /// </summary>
+    [HttpDelete("~/api/clubs/{clubId:int}/membership")]
+    public async Task<IActionResult> Leave(int clubId, CancellationToken cancellationToken)
+    {
+        var result = await clubMemberService.LeaveAsync(clubId, cancellationToken);
+        return result.ToActionResult();
+    }
 }

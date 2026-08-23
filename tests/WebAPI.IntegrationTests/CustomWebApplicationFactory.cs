@@ -52,6 +52,14 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["Seed:DemoStudentPassword"] = "",
                 ["FileStorage:RootPath"] = FileStorageRootPath,
                 ["Frontend:BaseUrl"] = "https://localhost.test",
+
+                // A-53: TestServer'da Connection.RemoteIpAddress null'dur — oran sınırı bütün
+                // testleri tek "unknown" kovasında toplar ve arka arkaya login yapan mevcut
+                // testler (ClubApplicationFlowTests, MembershipVerticalSliceTests...) 429 almaya
+                // başlardı. Varsayılan sınır burada etkisiz kılınır; sınırı fiilen sınayan tek
+                // yer RateLimitTests'tir ve orada WithWebHostBuilder ile düşük değer verilir.
+                ["RateLimiting:AuthStrict:PermitLimit"] = "100000",
+                ["RateLimiting:AuthLogin:PermitLimit"] = "100000",
             });
         });
 

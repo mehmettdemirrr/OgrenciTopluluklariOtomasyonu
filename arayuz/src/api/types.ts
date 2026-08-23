@@ -65,6 +65,7 @@ export interface MembershipApplicationListItemDto {
   studentNumber: string
   status: ApplicationStatus
   appliedAtUtc: string
+  reviewedAtUtc: string | null
 }
 
 // src/Business/DTOs/ClubApplications/ClubApplicationListItemDto.cs
@@ -210,6 +211,12 @@ export interface MeResponseDto {
   email: string
   roles: string[]
   permissions: string[]
+  // Öğrenci profili — danışman/admin hesaplarında hepsi null.
+  studentNumber: string | null
+  departmentId: number | null
+  departmentName: string | null
+  facultyName: string | null
+  enrollmentYear: number | null
 }
 
 // src/Business/DTOs/Clubs/MyClubMembershipDto.cs

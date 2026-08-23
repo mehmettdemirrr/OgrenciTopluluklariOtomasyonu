@@ -127,6 +127,13 @@ public static class Messages
     // Faz 12 — Dashboard (K-25)
     public const string DashboardAccessDenied = "Panel özetini görüntülemek için oturum açmanız gerekir.";
 
+    // Faz 19 — Öğrenci self-servisi (K-25'in tamamlanması, A-48)
+    public const string ApplicationNotYours = "Bu başvuru size ait değil.";
+    public const string ApplicationWithdrawn = "Başvurunuz geri çekildi.";
+    public const string LastPresidentCannotLeave = "Topluluğun tek başkanı olduğunuz için ayrılamazsınız; önce başka bir başkan atanmalı.";
+    public const string ClubLeft = "Topluluktan ayrıldınız.";
+    public const string ProfileUpdated = "Profil bilgileriniz güncellendi.";
+
     // Faz 17 — Topluluk kurma başvurusu (K-29, A-45)
     public const string DuplicatePendingClubApplication = "Bu dönem için zaten bekleyen bir topluluk kurma başvurunuz var.";
     public const string ClubApplicationSubmitted = "Topluluk kurma başvurunuz alındı, yönetici onayı bekleniyor.";

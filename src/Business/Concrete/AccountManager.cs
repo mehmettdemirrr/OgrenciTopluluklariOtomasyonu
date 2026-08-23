@@ -177,12 +177,62 @@ public sealed class AccountManager(
         var roles = await accountGateway.GetRoleNamesAsync(user).ConfigureAwait(false);
         var permissions = await identityGateway.GetPermissionsAsync(user).ConfigureAwait(false);
 
-        return DataResult<MeResponseDto>.Success(new MeResponseDto
+        var response = new MeResponseDto
         {
             Email = user.Email ?? string.Empty,
             Roles = roles,
             Permissions = permissions,
-        });
+        };
+
+        // Faz 19.3 (A-48): kayıt sırasında girilen öğrenci bilgileri bugüne kadar hiçbir yerde
+        // görünmüyordu. Danışman/admin hesaplarında Student kaydı yok — alanlar null kalır.
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (student is not null)
+        {
+            response.StudentNumber = student.StudentNumber;
+            response.DepartmentId = student.DepartmentId;
+            response.EnrollmentYear = student.EnrollmentYear;
+
+            var department = await departmentRepository.GetAsync(d => d.Id == student.DepartmentId, cancellationToken).ConfigureAwait(false);
+            if (department is not null)
+            {
+                response.DepartmentName = department.Name;
+
+                var faculty = await facultyRepository.GetAsync(f => f.Id == department.FacultyId, cancellationToken).ConfigureAwait(false);
+                response.FacultyName = faculty?.Name;
+            }
+        }
+
+        return DataResult<MeResponseDto>.Success(response);
+    }
+
+    public async Task<IResult> UpdateMeAsync(UpdateMeRequestDto request, CancellationToken cancellationToken = default)
+    {
+        // Y-22: hedef kullanıcı istemciden değil token'dan — başkasının profili yazılamaz.
+        if (currentUser.UserId is not { } userId)
+        {
+            return Result.Unauthorized(Messages.UserNotFound);
+        }
+
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (student is null)
+        {
+            return Result.Forbidden(Messages.NotAStudent);
+        }
+
+        var department = await departmentRepository.GetAsync(d => d.Id == request.DepartmentId, cancellationToken).ConfigureAwait(false);
+        if (department is null)
+        {
+            return Result.NotFound(Messages.DepartmentNotFound);
+        }
+
+        // StudentNumber kasıtlı olarak yazılmaz (bkz. UpdateMeRequestDto).
+        student.DepartmentId = department.Id;
+        student.EnrollmentYear = request.EnrollmentYear;
+        studentRepository.Update(student);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ProfileUpdated);
     }
 
     public async Task<IDataResult<IReadOnlyCollection<RegistrationDepartmentDto>>> GetRegistrationDepartmentsAsync(CancellationToken cancellationToken = default)

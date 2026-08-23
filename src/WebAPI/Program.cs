@@ -1,5 +1,7 @@
+using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Business.Abstract;
@@ -11,6 +13,7 @@ using Hangfire;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Serilog.Sinks.MSSqlServer;
@@ -61,6 +64,39 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 builder.Services.AddScoped<ICorrelationContext, HttpContextCorrelationContext>();
 builder.Services.AddMemoryCache();
+
+// Faz 19.0 (K-28/A-53 ön koşulu): ters proxy arkasında gerçek istemci IP'si. Bu olmadan hem trafik
+// logu (RequestLoggingMiddleware) hem oran sınırı proxy'nin tek IP'sini görür — biri değersizleşir,
+// diğeri tüm kullanıcıları aynı kovaya koyup kilitler.
+// Varsayılan KnownProxies = loopback: aynı makinedeki IIS/nginx güvenilir, uzaktaki istemcinin
+// uydurduğu X-Forwarded-For **yok sayılır** (IP sahteciliği engellenir). Farklı makinedeki proxy
+// appsettings'ten eklenir. Delege içinde okumak kasıtlı — bkz. aşağıdaki JwtSettings notu.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+    {
+        if (IPAddress.TryParse(proxy, out var address))
+        {
+            options.KnownProxies.Add(address);
+        }
+    }
+});
+
+// A-53/Y-63 (K-13 kısmi): oran sınırı YALNIZCA anonim kimlik uçlarında. Global limiter kasıtlı
+// olarak yok — SPA'nın meşru trafiğini boğar ve /api/public/* zaten 10 dk cache ile hafifletilmiş.
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy(RateLimitPolicies.AuthStrict, httpContext =>
+        BuildIpFixedWindow(httpContext, builder.Configuration, "RateLimiting:AuthStrict", defaultPermit: 5, defaultWindowMinutes: 15));
+
+    options.AddPolicy(RateLimitPolicies.AuthLogin, httpContext =>
+        BuildIpFixedWindow(httpContext, builder.Configuration, "RateLimiting:AuthLogin", defaultPermit: 10, defaultWindowMinutes: 5));
+
+    // Y-25: çıplak 429 değil — hata gövdesi diğer tüm hatalarla aynı formatta (ProblemDetails).
+    options.OnRejected = RateLimitRejectionHandler.HandleAsync;
+});
 
 // K-01/Y-38: access token 15 dk, ClockSkew=Zero — varsayılan 5 dk tolerans olmasaydı
 // token'ı sessizce ~20 dk'ya uzatırdı. Okuma IOptions ile DI zamanına ertelenir (Configure<IConfiguration>) —
@@ -173,6 +209,10 @@ using (var startupScope = app.Services.CreateScope())
         new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
 }
 
+// Faz 19.0: her şeyden ÖNCE — bundan sonraki hiçbir bileşen (trafik logu, oran sınırı, Serilog)
+// proxy'nin IP'sini gerçek istemci sanmasın.
+app.UseForwardedHeaders();
+
 // Y-25 / Y-28: beklenmeyen hatalar tek yerden, controller'larda try/catch olmadan yönetilir.
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
@@ -192,6 +232,11 @@ app.UseHttpsRedirection();
 // asıl endpoint'in çalışması) next() döndükten sonra görülür.
 app.UseMiddleware<RequestLoggingMiddleware>();
 
+// A-53 × A-44: oran sınırı erişim izinden SONRA — aksi hâlde reddedilen (429) istekler hiç
+// loglanmaz. O-2 zaten "StatusCode >= 400 kaydedilir" diyor; sıra ters olsaydı Faz 18'in
+// UseAuthorization tuzağı birebir tekrarlanırdı.
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -203,6 +248,28 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 app.MapControllers();
 
 app.Run();
+
+/// <summary>
+/// A-53: IP başına sabit pencere. Sınır değerleri appsettings'ten okunur (secret değil, ayar —
+/// Y-20 kapsamı dışında) ki test ortamında düşürülebilsin. IP çözülemezse tüm anonim istekler
+/// tek "unknown" kovasında toplanır — proxy arkasında bunun olmaması Faz 19.0'ın işi.
+/// </summary>
+static RateLimitPartition<string> BuildIpFixedWindow(
+    HttpContext httpContext, IConfiguration configuration, string sectionKey, int defaultPermit, int defaultWindowMinutes)
+{
+    var section = configuration.GetSection(sectionKey);
+    var permitLimit = section.GetValue<int?>("PermitLimit") ?? defaultPermit;
+    var windowMinutes = section.GetValue<int?>("WindowMinutes") ?? defaultWindowMinutes;
+
+    var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+    return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+    {
+        PermitLimit = permitLimit,
+        Window = TimeSpan.FromMinutes(windowMinutes),
+        QueueLimit = 0,
+    });
+}
 
 // WebApplicationFactory<Program> ile entegrasyon testi yazabilmek için top-level statements'ın
 // örtük ürettiği Program sınıfını görünür kılar.

@@ -3,9 +3,11 @@ using Business.DTOs.Auth;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WebAPI.Extensions;
 using WebAPI.Filters;
 using WebAPI.Models;
+using WebAPI.Security;
 
 namespace WebAPI.Controllers;
 
@@ -18,6 +20,7 @@ public sealed class AuthController(IAuthService authService, IAccountService acc
 
     [HttpPost("register")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.AuthStrict)]
     public async Task<IActionResult> Register(RegisterRequestDto request, CancellationToken cancellationToken)
     {
         var result = await accountService.RegisterAsync(request, cancellationToken);
@@ -42,6 +45,7 @@ public sealed class AuthController(IAuthService authService, IAccountService acc
 
     [HttpPost("resend-confirmation")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.AuthStrict)]
     public async Task<IActionResult> ResendConfirmation(ResendConfirmationRequestDto request, CancellationToken cancellationToken)
     {
         var result = await accountService.ResendConfirmationAsync(request, cancellationToken);
@@ -50,6 +54,7 @@ public sealed class AuthController(IAuthService authService, IAccountService acc
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.AuthStrict)]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequestDto request, CancellationToken cancellationToken)
     {
         var result = await accountService.ForgotPasswordAsync(request, cancellationToken);
@@ -73,6 +78,7 @@ public sealed class AuthController(IAuthService authService, IAccountService acc
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.AuthLogin)]
     public async Task<IActionResult> Login(LoginRequestDto request, CancellationToken cancellationToken)
     {
         var result = await authService.LoginAsync(request, cancellationToken);

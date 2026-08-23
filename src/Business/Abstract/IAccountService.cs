@@ -36,6 +36,14 @@ public interface IAccountService
 
     Task<IDataResult<MeResponseDto>> GetMeAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// docs/PLAN-V4.md §19.1 (A-48): öğrenci kendi bölüm/kayıt yılı bilgisini düzeltir.
+    /// Y-22: hedef kullanıcı istemciden değil <c>ICurrentUser</c>'dan gelir — başkasının profili yazılamaz.
+    /// </summary>
+    [ValidationAspect(typeof(UpdateMeRequestValidator))]
+    [TransactionAspect]
+    Task<IResult> UpdateMeAsync(UpdateMeRequestDto request, CancellationToken cancellationToken = default);
+
     /// <summary>docs/PLAN-V2.md: kayıt formunun bölüm seçimi — anonim, dar izdüşüm (reference.manage gerektirmez).</summary>
     Task<IDataResult<IReadOnlyCollection<RegistrationDepartmentDto>>> GetRegistrationDepartmentsAsync(CancellationToken cancellationToken = default);
 }

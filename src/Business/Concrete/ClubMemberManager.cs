@@ -187,6 +187,58 @@ public sealed class ClubMemberManager(
         return Result.Success(Messages.ClubMemberRemoved);
     }
 
+    public async Task<IResult> LeaveAsync(int clubId, CancellationToken cancellationToken = default)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return Result.Unauthorized(Messages.NotAStudent);
+        }
+
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (student is null)
+        {
+            return Result.Forbidden(Messages.NotAStudent);
+        }
+
+        var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
+        if (term is null)
+        {
+            return Result.NotFound(Messages.NoCurrentAcademicTerm);
+        }
+
+        var membership = await clubMembershipRepository
+            .GetAsync(m => m.ClubId == clubId && m.StudentId == student.Id && m.AcademicTermId == term.Id, cancellationToken)
+            .ConfigureAwait(false);
+        if (membership is null)
+        {
+            return Result.NotFound(Messages.ClubMembershipNotFound);
+        }
+
+        // §19.2: son başkan ayrılırsa kulüp yönetilemez kalır — EnsureClubWriteAccessAsync kimseyi
+        // geçirmez. RemoveMemberAsync'in CannotChangeOwnPresidentRole muhafızının aynı gerekçesi.
+        if (membership.ClubRole == ClubRole.President)
+        {
+            var otherPresidents = await clubMembershipRepository
+                .GetListAsync(
+                    m => m.ClubId == clubId && m.AcademicTermId == term.Id && m.ClubRole == ClubRole.President && m.Id != membership.Id,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (otherPresidents.Count == 0)
+            {
+                return Result.Conflict(Messages.LastPresidentCannotLeave);
+            }
+        }
+
+        // Y-16: soft delete + audit interceptor'ın Delete olarak tanıması (Y-44).
+        membership.IsDeleted = true;
+        membership.DeletedAtUtc = clock.UtcNow;
+        clubMembershipRepository.Update(membership);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ClubLeft);
+    }
+
     // Y-23: memberships.read izni yeterli değil — danışman, o kulüpte güncel dönemde Officer/President
     // olan öğrenci, ya da reports.read.all taşıyan yönetici (blanket) üye listesini görebilir.
     private async Task<string?> EnsureMemberViewAccessAsync(Club club, CancellationToken cancellationToken)

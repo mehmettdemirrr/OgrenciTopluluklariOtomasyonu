@@ -82,7 +82,7 @@ K-16'nın Faz 10'da kısmen alınması precedent'i. Sınır **yalnızca anonim k
 
 ---
 
-## Faz 19 — Öğrenci self-servisinin tamamlanması (K-25, A-48)
+## Faz 19 — Öğrenci self-servisinin tamamlanması (K-25, A-48) — ✅ tamamlandı
 
 ### 19.0 Ters proxy IP düzeltmesi *(bu fazın ilk işi — Faz 18'i doğrular)*
 
@@ -154,6 +154,29 @@ uçtan SMTP kotasının tüketilmesi sistemin **tüm** bildirim altyapısını d
 yeniden başvurabilir** · üye olduğu kulüpten ayrılır → "Kulüplerim"den düşer · son başkan ayrılmaya
 çalışır → `Conflict` · profilinden bölümünü değiştirir, öğrenci numarası alanı **salt okunur** ·
 `forgot-password`'e arka arkaya 6. istek **429 + ProblemDetails** alıyor ve bu 429 erişim izinde görünüyor.
+
+**Doğrulandı — hepsi ✅.** `StudentSelfServiceTests` (4 test) + `RateLimitTests` (2 test) dahil
+**283/283 backend testi yeşil** (277 önceki + 6 yeni). Playwright ile canlı: başvuru → `Bekliyor`
+görünüyor → geri çekiliyor → listeden düşüyor → **yeniden başvurulabiliyor** (filtreli unique index
+soft delete ile doğru davranıyor) · son başkan "Ayrıl" deyince Türkçe `Conflict` mesajı çıkıyor ·
+profilde öğrenci numarası salt okunur, bölüm/kayıt yılı düzenlenebilir.
+
+> **Uygulamada bulunan iki hata (ikisi de mevcut kodda):**
+>
+> 1. **`WriteAsJsonAsync` `Response.ContentType`'ı eziyor.** 429 gövdesi `application/problem+json`
+>    yerine `application/json` gidiyordu. Aynı hata **`GlobalExceptionMiddleware`'de de vardı** —
+>    yani bugüne kadar *tüm 500 hataları* yanlış content-type ile dönüyordu (Y-25'in gövde formatı
+>    doğruydu ama tipi değildi). İkisi de `contentType:` parametresiyle düzeltildi.
+> 2. **`OnRejected` async lambda'sı Y-27 mimari testini kırdı.** Üst düzey deyimlerdeki async
+>    lambda'nın state machine'i `Program/<>c` altına nested ediliyor ve `AsyncHygieneTests`'in
+>    `[CompilerGenerated]` filtresinden kaçıyor. Testi gevşetmek yerine handler
+>    `RateLimitRejectionHandler` sınıfına çıkarıldı — kod da böylesi daha temiz.
+>
+> **Test altyapısında kapatılan tuzak:** TestServer'da `Connection.RemoteIpAddress` **null**'dur;
+> oran sınırı bütün testleri tek `"unknown"` kovasında toplar ve arka arkaya login yapan mevcut
+> testler (`ClubApplicationFlowTests`, `MembershipVerticalSliceTests`…) 429 almaya başlardı.
+> `CustomWebApplicationFactory` sınırı etkisiz kılar; `RateLimitTests` `WithWebHostBuilder` ile
+> kendi düşük sınırını verir.
 
 ---
 
@@ -384,7 +407,7 @@ K-14…K-20 ertelenmiş kalır.
 | # | Faz | Migration | Bitti sayılır |
 |---|---|---|---|
 | **0** | `docs/MIMARI.md` güncellemesi | — | Belge K-30, A-48…A-52, Y-61/Y-62 ve Faz 19-23'ü içeriyor |
-| **19** | Öğrenci self-servisi + IP düzeltmesi + rate limiting | — (şema değişmez) | Başvuru geri çekilebiliyor, kulüpten ayrılınabiliyor, profil düzenlenebiliyor; son başkan ayrılamıyor; `forgot-password` 6. istekte 429 |
+| **19** | Öğrenci self-servisi + IP düzeltmesi + rate limiting | — (şema değişmez) | ✅ tamamlandı — başvuru geri çekilebiliyor ve yeniden başvurulabiliyor, kulüpten ayrılınabiliyor, profil düzenlenebiliyor; son başkan ayrılamıyor; `forgot-password` sınır aşımında 429 + ProblemDetails |
 | **20** | Etkinlik iptali | `EventStatus.Cancelled` + `CancellationReason` | Yayındaki etkinlik iptal ediliyor, vitrinden düşüyor, katılımcılara e-posta gidiyor |
 | **21** | Arama ve sayfalama | — | `git grep "pageSize: 200"` boş; 101. kayıt bulunabiliyor |
 | **22** | Otomatik dönem devri | — (şema değişmez) | Devirden sonra başkan yetkisini koruyor; ikinci çalıştırma idempotent |

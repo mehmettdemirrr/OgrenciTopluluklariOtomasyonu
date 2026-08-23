@@ -22,7 +22,7 @@ import { EventsPage } from './pages/EventsPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { MembershipReviewPage } from './pages/MembershipReviewPage'
-import { MyClubApplicationsPage } from './pages/MyClubApplicationsPage'
+import { MyApplicationsPage } from './pages/MyApplicationsPage'
 import { MyClubsPage } from './pages/MyClubsPage'
 import { MyEventsPage } from './pages/MyEventsPage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -71,7 +71,7 @@ function App() {
                   <Route path="/panel" element={<DashboardPage />} />
                   <Route path="/my-clubs" element={<MyClubsPage />} />
                   <Route path="/my-events" element={<MyEventsPage />} />
-                  <Route path="/my-club-applications" element={<MyClubApplicationsPage />} />
+                  <Route path="/my-applications" element={<MyApplicationsPage />} />
                   <Route path="/clubs" element={<ClubsPage />} />
                   <Route path="/clubs/:id" element={<ClubDetailPage />} />
                   <Route path="/profile" element={<ProfilePage />} />

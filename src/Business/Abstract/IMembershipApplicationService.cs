@@ -24,6 +24,20 @@ public interface IMembershipApplicationService
         int pageIndex, int pageSize, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// docs/PLAN-V4.md §19.1 (A-48): çağıranın kendi başvuruları — `IClubApplicationService.GetMineAsync`
+    /// ile birebir simetrik. [SecuredOperation] kasıtlı olarak yok: öğrenci kendi verisini görür.
+    /// </summary>
+    Task<IDataResult<IReadOnlyList<MembershipApplicationListItemDto>>> GetMineAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/PLAN-V4.md §19.1 (A-48): öğrenci **kendi** ve **yalnızca `Pending`** başvurusunu geri çeker.
+    /// Y-16 soft delete — filtreli unique index (`Status = Pending AND IsDeleted = 0`) satırı düşürür,
+    /// böylece öğrenci aynı kulübe yeniden başvurabilir.
+    /// </summary>
+    [TransactionAspect]
+    Task<IResult> WithdrawAsync(int applicationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// docs/MIMARI.md · Y-46/Y-06: transaction elle yönetilir (bkz. MembershipApplicationManager) —
     /// Hangfire enqueue'sinin commit'ten sonra çalışabilmesi için [TransactionAspect] kasıtlı
     /// olarak kullanılmaz.

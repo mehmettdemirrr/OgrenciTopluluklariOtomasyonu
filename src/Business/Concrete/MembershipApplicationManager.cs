@@ -136,6 +136,83 @@ public sealed class MembershipApplicationManager(
         return DataResult<PagedResult<MembershipApplicationListItemDto>>.Success(result);
     }
 
+    public async Task<IDataResult<IReadOnlyList<MembershipApplicationListItemDto>>> GetMineAsync(CancellationToken cancellationToken = default)
+    {
+        var student = currentUser.UserId is { } userId
+            ? await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        if (student is null)
+        {
+            return DataResult<IReadOnlyList<MembershipApplicationListItemDto>>.Success([]);
+        }
+
+        var applications = await membershipApplicationRepository
+            .GetListAsync(a => a.StudentId == student.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        var clubIds = applications.Select(a => a.ClubId).Distinct().ToList();
+        var clubNames = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(c => c.Id, c => c.Name);
+
+        var items = applications
+            .OrderByDescending(a => a.AppliedAtUtc)
+            .Select(a => new MembershipApplicationListItemDto
+            {
+                Id = a.Id,
+                ClubId = a.ClubId,
+                ClubName = clubNames.GetValueOrDefault(a.ClubId, string.Empty),
+                StudentId = a.StudentId,
+                StudentNumber = student.StudentNumber,
+                Status = a.Status,
+                AppliedAtUtc = a.AppliedAtUtc,
+                ReviewedAtUtc = a.ReviewedAtUtc,
+            })
+            .ToList();
+
+        return DataResult<IReadOnlyList<MembershipApplicationListItemDto>>.Success(items);
+    }
+
+    public async Task<IResult> WithdrawAsync(int applicationId, CancellationToken cancellationToken = default)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return Result.Unauthorized(Messages.NotAStudent);
+        }
+
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (student is null)
+        {
+            return Result.Forbidden(Messages.NotAStudent);
+        }
+
+        var application = await membershipApplicationRepository.GetAsync(a => a.Id == applicationId, cancellationToken).ConfigureAwait(false);
+        if (application is null)
+        {
+            return Result.NotFound(Messages.MembershipApplicationNotFound);
+        }
+
+        // Y-23: kimlik doğrulaması yeterli değil — başvuru çağıranın kendisine ait olmalı.
+        if (application.StudentId != student.Id)
+        {
+            return Result.Forbidden(Messages.ApplicationNotYours);
+        }
+
+        if (application.Status != ApplicationStatus.Pending)
+        {
+            return Result.Conflict(Messages.ApplicationAlreadyReviewed);
+        }
+
+        // Y-16: soft delete. Filtreli unique index (Status = Pending AND IsDeleted = 0) bu satırı
+        // artık saymaz — öğrenci aynı kulübe yeniden başvurabilir.
+        application.IsDeleted = true;
+        application.DeletedAtUtc = clock.UtcNow;
+        membershipApplicationRepository.Update(application);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ApplicationWithdrawn);
+    }
+
     public async Task<IResult> ReviewAsync(int applicationId, ReviewMembershipApplicationRequestDto request, CancellationToken cancellationToken = default)
     {
         if (currentUser.UserId is not { } userId)

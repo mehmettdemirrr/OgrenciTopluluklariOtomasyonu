@@ -21,4 +21,7 @@ public sealed class MembershipApplicationListItemDto
     public ApplicationStatus Status { get; set; }
 
     public DateTime AppliedAtUtc { get; set; }
+
+    /// <summary>docs/PLAN-V4.md §19.1 (A-48): öğrencinin "başvurum ne oldu" sorusunun cevabı — karar anı.</summary>
+    public DateTime? ReviewedAtUtc { get; set; }
 }
