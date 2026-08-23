@@ -34,6 +34,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<MembershipApplication> MembershipApplications => Set<MembershipApplication>();
 
+    public DbSet<ClubApplication> ClubApplications => Set<ClubApplication>();
+
     public DbSet<Event> Events => Set<Event>();
 
     public DbSet<EventParticipation> EventParticipations => Set<EventParticipation>();
@@ -88,6 +90,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.ApplyConfiguration(new ClubConfiguration());
         builder.ApplyConfiguration(new ClubMembershipConfiguration());
         builder.ApplyConfiguration(new MembershipApplicationConfiguration());
+        builder.ApplyConfiguration(new ClubApplicationConfiguration());
         builder.ApplyConfiguration(new EventConfiguration());
         builder.ApplyConfiguration(new EventParticipationConfiguration());
         builder.ApplyConfiguration(new AnnouncementConfiguration());

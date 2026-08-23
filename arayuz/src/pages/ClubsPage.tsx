@@ -35,7 +35,8 @@ import { useNotifier } from '../notifications/NotifierProvider'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { createClubFormSchema, emptyCreateClubFormValues, type CreateClubFormValues } from '../schemas/clubForm'
-import type { AcademicStaffListItemDto, ClubListItemDto, PagedResult } from '../api/types'
+import { clubApplicationFormSchema, emptyClubApplicationFormValues, type ClubApplicationFormValues } from '../schemas/clubApplicationForm'
+import type { AcademicStaffListItemDto, ClubListItemDto, PagedResult, SelectableAcademicStaffDto } from '../api/types'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 
@@ -71,6 +72,36 @@ export function ClubsPage() {
     queryKey: ['academic-staff', 0, 200],
     enabled: canManageClubs && createDialog.open,
     queryFn: async () => (await apiClient.get<PagedResult<AcademicStaffListItemDto>>('/academic-staff', { params: { pageIndex: 0, pageSize: 200 } })).data,
+  })
+
+  const applyDialog = useFormDialog()
+  const applyForm = useForm<ClubApplicationFormValues>({
+    resolver: zodResolver(clubApplicationFormSchema),
+    defaultValues: emptyClubApplicationFormValues,
+  })
+
+  // K-29/A-45: reference.manage değil — herhangi bir kimliği doğrulanmış öğrenci danışman seçebilsin diye dar uç.
+  const selectableStaffQuery = useQuery({
+    queryKey: ['academic-staff-selectable', 0, 200],
+    enabled: applyDialog.open,
+    queryFn: async () => (await apiClient.get<PagedResult<SelectableAcademicStaffDto>>('/academic-staff/selectable', { params: { pageIndex: 0, pageSize: 200 } })).data,
+  })
+
+  const submitClubApplicationMutation = useMutation({
+    mutationFn: async (values: ClubApplicationFormValues) => {
+      await apiClient.post('/club-applications', {
+        proposedName: values.proposedName,
+        description: values.description.trim() || null,
+        justification: values.justification,
+        proposedAdvisorId: values.proposedAdvisorId,
+      })
+    },
+    onSuccess: () => {
+      notify({ message: 'Topluluk kurma başvurunuz alındı, yönetici onayı bekleniyor.', severity: 'success' })
+      applyDialog.closeDialog()
+      applyForm.reset(emptyClubApplicationFormValues)
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Başvuru gönderilemedi.'), severity: 'error' }),
   })
 
   const applyMutation = useMutation({
@@ -140,11 +171,16 @@ export function ClubsPage() {
         title="Kulüpler"
         description="Kampüsteki tüm öğrenci topluluklarını keşfedin ve üyelik başvurusu yapın."
         action={
-          canManageClubs && (
-            <Button variant="contained" onClick={createDialog.openDialog}>
-              Yeni Topluluk
+          <Stack direction="row" spacing={1}>
+            <Button variant="outlined" onClick={applyDialog.openDialog}>
+              Topluluk Kurmak İstiyorum
             </Button>
-          )
+            {canManageClubs && (
+              <Button variant="contained" onClick={createDialog.openDialog}>
+                Yeni Topluluk
+              </Button>
+            )}
+          </Stack>
         }
       />
 
@@ -277,6 +313,88 @@ export function ClubsPage() {
             onClick={handleSubmit((values) => createClubMutation.mutate(values))}
           >
             Oluştur
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={applyDialog.open}
+        onClose={() => {
+          applyDialog.closeDialog()
+          applyForm.reset(emptyClubApplicationFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Topluluk Kurma Başvurusu</DialogTitle>
+        <DialogContent>
+          <Controller
+            name="proposedName"
+            control={applyForm.control}
+            render={({ field, fieldState }) => (
+              <TextField {...field} autoFocus fullWidth margin="dense" label="Topluluk Adı" error={!!fieldState.error} helperText={fieldState.error?.message} />
+            )}
+          />
+          <Controller
+            name="description"
+            control={applyForm.control}
+            render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
+          />
+          <Controller
+            name="justification"
+            control={applyForm.control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                fullWidth
+                multiline
+                minRows={2}
+                margin="dense"
+                label="Gerekçe"
+                helperText={fieldState.error?.message ?? 'Bu topluluk neden gerekli?'}
+                error={!!fieldState.error}
+              />
+            )}
+          />
+          <Controller
+            name="proposedAdvisorId"
+            control={applyForm.control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                select
+                fullWidth
+                margin="dense"
+                label="Danışman"
+                value={field.value || ''}
+                onChange={(event) => field.onChange(Number(event.target.value))}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              >
+                {(selectableStaffQuery.data?.items ?? []).map((staff) => (
+                  <MenuItem key={staff.id} value={staff.id}>
+                    {staff.title} — {staff.email}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              applyDialog.closeDialog()
+              applyForm.reset(emptyClubApplicationFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            disabled={applyForm.formState.isSubmitting || submitClubApplicationMutation.isPending}
+            onClick={applyForm.handleSubmit((values) => submitClubApplicationMutation.mutate(values))}
+          >
+            Başvur
           </Button>
         </DialogActions>
       </Dialog>

@@ -62,4 +62,12 @@ public interface IReferenceDataService
     [CacheAspect(durationMinutes: 5)]
     Task<IDataResult<PagedResult<AcademicStaffListItemDto>>> GetAcademicStaffPagedAsync(
         int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/PLAN-V3.md §17.4: topluluk kurma başvurusundaki danışman seçici — [SecuredOperation]
+    /// kasıtlı olarak yok (reference.manage değil), herhangi bir kimliği doğrulanmış öğrenci görebilir.
+    /// </summary>
+    [CacheAspect(durationMinutes: 5)]
+    Task<IDataResult<PagedResult<SelectableAcademicStaffDto>>> GetSelectableAcademicStaffAsync(
+        int pageIndex, int pageSize, CancellationToken cancellationToken = default);
 }

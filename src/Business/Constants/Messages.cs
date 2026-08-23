@@ -126,4 +126,11 @@ public static class Messages
 
     // Faz 12 — Dashboard (K-25)
     public const string DashboardAccessDenied = "Panel özetini görüntülemek için oturum açmanız gerekir.";
+
+    // Faz 17 — Topluluk kurma başvurusu (K-29, A-45)
+    public const string DuplicatePendingClubApplication = "Bu dönem için zaten bekleyen bir topluluk kurma başvurunuz var.";
+    public const string ClubApplicationSubmitted = "Topluluk kurma başvurunuz alındı, yönetici onayı bekleniyor.";
+    public const string ClubApplicationNotFound = "Topluluk kurma başvurusu bulunamadı.";
+    public const string ClubApplicationApproved = "Topluluk kurma başvurusu onaylandı, topluluk oluşturuldu.";
+    public const string ClubApplicationRejected = "Topluluk kurma başvurusu reddedildi.";
 }

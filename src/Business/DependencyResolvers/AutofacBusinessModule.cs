@@ -177,6 +177,12 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
             .InterceptedBy(typeof(AspectDispatchInterceptor))
             .InstancePerLifetimeScope();
 
+        builder.RegisterType<ClubApplicationManager>()
+            .As<IClubApplicationService>()
+            .EnableInterfaceInterceptors()
+            .InterceptedBy(typeof(AspectDispatchInterceptor))
+            .InstancePerLifetimeScope();
+
         builder.RegisterType<EventParticipationManager>()
             .As<IEventParticipationService>()
             .EnableInterfaceInterceptors()
@@ -243,6 +249,9 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
         // Hangfire, iş sınıflarını kendi aktivatörü üzerinden (uygulamanın IServiceProvider'ı,
         // sonuçta Autofac tarafından destekleniyor) somut tipe göre çözer — arayüz gerekmez.
         builder.RegisterType<MembershipDecisionNotificationJob>()
+            .InstancePerLifetimeScope();
+
+        builder.RegisterType<ClubApplicationDecisionNotificationJob>()
             .InstancePerLifetimeScope();
 
         builder.RegisterType<EventDecisionNotificationJob>()

@@ -12,6 +12,7 @@ import { theme } from './theme'
 import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { AuditLogPage } from './pages/AuditLogPage'
 import { AuthorizationPage } from './pages/AuthorizationPage'
+import { ClubApplicationsReviewPage } from './pages/ClubApplicationsReviewPage'
 import { ClubDetailPage } from './pages/ClubDetailPage'
 import { ClubsPage } from './pages/ClubsPage'
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
@@ -21,6 +22,7 @@ import { EventsPage } from './pages/EventsPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { MembershipReviewPage } from './pages/MembershipReviewPage'
+import { MyClubApplicationsPage } from './pages/MyClubApplicationsPage'
 import { MyClubsPage } from './pages/MyClubsPage'
 import { MyEventsPage } from './pages/MyEventsPage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -69,9 +71,19 @@ function App() {
                   <Route path="/panel" element={<DashboardPage />} />
                   <Route path="/my-clubs" element={<MyClubsPage />} />
                   <Route path="/my-events" element={<MyEventsPage />} />
+                  <Route path="/my-club-applications" element={<MyClubApplicationsPage />} />
                   <Route path="/clubs" element={<ClubsPage />} />
                   <Route path="/clubs/:id" element={<ClubDetailPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+
+                  <Route
+                    path="/club-applications"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.ClubsWrite}>
+                        <ClubApplicationsReviewPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   <Route
                     path="/review"

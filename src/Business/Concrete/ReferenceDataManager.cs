@@ -166,6 +166,16 @@ public sealed class ReferenceDataManager(
             new PagedResult<AcademicStaffListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
     }
 
+    public async Task<IDataResult<PagedResult<SelectableAcademicStaffDto>>> GetSelectableAcademicStaffAsync(
+        int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var paged = await academicStaffDal.GetListPagedAsync(pageIndex, ClampPageSize(pageSize), cancellationToken).ConfigureAwait(false);
+
+        var items = paged.Items.Select(s => new SelectableAcademicStaffDto { Id = s.Id, Title = s.Title, Email = s.Email }).ToList();
+        return DataResult<PagedResult<SelectableAcademicStaffDto>>.Success(
+            new PagedResult<SelectableAcademicStaffDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
     private static int ClampPageSize(int pageSize) =>
         pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);
 }

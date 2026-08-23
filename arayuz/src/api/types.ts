@@ -46,6 +46,13 @@ export interface AcademicStaffListItemDto {
   email: string
 }
 
+// src/Business/DTOs/Reference/SelectableAcademicStaffDto.cs
+export interface SelectableAcademicStaffDto {
+  id: number
+  title: string
+  email: string
+}
+
 // src/Entities/Enums/ApplicationStatus.cs (JsonStringEnumConverter ile metin olarak taşınır)
 export type ApplicationStatus = 'Pending' | 'Approved' | 'Rejected'
 
@@ -58,6 +65,23 @@ export interface MembershipApplicationListItemDto {
   studentNumber: string
   status: ApplicationStatus
   appliedAtUtc: string
+}
+
+// src/Business/DTOs/ClubApplications/ClubApplicationListItemDto.cs
+export interface ClubApplicationListItemDto {
+  id: number
+  studentId: number
+  studentNumber: string
+  proposedName: string
+  description: string | null
+  justification: string
+  proposedAdvisorId: number
+  proposedAdvisorTitle: string
+  status: ApplicationStatus
+  appliedAtUtc: string
+  reviewedAtUtc: string | null
+  reviewNote: string | null
+  createdClubId: number | null
 }
 
 // WebAPI/Extensions/ResultExtensions.cs · ToProblemResult

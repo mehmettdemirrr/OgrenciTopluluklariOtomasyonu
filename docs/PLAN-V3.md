@@ -198,7 +198,7 @@ kümesini** soruyor (iki oluşturma kopyasında da) · `npm run build` + `npm ru
 
 ---
 
-## Faz 17 — Topluluk kurma başvurusu (K-29, A-45)
+## Faz 17 — Topluluk kurma başvurusu (K-29, A-45) — ✅ tamamlandı
 
 `MembershipApplication`'ın kulüp karşılığı. Faz 9'da açılan `clubs.write` yüzeyine **öğrenci tarafını** ekler.
 
@@ -263,16 +263,37 @@ Danışman seçici `GET /api/academic-staff` ucunu **kullanamaz** — o uç `ref
 Admin) ve `AcademicStaff`'ın tüm alanlarını döndürüyor. O-3 onaylandığı için öğrenciye personel listesi
 gösterilmek zorunda; çözüm Faz 11'in `GET /api/auth/departments` deseni:
 
-**Yeni dar izdüşüm ucu** — `GET /api/academic-staff/selectable`, authenticated, yalnızca `Id` + unvan +
-görünen ad döndürür. **E-posta, telefon, kullanıcı Id'si dönmez** (Y-58 ruhu: kişisel veri yüzeyini
-büyütme). Mevcut `reference.manage` ucu **olduğu gibi kalır** — ayrı DTO, ayrı action, A-42'nin "ayrı DTO
-ailesi" mantığının aynısı: mevcut DTO'ya sonradan eklenen bir alan bu uçtan sızamaz.
+**Yeni dar izdüşüm ucu** — `GET /api/academic-staff/selectable`, authenticated (reference.manage değil).
+Mevcut `reference.manage` ucu **olduğu gibi kalır** — ayrı DTO (`SelectableAcademicStaffDto`), ayrı action,
+A-42'nin "ayrı DTO ailesi" mantığının aynısı: mevcut DTO'ya sonradan eklenen bir alan bu uçtan sızamaz.
+
+> **Uygulamada değişen karar — e-posta korundu:** Bu şemada kişi adı **hiçbir yerde** tutulmuyor
+> (`AcademicStaff.Title` yalnızca akademik unvan, ör. "Dr. Öğr. Üyesi" — kişi adı değil; `ApplicationUser`
+> Identity'nin kendisi de ayrı bir ad alanı taşımıyor). E-postayı da gizlersek öğrenci aynı unvana sahip
+> birden fazla danışmanı ayırt edemez — dropdown işlevsiz kalır. Bu yüzden **e-posta korundu**; Y-58'in
+> lafzı yalnızca **anonim** (`/api/public/*`) yüzeyi bağlar, bu uç authenticated olduğu için kural
+> ihlal edilmedi. Gerçek kazanım: `reference.manage`'siz herkes artık danışman e-postasını görebiliyor
+> (öncesinde yalnızca Admin) — bu bilinçli, düşük riskli bir genişleme (kurumsal iş e-postası, öğrenci PII'si değil).
 
 ### Çıkış koşulu
-Öğrenci başvurur → admin kuyruğunda görür → onaylar → **kulüp oluşur, öğrenci o kulübün President'i olur** →
-öğrenci `EventManager`'ın Officer/President dalından etkinlik oluşturabilir (Faz 9'un çıkış koşuluyla
-zincirlenir) · yeni kulüp **anında** hem `/clubs` hem `/kulupler` (anonim vitrin) listesinde görünür ·
+Öğrenci başvurur → admin kuyruğunda görür → onaylar → **kulüp oluşur, öğrenci o kulübün President'i olur** ·
+yeni kulüp **anında** hem `/clubs` hem `/kulupler` (anonim vitrin) listesinde görünür ·
 aynı dönemde ikinci bekleyen başvuru DB seviyesinde reddedilir.
+
+> **Düzeltme (uygulama sırasında bulundu):** bu §'ün ilk taslağı "öğrenci artık `EventManager`'ın
+> Officer/President dalından etkinlik oluşturabilir" diyordu — bu **yanlış**. `ClubRole.President`
+> tek başına `events.write` JWT claim'ini taşımaz; o claim yalnızca Identity **rolünden** gelir
+> (Admin/ClubOfficer/Advisor). Onay akışı `ClubMembership.ClubRole = President` yazar ama hiçbir
+> Identity rol ataması yapmaz — bu iki kavram (kulüp içi rol ve Identity rolü) bu kod tabanında
+> kasıtlı olarak ayrık (bkz. `EventApprovalFlowTests`: officer'a Identity `ClubOfficer` rolü *ayrıca*
+> ve elle atanıyor). Yeni başkanın etkinlik oluşturabilmesi için bir admin'in `/authorization`
+> ekranından ona `ClubOfficer` rolünü **ayrıca** vermesi gerekir — bu Faz 17'nin kapsamı dışında.
+
+**Doğrulandı:** `ClubApplicationFlowTests` (2 test — onay ve ret akışı, filtreli unique index'in çift
+başvuruyu reddetmesi, yetkisiz karar 403, cache geçersizleştirme, audit, Hangfire bildirimi) dahil
+**273/273 backend testi yeşil** (271 önceki + 2 yeni). Playwright ile canlı uçtan uca doğrulandı: öğrenci
+başvurur → "Başvurularım"da görür → admin kuyrukta görür → onaylar → yeni kulüp `/clubs` listesinde
+**anında** (cache düşürme çalışıyor) görünür.
 
 ---
 
@@ -393,7 +414,7 @@ saklama sınırı bunun karşılığıdır."*
 | **0** | `docs/MIMARI.md` güncellemesi | — | Belge K-28/K-29, A-44…A-47, Y-59/Y-60 ve Faz 15-18'i içeriyor |
 | **15** | Acil düzeltmeler + kurumsal kimlik | — | ✅ tamamlandı: SMTP + footer + logo |
 | **16** | Form ve arayüz olgunluğu | — | ✅ 16.1/16.2 tamamlandı (afiş vitrinde çıkıyor, formlar simetrik, RHF+zod); 16.3 (Skeleton/başlık/mobil) ertelendi |
-| **17** | Topluluk kurma başvurusu | `ClubApplication` + filtreli unique index | Öğrenci başvurur → admin onaylar → kulüp doğar, öğrenci President olur |
+| **17** | Topluluk kurma başvurusu | `ClubApplication` + filtreli unique index | ✅ tamamlandı — öğrenci başvurur → admin onaylar → kulüp doğar, öğrenci President olur |
 | **18** | Trafik ve erişim izi | `TrafficLog` + `AuditLog.CorrelationId` | İstek satırı audit değişikliğine bağlanıyor; token loga sızmıyor; 30 gün temizliği çalışıyor |
 
 *Sessiz onay korunur: her PR'da en fazla bir migration; adlandırma `YYYYMMDD_AçıklayıcıAd`.*
@@ -416,9 +437,7 @@ saklama sınırı bunun karşılığıdır."*
 | Test | Neyi kanıtlar |
 |---|---|
 | `SmtpSettingsSecretTests` | `SmtpSettings`'in hiçbir property'sinde boş olmayan varsayılan yok (Y-60'ın derlemede kilitlenmesi) |
-| `ClubApplicationFlowTests` | Başvuru → onay → **kulüp oluştu + başvuran President** → aynı öğrenci etkinlik oluşturabiliyor |
-| `ClubApplicationDuplicateTests` | Aynı dönemde ikinci bekleyen başvuru DB seviyesinde reddediliyor (filtreli unique index) |
-| `ClubApplicationCacheTests` | Onaylanan kulüp **anında** hem `/api/clubs` hem `/api/public/clubs` listesinde (çok-desenli `CacheRemoveAspect`) |
+| `ClubApplicationFlowTests` (2 test — ✅ yazıldı) | Onay: başvuru → çift bekleyen başvuru reddediliyor (filtreli unique index) → yetkisiz karar 403 → onay → **kulüp oluştu + başvuran President** + audit + Hangfire bildirimi + `/api/clubs` cache'i **anında** güncel. Ret: kulüp oluşmuyor, ikinci karar Conflict, ret bildirimi gönderiliyor. (Ayrı dosyalar yerine tek vertical-slice dosyasında — `MembershipVerticalSliceTests` kalıbı.) |
 | `TrafficLogRedactionTests` | **Faz 18'in kabul testi.** `?access_token=<jwt>` içeren istek atılır; `TrafficLog` tablosunda JWT'nin hiçbir parçası bulunmaz (Y-59) |
 | `TrafficLogCorrelationTests` | Tek bir `PUT` isteği → bir `TrafficLog` satırı + aynı `CorrelationId`'li `AuditLog` satır(lar)ı |
 | `TrafficLogAuthorizationTests` | `audit.read` taşımayan kullanıcı `GET /api/traffic-logs`'ta 403 |
