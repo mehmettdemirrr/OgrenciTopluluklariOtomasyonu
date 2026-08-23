@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -9,6 +8,7 @@ import { z } from 'zod'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import type { RegistrationDepartmentDto } from '../api/types'
+import logo from '../assets/logo.png'
 
 const currentYear = new Date().getFullYear()
 
@@ -57,7 +57,7 @@ export function RegisterPage() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex' }}>
+    <Box sx={{ flex: 1, display: 'flex' }}>
       <Box
         sx={{
           display: { xs: 'none', md: 'flex' },
@@ -70,7 +70,7 @@ export function RegisterPage() {
         }}
       >
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <GroupsRoundedIcon fontSize="large" />
+          <Box component="img" src={logo} alt="" sx={{ width: 40, height: 40 }} />
           <Typography variant="h6" sx={{ fontWeight: 800 }}>
             Öğrenci Toplulukları
           </Typography>
@@ -85,9 +85,8 @@ export function RegisterPage() {
           </Typography>
         </Box>
 
-        <Typography variant="caption" sx={{ opacity: 0.6 }}>
-          © {currentYear} Öğrenci Toplulukları Otomasyonu
-        </Typography>
+        {/* Telif satırı ortak AppFooter'a taşındı (PLAN-V3 §15.2) — burada tekrarlanmaz. */}
+        <Box />
       </Box>
 
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, overflowY: 'auto' }}>

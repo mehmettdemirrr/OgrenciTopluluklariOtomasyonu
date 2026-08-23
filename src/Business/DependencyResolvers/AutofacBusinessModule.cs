@@ -283,6 +283,7 @@ public sealed class AutofacBusinessModule(IConfiguration configuration) : Module
         {
             Host = section["Host"] ?? string.Empty,
             Port = int.TryParse(section["Port"], out var port) ? port : 587,
+            EnableSsl = !bool.TryParse(section["EnableSsl"], out var enableSsl) || enableSsl,
             FromAddress = section["FromAddress"] ?? string.Empty,
             FromName = section["FromName"] ?? string.Empty,
             Username = section["Username"],

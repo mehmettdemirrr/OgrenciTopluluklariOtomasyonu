@@ -27,6 +27,7 @@ import type { SvgIconProps } from '@mui/material'
 import { useAuth } from '../../auth/AuthContext'
 import { Permissions } from '../../auth/permissions'
 import { getSession } from '../../auth/tokenStore'
+import logo from '../../assets/logo.png'
 
 interface NavItem {
   label: string
@@ -96,7 +97,8 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <Box sx={{ height: '100%', bgcolor: 'secondary.main', color: 'common.white', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ px: 2.5 }}>
+      <Toolbar sx={{ px: 2.5, gap: 1.25 }}>
+        <Box component="img" src={logo} alt="" sx={{ width: 32, height: 32 }} />
         <Typography variant="subtitle1" noWrap sx={{ fontWeight: 800, color: 'common.white' }}>
           Öğrenci Toplulukları
         </Typography>

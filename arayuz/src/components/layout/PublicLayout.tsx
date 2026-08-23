@@ -1,7 +1,8 @@
 import { AppBar, Box, Button, Container, Stack, Toolbar, Typography } from '@mui/material'
-import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import { Link as RouterLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
+import { AppFooter } from './AppFooter'
+import logo from '../../assets/logo.png'
 
 // docs/PLAN-V2.md §14.5: giriş yapmamış ziyaretçi kabuğu — sidebar yok, sade üst bar + footer.
 export function PublicLayout() {
@@ -12,7 +13,7 @@ export function PublicLayout() {
       <AppBar position="sticky" color="inherit" sx={{ bgcolor: 'background.paper' }}>
         <Toolbar>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexGrow: 1 }}>
-            <GroupsRoundedIcon color="primary" />
+            <Box component="img" src={logo} alt="" sx={{ width: 28, height: 28 }} />
             <Typography component={RouterLink} to="/" variant="subtitle1" sx={{ fontWeight: 800, color: 'inherit', textDecoration: 'none' }}>
               Öğrenci Toplulukları
             </Typography>
@@ -50,9 +51,7 @@ export function PublicLayout() {
         <Outlet />
       </Container>
 
-      <Box component="footer" sx={{ py: 3, textAlign: 'center', color: 'text.secondary' }}>
-        <Typography variant="caption">Öğrenci Toplulukları Otomasyonu</Typography>
-      </Box>
+      <AppFooter />
     </Box>
   )
 }

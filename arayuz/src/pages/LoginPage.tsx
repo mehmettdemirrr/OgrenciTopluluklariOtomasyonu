@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
-import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
+import logo from '../assets/logo.png'
 
 // Y-35: yalnızca biçim doğrulanır — "bu e-posta var mı" gibi iş kuralı kararları API'de verilir.
 const loginSchema = z.object({
@@ -41,7 +41,7 @@ export function LoginPage() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex' }}>
+    <Box sx={{ flex: 1, display: 'flex' }}>
       <Box
         sx={{
           display: { xs: 'none', md: 'flex' },
@@ -54,7 +54,7 @@ export function LoginPage() {
         }}
       >
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <GroupsRoundedIcon fontSize="large" />
+          <Box component="img" src={logo} alt="" sx={{ width: 40, height: 40 }} />
           <Typography variant="h6" sx={{ fontWeight: 800 }}>
             Öğrenci Toplulukları
           </Typography>
@@ -70,9 +70,8 @@ export function LoginPage() {
           </Typography>
         </Box>
 
-        <Typography variant="caption" sx={{ opacity: 0.6 }}>
-          © {new Date().getFullYear()} Öğrenci Toplulukları Otomasyonu
-        </Typography>
+        {/* Telif satırı ortak AppFooter'a taşındı (PLAN-V3 §15.2) — burada tekrarlanmaz. */}
+        <Box />
       </Box>
 
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>

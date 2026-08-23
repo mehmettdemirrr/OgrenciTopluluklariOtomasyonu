@@ -2,6 +2,7 @@ import { CssBaseline, ThemeProvider } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
+import { AuthLayout } from './components/layout/AuthLayout'
 import { PublicLayout } from './components/layout/PublicLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './auth/AuthContext'
@@ -43,11 +44,13 @@ function App() {
           <BrowserRouter>
             <AuthProvider>
               <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/confirm-email" element={<ConfirmEmailPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route element={<AuthLayout />}>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
+                </Route>
 
                 <Route element={<PublicLayout />}>
                   <Route path="/" element={<HomePage />} />

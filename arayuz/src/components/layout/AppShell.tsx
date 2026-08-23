@@ -1,6 +1,7 @@
 import { Box, Container, Drawer } from '@mui/material'
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
+import { AppFooter } from './AppFooter'
 import { SideNav, SIDENAV_WIDTH } from './SideNav'
 import { TopBar } from './TopBar'
 
@@ -40,6 +41,7 @@ export function AppShell() {
         <Container maxWidth="lg" sx={{ py: 4, flex: 1 }}>
           <Outlet />
         </Container>
+        <AppFooter />
       </Box>
     </Box>
   )

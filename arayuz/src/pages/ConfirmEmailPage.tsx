@@ -33,7 +33,7 @@ export function ConfirmEmailPage() {
   }, [userId, token, paramsMissing])
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
       <Stack spacing={2} sx={{ width: '100%', maxWidth: 420, textAlign: 'center', alignItems: 'center' }}>
         {status === 'confirming' && (
           <>

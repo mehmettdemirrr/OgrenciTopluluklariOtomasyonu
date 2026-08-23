@@ -34,7 +34,7 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
       <Box sx={{ width: '100%', maxWidth: 380 }}>
         <Typography variant="h5" component="h1" sx={{ fontWeight: 700, mb: 0.5 }}>
           Parolamı Unuttum

@@ -26,15 +26,32 @@ public sealed class SmtpEmailSender(IOptions<SmtpSettings> settings) : IEmailSen
             return;
         }
 
-        using var client = new SmtpClient(smtp.Host, smtp.Port);
+        using var client = new SmtpClient(smtp.Host, smtp.Port)
+        {
+            // 587 (submission) portunda STARTTLS zorunludur; bu satır olmadan Gmail/Office365
+            // "5.7.0 Must issue a STARTTLS command first" ile reddeder (docs/PLAN-V3.md §15.1).
+            EnableSsl = smtp.EnableSsl,
+        };
+
         if (!string.IsNullOrWhiteSpace(smtp.Username))
         {
+            // DefaultCredentials önce kapatılmalı — açıkken Credentials ataması yok sayılabilir.
+            client.UseDefaultCredentials = false;
             client.Credentials = new NetworkCredential(smtp.Username, smtp.Password);
+        }
+
+        // Y-20: gönderen adresi committen bir dosyada durmasın diye FromAddress boşsa user-secrets'taki
+        // Username'e düşülür — Gmail zaten From'un kimlik doğrulanan hesapla eşleşmesini istiyor.
+        var fromAddress = string.IsNullOrWhiteSpace(smtp.FromAddress) ? smtp.Username : smtp.FromAddress;
+        if (string.IsNullOrWhiteSpace(fromAddress))
+        {
+            throw new InvalidOperationException(
+                "Smtp:FromAddress veya Smtp:Username tanımlı olmalı — gönderen adresi olmadan e-posta gönderilemez.");
         }
 
         using var message = new MailMessage
         {
-            From = new MailAddress(smtp.FromAddress, smtp.FromName),
+            From = new MailAddress(fromAddress, smtp.FromName),
             Subject = subject,
             Body = body,
             IsBodyHtml = false,
