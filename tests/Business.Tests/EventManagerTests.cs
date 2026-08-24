@@ -21,6 +21,7 @@ public class EventManagerTests
     private readonly Mock<IEntityRepository<Club>> _clubRepository = new();
     private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
     private readonly Mock<IEntityRepository<Student>> _studentRepository = new();
+    private readonly Mock<IEntityRepository<EventParticipation>> _participationRepository = new();
     private readonly Mock<IEntityRepository<ClubMembership>> _clubMembershipRepository = new();
     private readonly Mock<IEntityRepository<AcademicTerm>> _academicTermRepository = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
@@ -49,6 +50,7 @@ public class EventManagerTests
             _clubRepository.Object,
             _academicStaffRepository.Object,
             _studentRepository.Object,
+            _participationRepository.Object,
             _clubMembershipRepository.Object,
             _academicTermRepository.Object,
             _unitOfWork.Object,

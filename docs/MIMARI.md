@@ -8,7 +8,7 @@ eklendi) · v3.0: 23 Ağustos 2026 (Faz 15-18 eklendi) · v4.0: 23 Ağustos 2026
 
 Tek uygulama, beş katman, tek veritabanı. v1.0'ın 36 kararı, v2.0'ın 7 yeni kararı (A-37…A-43) verildi;
 v3.0 dört yeni fazla (K-28, K-29) 4 karar (A-44…A-47) ve 2 kural (Y-59, Y-60) ekledi; v4.0 beş yeni fazla
-(K-30) 6 karar (A-48…A-53) ve 3 kural (Y-61…Y-63) ekledi. Yığın, kapsam ve kurallar sabit; bundan sonrası
+(K-30) 7 karar (A-48…A-54) ve 4 kural (Y-61…Y-64) ekledi. Yığın, kapsam ve kurallar sabit; bundan sonrası
 uygulama.
 
 > **Bu belge tek doğruluk kaynağıdır.** Bir kural veya kapsam değişikliği gerekirse önce burası
@@ -30,11 +30,11 @@ FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · 
 ## İçindekiler
 
 1. [Katmanlar ve bağımlılık yönü](#1-katmanlar-ve-bağımlılık-yönü)
-2. [Açıkça yasak (Y-01 … Y-63)](#2-açıkça-yasak)
+2. [Açıkça yasak (Y-01 … Y-64)](#2-açıkça-yasak)
 3. [V1 kapsamı (K-01 … K-30)](#3-v1-kapsamı)
 4. [Teknoloji ve domain](#4-teknoloji-ve-domain)
 5. [Uygulama sırası](#5-uygulama-sırası)
-6. [Karar kaydı (A-01 … A-53)](#6-karar-kaydı)
+6. [Karar kaydı (A-01 … A-54)](#6-karar-kaydı)
 7. [Sessiz onaylar](#7-sessiz-onaylar)
 
 ---
@@ -204,6 +204,7 @@ değiştiririz — ama önce belge değişir, sonra kod.
 | **Y-61** | İptal edilen etkinliğe yeni katılımcı kaydı almak; iptal edilmiş etkinliği anonim vitrinde veya "yaklaşan etkinlikler"de listelemek | `EventStatus.Cancelled` her okuma filtresinde `Published` dışında sayılır. Mevcut katılımcı kayıtları **silinmez** — öğrenci kaydını iptal rozetiyle görmeye devam eder (A-49) |
 | **Y-62** | Liste ucunun tamamını çekip filtrelemeyi/aramayı istemcide yapmak (`pageSize: 200` + `.filter()`) | Arama ve filtre sunucuda, sayfalama `PagedResult` sözleşmesiyle. Y-11'in arayüz tarafındaki karşılığı: Y-11 sunucunun tüm tabloyu dönmesini yasaklıyordu, Y-62 arayüzün "hepsini iste, ben ayıklarım" kaçamağını kapatır (A-50) |
 | **Y-63** | E-posta üreten anonim ucu (`register`, `forgot-password`, `resend-confirmation`) oran sınırı olmadan yayına almak | `[EnableRateLimiting]` ile IP bazlı sınır (A-53). Gerekçe: tek uçtan SMTP kotasının tüketilmesi **tüm** bildirim altyapısını durdurur — kayıt doğrulama dahil |
+| **Y-64** | Belirlenmiş bir sıralama olmadan `Skip`/`Take` ile sayfalamak | Sıra, sayfalamanın parçasıdır: `IEntity.Id` üzerinden **daima** son kırıcı (tie-breaker) uygulanır, alan bazlı sıralama `OrderBy`+`ThenBy(Id)` ile gelir. Gerekçe: SQL Server `OFFSET/FETCH` için `ORDER BY` şart olduğundan EF Core sırasız sorguya `ORDER BY (SELECT 1)` üretir — 2. sayfa 1. sayfanın satırlarını **tekrarlayabilir veya atlayabilir**. Sayfalama bunu yaparsa "sunucu taraflı sayfalama" bir görüntüden ibarettir (Y-11, Y-62) |
 
 ---
 
@@ -577,6 +578,7 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | **A-51** | Dönem devri | A · otomatik | `SetCurrentAsync` aktif üyelikleri rolleriyle yeni döneme kopyalar; idempotent, pasif kulüp ve soft-delete üyelik atlanır (K-30) |
 | **A-52** | Arayüz cilası sözleşmesi | A | Her sayfa `useDocumentTitle` ile kendi sekme başlığını yazar; veri çeken her görünüm yüklenirken `Skeleton` gösterir |
 | **A-53** | Anonim kimlik uçlarında oran sınırı | B | `AddRateLimiter` (çerçeve içi, NuGet paketi yok), IP bazlı `FixedWindow`; **global limiter yok**, giriş yapmış kullanıcı sınırlanmaz; 429 → ProblemDetails (Y-25, Y-63) |
+| **A-54** | Önbellek sınırlıdır | B | `AddMemoryCache(SizeLimit)` + her girdi `Size = 1`; `MemoryCacheManager` anahtar defterini **tahliye geri çağrısıyla** temizler. Gerekçe: A-50 ile birlikte cache anahtarına **serbest metin** (`search`) girdi — anonim `/api/public/*` ucundan rastgele arama üreterek hem `IMemoryCache`'i hem anahtar defterini sınırsız büyütmek mümkün olurdu (A-17'nin sınırı) |
 
 ### Kararların birbirini etkilediği yerler
 

@@ -17,9 +17,13 @@ public sealed class AnnouncementsController(IAnnouncementService announcementSer
     }
 
     [HttpGet("announcements")]
-    public async Task<IActionResult> GetFeed([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetFeed(
+        [FromQuery] int pageIndex = 0,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await announcementService.GetFeedAsync(pageIndex, pageSize, cancellationToken);
+        var result = await announcementService.GetFeedAsync(pageIndex, pageSize, search, cancellationToken);
         return result.ToActionResult();
     }
 

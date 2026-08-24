@@ -162,8 +162,15 @@ public sealed class EventParticipationManager(
             .Select(p => p.EventId)
             .ToList();
 
+        // Y-64: en yakın tarihli kayıt başta.
         var paged = await eventRepository
-            .GetListPagedAsync(pageIndex, clampedPageSize, e => eventIds.Contains(e.Id), cancellationToken)
+            .GetListPagedAsync(
+                pageIndex,
+                clampedPageSize,
+                e => eventIds.Contains(e.Id),
+                e => e.StartDateUtc,
+                descending: true,
+                cancellationToken)
             .ConfigureAwait(false);
 
         var clubIds = paged.Items.Select(e => e.ClubId).Distinct().ToList();
@@ -187,6 +194,22 @@ public sealed class EventParticipationManager(
 
         var result = new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize);
         return DataResult<PagedResult<EventListItemDto>>.Success(result);
+    }
+
+    public async Task<IDataResult<bool>> IsRegisteredAsync(int eventId, CancellationToken cancellationToken = default)
+    {
+        // Y-22: öğrenci kimliği token'dan; istemci "kimin kaydı" sorusunu soramaz.
+        var student = await GetCurrentStudentAsync(cancellationToken).ConfigureAwait(false);
+        if (student is null)
+        {
+            return DataResult<bool>.Success(false);
+        }
+
+        var participation = await participationRepository
+            .GetAsync(p => p.EventId == eventId && p.StudentId == student.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        return DataResult<bool>.Success(participation is not null);
     }
 
     private async Task<Student?> GetCurrentStudentAsync(CancellationToken cancellationToken) =>

@@ -1,46 +1,39 @@
-import { useQuery } from '@tanstack/react-query'
-import { Box, Card, CardContent, CardMedia, Grid, InputAdornment, TextField, Typography } from '@mui/material'
+import { Box, Card, CardContent, CardMedia, Grid, Typography } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
-import { useMemo, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { ResultPagination } from '../../components/ui/ResultPagination'
+import { SearchField } from '../../components/ui/SearchField'
+import { useSearchPagedQuery } from '../../hooks/useSearchPagedQuery'
 import type { PagedResult, PublicClubListItemDto } from '../../api/types'
 
 export function PublicClubsPage() {
-  const [search, setSearch] = useState('')
-
-  const clubsQuery = useQuery({
-    queryKey: ['public-clubs', 0, 200],
-    queryFn: async () => (await apiClient.get<PagedResult<PublicClubListItemDto>>('/public/clubs', { params: { pageIndex: 0, pageSize: 200 } })).data,
-  })
-
-  const filteredClubs = useMemo(() => {
-    const items = clubsQuery.data?.items ?? []
-    const query = search.trim().toLowerCase()
-    return query === '' ? items : items.filter((club) => club.name.toLowerCase().includes(query))
-  }, [clubsQuery.data, search])
+  // A-50/Y-62: arama sunucuda. Önceden 200 istenip 100 alınıyor ve gerisi istemcide ayıklanıyordu.
+  const { search, setSearch, items, pageIndex, setPageIndex, pageCount, totalCount, query } =
+    useSearchPagedQuery<PublicClubListItemDto>({
+      queryKey: ['public-clubs'],
+      queryFn: async ({ pageIndex: page, pageSize, search: term }) =>
+        (await apiClient.get<PagedResult<PublicClubListItemDto>>('/public/clubs', {
+          params: { pageIndex: page, pageSize, search: term || undefined },
+        })).data,
+    })
 
   return (
     <>
       <PageHeader title="Kulüpler" description="Kampüsteki aktif toplulukları keşfedin." />
 
-      <TextField
-        placeholder="Kulüp ara…"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        sx={{ mb: 3, minWidth: 260 }}
-        slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchOutlinedIcon fontSize="small" /></InputAdornment> } }}
-      />
+      <Box sx={{ mb: 3 }}>
+        <SearchField value={search} onChange={setSearch} placeholder="Kulüp ara…" />
+      </Box>
 
-      {!clubsQuery.isLoading && filteredClubs.length === 0 && (
+      {!query.isLoading && items.length === 0 && (
         <EmptyState icon={GroupsOutlinedIcon} title="Kulüp bulunamadı" description="Arama kriterinizi değiştirmeyi deneyin." />
       )}
 
       <Grid container spacing={2}>
-        {filteredClubs.map((club) => (
+        {items.map((club) => (
           <Grid key={club.id} size={{ xs: 12, sm: 6, md: 4 }}>
             <Card
               variant="outlined"
@@ -67,6 +60,8 @@ export function PublicClubsPage() {
           </Grid>
         ))}
       </Grid>
+
+      <ResultPagination pageIndex={pageIndex} pageCount={pageCount} totalCount={totalCount} onChange={setPageIndex} />
     </>
   )
 }

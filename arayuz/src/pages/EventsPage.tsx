@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import type { GridColDef } from '@mui/x-data-grid'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
@@ -13,10 +13,14 @@ import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
+import { useSearchPagedQuery } from '../hooks/useSearchPagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { DataTable } from '../components/ui/DataTable'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
+import { RemoteSelect } from '../components/ui/RemoteSelect'
+import { ResultPagination } from '../components/ui/ResultPagination'
+import { SearchField } from '../components/ui/SearchField'
 import { EventStatusChip } from '../components/ui/StatusChip'
 import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { ClubListItemDto, EventListItemDto, PagedResult } from '../api/types'
@@ -47,17 +51,16 @@ function UpcomingTab() {
   const queryClient = useQueryClient()
   const notify = useNotifier()
 
-  const upcomingQuery = useQuery({
-    queryKey: ['events-upcoming', 0, 100],
-    queryFn: async () => (await apiClient.get<PagedResult<EventListItemDto>>('/events/upcoming', { params: { pageIndex: 0, pageSize: 100 } })).data,
-  })
-
-  const mineQuery = useQuery({
-    queryKey: ['events-mine', 0, 200],
-    queryFn: async () => (await apiClient.get<PagedResult<EventListItemDto>>('/events/mine', { params: { pageIndex: 0, pageSize: 200 } })).data,
-  })
-
-  const registeredEventIds = useMemo(() => new Set((mineQuery.data?.items ?? []).map((e) => e.id)), [mineQuery.data])
+  // A-50/Y-62: arama ve sayfalama sunucuda; "kayıtlı mıyım" bilgisi listeyle birlikte geliyor
+  // (isRegistered), dolayısıyla ikinci bir tam /events/mine çekimine gerek kalmadı.
+  const { search, setSearch, items, pageIndex, setPageIndex, pageCount, totalCount, query: upcomingQuery } =
+    useSearchPagedQuery<EventListItemDto>({
+      queryKey: ['events-upcoming'],
+      queryFn: async ({ pageIndex: page, pageSize, search: term }) =>
+        (await apiClient.get<PagedResult<EventListItemDto>>('/events/upcoming', {
+          params: { pageIndex: page, pageSize, search: term || undefined },
+        })).data,
+    })
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['events-upcoming'] })
@@ -86,58 +89,64 @@ function UpcomingTab() {
     onError: (error) => notify({ message: extractErrorMessage(error, 'Kayıt iptal edilemedi.'), severity: 'error' }),
   })
 
-  const items = upcomingQuery.data?.items ?? []
-
-  if (!upcomingQuery.isLoading && items.length === 0) {
-    return <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" description="Şu anda yayında ve başlamamış bir etkinlik bulunmuyor." />
-  }
-
   return (
-    <Grid container spacing={2}>
-      {items.map((event) => {
-        const isRegistered = registeredEventIds.has(event.id)
-        return (
-          <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
-            <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent sx={{ flex: 1 }}>
-                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-                    {event.title}
-                  </Typography>
-                  <Chip size="small" label={event.capacity ? `Kontenjan: ${event.capacity}` : 'Sınırsız'} variant="outlined" />
-                </Stack>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                  {event.clubName}
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  {new Date(event.startDateUtc).toLocaleString('tr-TR')}
-                </Typography>
-                {event.location && (
-                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
-                    <PlaceOutlinedIcon fontSize="inherit" />
-                    <Typography variant="caption">{event.location}</Typography>
+    <>
+      <Stack sx={{ mb: 3 }}>
+        <SearchField value={search} onChange={setSearch} placeholder="Etkinlik ara…" />
+      </Stack>
+
+      {!upcomingQuery.isLoading && items.length === 0 && (
+        <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" description="Şu anda yayında ve başlamamış bir etkinlik bulunmuyor." />
+      )}
+
+      <Grid container spacing={2}>
+        {items.map((event) => {
+          const isRegistered = event.isRegistered === true
+          return (
+            <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ flex: 1 }}>
+                  <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+                      {event.title}
+                    </Typography>
+                    <Chip size="small" label={event.capacity ? `Kontenjan: ${event.capacity}` : 'Sınırsız'} variant="outlined" />
                   </Stack>
-                )}
-              </CardContent>
-              <CardActions sx={{ px: 2, pb: 2, gap: 0.5 }}>
-                <Button size="small" component={RouterLink} to={`/events/${event.id}`}>
-                  Detay
-                </Button>
-                {isRegistered ? (
-                  <Button size="small" color="error" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate(event.id)}>
-                    Ayrıl
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    {event.clubName}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    {new Date(event.startDateUtc).toLocaleString('tr-TR')}
+                  </Typography>
+                  {event.location && (
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+                      <PlaceOutlinedIcon fontSize="inherit" />
+                      <Typography variant="caption">{event.location}</Typography>
+                    </Stack>
+                  )}
+                </CardContent>
+                <CardActions sx={{ px: 2, pb: 2, gap: 0.5 }}>
+                  <Button size="small" component={RouterLink} to={`/events/${event.id}`}>
+                    Detay
                   </Button>
-                ) : (
-                  <Button size="small" variant="outlined" disabled={registerMutation.isPending} onClick={() => registerMutation.mutate(event.id)}>
-                    Katıl
-                  </Button>
-                )}
-              </CardActions>
-            </Card>
-          </Grid>
-        )
-      })}
-    </Grid>
+                  {isRegistered ? (
+                    <Button size="small" color="error" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate(event.id)}>
+                      Ayrıl
+                    </Button>
+                  ) : (
+                    <Button size="small" variant="outlined" disabled={registerMutation.isPending} onClick={() => registerMutation.mutate(event.id)}>
+                      Katıl
+                    </Button>
+                  )}
+                </CardActions>
+              </Card>
+            </Grid>
+          )
+        })}
+      </Grid>
+
+      <ResultPagination pageIndex={pageIndex} pageCount={pageCount} totalCount={totalCount} onChange={setPageIndex} />
+    </>
   )
 }
 
@@ -157,11 +166,6 @@ function EventsTab() {
   } = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: emptyEventFormValues,
-  })
-
-  const clubsQuery = useQuery({
-    queryKey: ['clubs', 0, 200],
-    queryFn: async () => (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', { params: { pageIndex: 0, pageSize: 200 } })).data,
   })
 
   const { paginationModel, setPaginationModel, query: eventsQuery } = usePagedQuery({
@@ -234,20 +238,22 @@ function EventsTab() {
   return (
     <>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 2 }}>
-        <TextField
-          select
-          size="small"
-          label="Topluluk"
-          value={selectedClubId}
-          onChange={(event) => setSelectedClubId(event.target.value === '' ? '' : Number(event.target.value))}
-          sx={{ width: 280 }}
-        >
-          {(clubsQuery.data?.items ?? []).map((club) => (
-            <MenuItem key={club.id} value={club.id}>
-              {club.name}
-            </MenuItem>
-          ))}
-        </TextField>
+        <Stack sx={{ width: 320 }}>
+          <RemoteSelect<ClubListItemDto>
+            label="Topluluk"
+            size="small"
+            value={selectedClubId === '' ? null : selectedClubId}
+            onChange={(value) => setSelectedClubId(value ?? '')}
+            queryKey={['clubs', 'selector']}
+            fetchOptions={async (term) =>
+              (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', {
+                params: { pageIndex: 0, pageSize: 20, search: term || undefined, isActive: true },
+              })).data.items
+            }
+            getOptionId={(club) => club.id}
+            getOptionLabel={(club) => club.name}
+          />
+        </Stack>
 
         {canWrite && (
           <Button variant="contained" disabled={selectedClubId === ''} onClick={createDialog.openDialog}>

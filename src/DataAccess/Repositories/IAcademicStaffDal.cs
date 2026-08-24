@@ -9,5 +9,7 @@ namespace DataAccess.Repositories;
 /// </summary>
 public interface IAcademicStaffDal
 {
-    Task<PagedResult<AcademicStaffRowDto>> GetListPagedAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+    /// <summary>A-50: `search` boş değilse e-posta ve unvan üzerinde SQL tarafında filtreler.</summary>
+    Task<PagedResult<AcademicStaffRowDto>> GetListPagedAsync(
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 }

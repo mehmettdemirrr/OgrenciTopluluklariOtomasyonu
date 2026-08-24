@@ -6,4 +6,9 @@ namespace Core.Entities;
 /// </summary>
 public interface IEntity
 {
+    /// <summary>
+    /// docs/MIMARI.md · Y-64: sayfalamanın son kırıcısı (tie-breaker). Sırasız <c>Skip</c>/<c>Take</c>
+    /// SQL Server'da <c>ORDER BY (SELECT 1)</c>'e düşer ve sayfalar arasında satır tekrarına yol açar.
+    /// </summary>
+    int Id { get; }
 }

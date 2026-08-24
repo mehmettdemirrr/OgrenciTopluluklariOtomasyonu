@@ -22,13 +22,24 @@ public sealed class ClubManager(
     private const int MaxPageSize = 100;
 
     public async Task<IDataResult<PagedResult<ClubListItemDto>>> GetListPagedAsync(
-        int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+        int pageIndex, int pageSize, string? search = null, bool? isActive = null, CancellationToken cancellationToken = default)
     {
         var clampedPageSize = ClampPageSize(pageSize);
+        var term = SearchTerm.Normalize(search);
 
         // Y-11/A-16: sayfalama kırpma bir iş kuralıdır, controller'da değil burada yapılır.
+        // A-50/Y-62: arama SQL'de (LIKE) — liste çekip bellekte ayıklamak yok.
+        // isActive artık dışarıdan gelir: sabit `c.IsActive` filtresi pasif kulübü arayüzden
+        // tamamen kaybediyor, dolayısıyla geri açılamıyordu (bkz. PLAN-V4 §21.1b).
         var paged = await clubRepository
-            .GetListPagedAsync(pageIndex, clampedPageSize, c => c.IsActive, cancellationToken)
+            .GetListPagedAsync(
+                pageIndex,
+                clampedPageSize,
+                c => (isActive == null || c.IsActive == isActive)
+                    && (term.Length == 0 || c.Name.Contains(term)),
+                c => c.Name,
+                descending: false,
+                cancellationToken)
             .ConfigureAwait(false);
 
         var items = mapper.Map<IReadOnlyList<ClubListItemDto>>(paged.Items);

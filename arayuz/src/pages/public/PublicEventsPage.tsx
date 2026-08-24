@@ -1,25 +1,33 @@
-import { useQuery } from '@tanstack/react-query'
-import { Card, CardContent, CardMedia, Chip, Grid, Stack, Typography } from '@mui/material'
+import { Box, Card, CardContent, CardMedia, Chip, Grid, Stack, Typography } from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import { apiClient } from '../../api/client'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { ResultPagination } from '../../components/ui/ResultPagination'
+import { SearchField } from '../../components/ui/SearchField'
+import { useSearchPagedQuery } from '../../hooks/useSearchPagedQuery'
 import type { PagedResult, PublicEventListItemDto } from '../../api/types'
 
 export function PublicEventsPage() {
-  const eventsQuery = useQuery({
-    queryKey: ['public-events', 0, 200],
-    queryFn: async () => (await apiClient.get<PagedResult<PublicEventListItemDto>>('/public/events', { params: { pageIndex: 0, pageSize: 200 } })).data,
-  })
-
-  const items = eventsQuery.data?.items ?? []
+  const { search, setSearch, items, pageIndex, setPageIndex, pageCount, totalCount, query } =
+    useSearchPagedQuery<PublicEventListItemDto>({
+      queryKey: ['public-events'],
+      queryFn: async ({ pageIndex: page, pageSize, search: term }) =>
+        (await apiClient.get<PagedResult<PublicEventListItemDto>>('/public/events', {
+          params: { pageIndex: page, pageSize, search: term || undefined },
+        })).data,
+    })
 
   return (
     <>
       <PageHeader title="Etkinlikler" description="Kampüsteki yaklaşan, yayında olan tüm etkinlikler." />
 
-      {!eventsQuery.isLoading && items.length === 0 ? (
+      <Box sx={{ mb: 3 }}>
+        <SearchField value={search} onChange={setSearch} placeholder="Etkinlik ara…" />
+      </Box>
+
+      {!query.isLoading && items.length === 0 ? (
         <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" />
       ) : (
         <Grid container spacing={2}>
@@ -54,6 +62,8 @@ export function PublicEventsPage() {
           ))}
         </Grid>
       )}
+
+      <ResultPagination pageIndex={pageIndex} pageCount={pageCount} totalCount={totalCount} onChange={setPageIndex} />
     </>
   )
 }

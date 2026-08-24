@@ -50,7 +50,8 @@ public interface IEventService
 
     /// <summary>docs/PLAN-V2.md §10.2: tüm kulüplerde yayındaki, henüz başlamamış etkinlikler.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.EventsRead)]
-    Task<IDataResult<PagedResult<EventListItemDto>>> GetUpcomingAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+    Task<IDataResult<PagedResult<EventListItemDto>>> GetUpcomingAsync(
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 
     /// <summary>Y-23: CreateAsync ile aynı kapsam kuralı. Yalnızca Draft/Rejected iken düzenlenebilir.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.EventsWrite)]

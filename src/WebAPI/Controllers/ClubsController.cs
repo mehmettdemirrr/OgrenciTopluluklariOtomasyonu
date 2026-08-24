@@ -10,9 +10,14 @@ namespace WebAPI.Controllers;
 public sealed class ClubsController(IClubService clubService, IClubMemberService clubMemberService) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetList([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetList(
+        [FromQuery] int pageIndex = 0,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] bool? isActive = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await clubService.GetListPagedAsync(pageIndex, pageSize, cancellationToken);
+        var result = await clubService.GetListPagedAsync(pageIndex, pageSize, search, isActive, cancellationToken);
         return result.ToActionResult();
     }
 

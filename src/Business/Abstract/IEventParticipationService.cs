@@ -26,4 +26,11 @@ public interface IEventParticipationService
 
     [SecuredOperation(IdentitySeedData.Permissions.EventsRead)]
     Task<IDataResult<PagedResult<EventListItemDto>>> GetMineAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/PLAN-V4.md §21.5: "kayıtlı mıyım" sorusunun tek amaçlı cevabı. Önceden arayüz bunu
+    /// tüm `/events/mine` listesini çekip içinde arayarak yanıtlıyordu (Y-62).
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.EventsRead)]
+    Task<IDataResult<bool>> IsRegisteredAsync(int eventId, CancellationToken cancellationToken = default);
 }

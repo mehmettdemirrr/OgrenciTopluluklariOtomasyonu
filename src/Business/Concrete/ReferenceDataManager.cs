@@ -157,9 +157,11 @@ public sealed class ReferenceDataManager(
     }
 
     public async Task<IDataResult<PagedResult<AcademicStaffListItemDto>>> GetAcademicStaffPagedAsync(
-        int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default)
     {
-        var paged = await academicStaffDal.GetListPagedAsync(pageIndex, ClampPageSize(pageSize), cancellationToken).ConfigureAwait(false);
+        var paged = await academicStaffDal
+            .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), SearchTerm.Normalize(search), cancellationToken)
+            .ConfigureAwait(false);
 
         var items = paged.Items.Select(s => new AcademicStaffListItemDto { Id = s.Id, Title = s.Title, Email = s.Email }).ToList();
         return DataResult<PagedResult<AcademicStaffListItemDto>>.Success(
@@ -167,9 +169,11 @@ public sealed class ReferenceDataManager(
     }
 
     public async Task<IDataResult<PagedResult<SelectableAcademicStaffDto>>> GetSelectableAcademicStaffAsync(
-        int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default)
     {
-        var paged = await academicStaffDal.GetListPagedAsync(pageIndex, ClampPageSize(pageSize), cancellationToken).ConfigureAwait(false);
+        var paged = await academicStaffDal
+            .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), SearchTerm.Normalize(search), cancellationToken)
+            .ConfigureAwait(false);
 
         var items = paged.Items.Select(s => new SelectableAcademicStaffDto { Id = s.Id, Title = s.Title, Email = s.Email }).ToList();
         return DataResult<PagedResult<SelectableAcademicStaffDto>>.Success(

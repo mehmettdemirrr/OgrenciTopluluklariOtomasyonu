@@ -50,15 +50,17 @@ export function EventDetailPage() {
     queryFn: async () => (await apiClient.get<EventListItemDto>(`/events/${eventId}`)).data,
   })
 
-  const mineQuery = useQuery({
-    queryKey: ['events-mine', 0, 200],
-    queryFn: async () => (await apiClient.get<PagedResult<EventListItemDto>>('/events/mine', { params: { pageIndex: 0, pageSize: 200 } })).data,
+  // Y-62: önceden bu soru için TÜM /events/mine listesi (200'lük tek sayfa) çekiliyordu.
+  const registrationQuery = useQuery({
+    queryKey: ['event-registration', eventId],
+    queryFn: async () => (await apiClient.get<boolean>(`/events/${eventId}/participation/mine`)).data,
   })
 
-  const isRegistered = (mineQuery.data?.items ?? []).some((e) => e.id === eventId)
+  const isRegistered = registrationQuery.data === true
 
   const invalidateEvent = () => {
     queryClient.invalidateQueries({ queryKey: ['events', eventId] })
+    queryClient.invalidateQueries({ queryKey: ['event-registration', eventId] })
     queryClient.invalidateQueries({ queryKey: ['events-mine'] })
     queryClient.invalidateQueries({ queryKey: ['events-upcoming'] })
   }

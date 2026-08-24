@@ -251,7 +251,7 @@ düşüyor (`CacheRemoveAspect` çalışıyor) → öğrencinin "Etkinliklerim"i
 
 ---
 
-## Faz 21 — Sunucu taraflı arama ve gerçek sayfalama (A-50, Y-62)
+## Faz 21 — Sunucu taraflı arama ve gerçek sayfalama (A-50, Y-62, Y-64, A-54) — ✅ tamamlandı
 
 Bir hata düzeltmesi fazı. Yeni özellik yok, **var olan yalanı** kaldırıyor.
 
@@ -265,6 +265,14 @@ Bir hata düzeltmesi fazı. Yeni özellik yok, **var olan yalanı** kaldırıyor
 
 Arayüz `totalCount`'u alıyor ama **kullanmıyor**. Yani sistem "200 kulüp var" bilgisini elinde tutup
 100 tanesini gösteriyor ve kullanıcıya hiçbir şey söylemiyor.
+
+### 21.1b Uygulama sırasında çıkan üç bulgu (kod okumasıyla doğrulandı)
+
+| # | Bulgu | Kanıt | Sonuç |
+|---|---|---|---|
+| 1 | **Sayfalama sırasız** | `EfEntityRepositoryBase.cs:39` → `query.Skip(...).Take(...)`, hiçbir yerde `OrderBy` yok | SQL Server `OFFSET/FETCH` için `ORDER BY` şart olduğundan EF Core `ORDER BY (SELECT 1)` üretir. 2. sayfa 1. sayfanın satırını tekrarlayabilir. **"Gerçek sayfalama"nın ön koşulu** → Y-64 |
+| 2 | **`/api/clubs` pasif kulüpleri hiç dönmüyor** | `ClubManager.cs:31` → filtre `c => c.IsActive` **sabit**; `ClubsPage.tsx:197-201` "Pasif" düğmesi var | Pasif düğmesi daima boş sonuç verir; pasife alınan kulüp arayüzden **tamamen kaybolur** ve `SetStatusAsync(true)` ile geri açılamaz. `isActive` parametresi bunu düzeltir |
+| 3 | **Cache anahtarı serbest metinle sınırsız büyür** | `CacheAspectHandler.cs:36-40` anahtara **tüm argümanları** yazar; `MemoryCacheManager` `_keys` defterini yalnızca `Remove` ile temizler, süresi dolanı hiç silmez | `search` cache anahtarına girince, oran sınırı **olmayan** anonim `/api/public/clubs?search=<rastgele>` ucundan bellek şişirilebilir → A-54 (SizeLimit + tahliye geri çağrısı) |
 
 ### 21.2 Çözüm
 
@@ -290,10 +298,63 @@ Arayüz tarafı: `pageSize: 200` çağrılarının tamamı gerçek sayfalamaya �
 > `PagedResult` sözleşmesiyle. *(Y-11'in arayüz tarafındaki karşılığı — Y-11 sunucunun tüm tabloyu
 > dönmesini yasaklıyordu; Y-62 arayüzün "hepsini iste, ben ayıklarım" kaçamağını kapatıyor.)*
 
+### 21.4 Y-64 ve A-54 (yeni)
+
+> **Y-64 — sırasız `Skip`/`Take` yasak.** `IEntity` `int Id` sözleşmesini kazanır (15 uygulayıcının
+> hepsinde zaten var); `GetListPagedAsync` sırasız çağrıldığında `OrderBy(e => e.Id)`, alan bazlı
+> çağrıldığında `OrderBy(alan).ThenBy(e => e.Id)` uygular. Tek dosyada, yapısal olarak kapatılır —
+> 23 çağrı yerinin hiçbiri değişmeden **tamamı** deterministik hâle gelir.
+
+> **A-54 — önbellek sınırlıdır.** `SizeLimit` + her girdi `Size = 1`, `MemoryCacheManager` anahtar
+> defterini `PostEvictionCallback` ile temizler.
+
+### 21.5 `pageSize: 200` çağrılarının sınıflandırılması
+
+12 çağrının hepsi aynı ilaçla iyileşmiyor — üç ayrı sınıf var:
+
+| Sınıf | Çağrılar | Çözüm |
+|---|---|---|
+| **Gezilen liste** | `ClubsPage` galerisi, `PublicClubsPage`, `PublicEventsPage`, `EventsPage` (yaklaşan + benim) | Sunucu araması + gerçek sayfalama |
+| **Açılır liste (dropdown)** | `ClubsPage` danışman ×2, `EventsPage` kulüp filtresi, `ReportsPage` kulüp seçici | `Autocomplete` + sunucu araması (debounce). "İlk 100'ü çek, gerisini yut" sessiz kesme olurdu |
+| **Yanlış soru** | `EventDetailPage:55` → kayıtlı mıyım diye **tüm** `/events/mine` listesini çekiyor | Tek amaçlı uç: `GET /api/events/{id}/participation/mine` → `bool` |
+
+Kalan ikisi (`AuthorizationPage` rolleri, `ReferenceDataPage` bölümleri) düz sayfalamaya çevrilir.
+
 ### Çıkış koşulu
 101 kulüplü bir veri setinde 101. kulüp **aranarak bulunabiliyor** · `git grep "pageSize: 200"` → **0
 sonuç** · arama kutusuna yazılınca ağ sekmesinde `search=` parametreli **tek** istek görünüyor (debounce
-çalışıyor) · sayfalama kontrolleri gerçek `totalCount`'u gösteriyor.
+çalışıyor) · sayfalama kontrolleri gerçek `totalCount`'u gösteriyor · aynı veri setinde 1. ve 2. sayfa
+**hiçbir kaydı paylaşmıyor** (Y-64) · `ClubsPage`'de "Pasif" filtresi gerçekten pasif kulüpleri getiriyor.
+
+### Tamamlanma notu
+
+**Testler:** 291/291 yeşil (176 Business + 10 Architecture + 105 Integration). Yeni `ClubSearchPagingTests`
+5 test: aramayla 105. kayda erişim, `pageSize=200` → `PageSize=100` ama `TotalCount=105`, ardışık üç
+sayfanın hiçbir kaydı paylaşmaması + ada göre sıralı olması, `isActive` filtresi, anonim vitrinin pasif
+kulübü aramayla dahi göstermemesi (Y-58).
+
+**Canlı doğrulama (105 kulüplük veri seti, Playwright):**
+
+| Kontrol | Sonuç |
+|---|---|
+| Sunucu `pageSize=200` isteğini 100'e kırpıyor, `TotalCount` 105 diyor | ✅ |
+| 21 karakter yazıldı → `search=` parametreli **1** istek | ✅ debounce |
+| İlk 100'e hiç giremeyen "Kulup 105" aramayla bulundu | ✅ |
+| "Pasif" filtresi → `Toplam 1 kayıt`, kart göründü *(önceden daima boştu)* | ✅ |
+| "Aktif" filtresi → `Toplam 104 kayıt` | ✅ |
+| 1. sayfa `Kulup 001…012`, 2. sayfa `Kulup 013…024`, kesişim yok | ✅ Y-64 |
+| Danışman seçici (`RemoteSelect`) sunucudan arayarak sonuç getirdi | ✅ |
+| Anonim vitrin → `Toplam 104 kayıt`, pasif kulüp tam adıyla arandığında bile yok | ✅ Y-58 |
+| Duyuru araması ve kullanıcı e-posta araması → her biri **1** istek | ✅ |
+
+**Fazladan düzeltilenler (kod okumasında çıktı, PLAN §21.1b):**
+1. `EfEntityRepositoryBase` sırasız `Skip/Take` yapıyordu → `IEntity.Id` sözleşmesi + zorunlu sıralama (Y-64).
+   **23 çağrı yerinin tamamı** tek dosya değişikliğiyle deterministik hâle geldi.
+2. `/api/clubs` pasif kulüpleri hiç dönmüyordu → pasife alınan kulüp arayüzden kayboluyor ve geri açılamıyordu.
+3. `AnnouncementManager.GetFeedAsync`'in XML yorumu "tarihe göre azalan" diyordu ama kodda **hiç sıralama yoktu**.
+4. `/api/users` araması debounce'suzdu — her tuşa basışta bir istek gidiyordu.
+5. Cache anahtarına serbest metin girdiği için `MemoryCache` sınırlandı ve anahtar defterinin
+   süresi dolan girdileri hiç temizlemeyen sızıntısı kapatıldı (A-54).
 
 ---
 

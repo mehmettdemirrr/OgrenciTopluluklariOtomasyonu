@@ -15,7 +15,8 @@ public interface IAnnouncementService
 
     /// <summary>Sistem + kulüp duyurularının birleşik akışı, tarihe göre azalan.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.ClubsRead)]
-    Task<IDataResult<PagedResult<AnnouncementListItemDto>>> GetFeedAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+    Task<IDataResult<PagedResult<AnnouncementListItemDto>>> GetFeedAsync(
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 
     /// <summary>Y-23: yalnızca kulübün danışmanı veya güncel dönemde Officer/President üyesi.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.AnnouncementsWrite)]

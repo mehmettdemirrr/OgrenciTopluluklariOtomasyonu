@@ -30,17 +30,33 @@ public sealed class AnnouncementManager(
         int clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
     {
         var paged = await announcementRepository
-            .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), a => a.ClubId == clubId, cancellationToken)
+            .GetListPagedAsync(
+                pageIndex,
+                ClampPageSize(pageSize),
+                a => a.ClubId == clubId,
+                a => a.PublishedAtUtc,
+                descending: true,
+                cancellationToken)
             .ConfigureAwait(false);
 
         var items = await MapWithClubNamesAsync(paged, cancellationToken).ConfigureAwait(false);
         return DataResult<PagedResult<AnnouncementListItemDto>>.Success(new PagedResult<AnnouncementListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
     }
 
-    public async Task<IDataResult<PagedResult<AnnouncementListItemDto>>> GetFeedAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<IDataResult<PagedResult<AnnouncementListItemDto>>> GetFeedAsync(
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default)
     {
+        var term = SearchTerm.Normalize(search);
+
+        // Sözleşmedeki "tarihe göre azalan" bugüne kadar yalnızca yorumdaydı — sıra artık gerçekten uygulanıyor (Y-64).
         var paged = await announcementRepository
-            .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), null, cancellationToken)
+            .GetListPagedAsync(
+                pageIndex,
+                ClampPageSize(pageSize),
+                a => term.Length == 0 || a.Title.Contains(term),
+                a => a.PublishedAtUtc,
+                descending: true,
+                cancellationToken)
             .ConfigureAwait(false);
 
         var items = await MapWithClubNamesAsync(paged, cancellationToken).ConfigureAwait(false);

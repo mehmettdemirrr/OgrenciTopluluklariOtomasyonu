@@ -76,12 +76,14 @@ function FacultiesTab() {
       (await apiClient.get<PagedResult<FacultyListItemDto>>('/faculties', { params: { pageIndex, pageSize } })).data,
   })
 
+  // Bir fakültenin bölümleri master-detail listesidir ve tamamı gösterilir; istemci filtrelemesi yok.
+  // Sunucu üst sınırı 100 (Y-11) — 200 istemek sessiz kırpma demekti, artık gerçek sınır isteniyor.
   const departmentsQuery = useQuery({
     queryKey: ['departments', selectedFacultyId],
     enabled: selectedFacultyId !== null,
     queryFn: async () => {
       const response = await apiClient.get<PagedResult<DepartmentListItemDto>>(`/faculties/${selectedFacultyId}/departments`, {
-        params: { pageIndex: 0, pageSize: 200 },
+        params: { pageIndex: 0, pageSize: 100 },
       })
       return response.data
     },

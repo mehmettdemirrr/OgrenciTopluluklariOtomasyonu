@@ -17,6 +17,7 @@ public sealed class EventManager(
     IEntityRepository<Club> clubRepository,
     IEntityRepository<AcademicStaff> academicStaffRepository,
     IEntityRepository<Student> studentRepository,
+    IEntityRepository<EventParticipation> participationRepository,
     IEntityRepository<ClubMembership> clubMembershipRepository,
     IEntityRepository<AcademicTerm> academicTermRepository,
     IUnitOfWork unitOfWork,
@@ -277,18 +278,58 @@ public sealed class EventManager(
         return DataResult<EventListItemDto>.Success(MapToDto(@event, club?.Name ?? string.Empty));
     }
 
-    public async Task<IDataResult<PagedResult<EventListItemDto>>> GetUpcomingAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<IDataResult<PagedResult<EventListItemDto>>> GetUpcomingAsync(
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default)
     {
         var now = clock.UtcNow;
         var clampedPageSize = ClampPageSize(pageSize);
+        var term = SearchTerm.Normalize(search);
 
+        // A-50: başlık araması SQL'de; sıra tarihe göre artan — en yakın etkinlik başta (Y-64).
         var paged = await eventRepository
-            .GetListPagedAsync(pageIndex, clampedPageSize, e => e.Status == EventStatus.Published && e.StartDateUtc >= now, cancellationToken)
+            .GetListPagedAsync(
+                pageIndex,
+                clampedPageSize,
+                e => e.Status == EventStatus.Published && e.StartDateUtc >= now
+                    && (term.Length == 0 || e.Title.Contains(term)),
+                e => e.StartDateUtc,
+                descending: false,
+                cancellationToken)
             .ConfigureAwait(false);
 
         var clubIds = paged.Items.Select(e => e.ClubId).Distinct().ToList();
         var items = await MapWithClubNamesAsync(paged, clubIds, cancellationToken).ConfigureAwait(false);
+
+        // Y-62: "kayıtlı mıyım" bilgisi listeyle birlikte gelir — arayüz bunun için ikinci bir
+        // tam liste (`/events/mine?pageSize=200`) çekmek zorunda kalmasın.
+        var registeredIds = await GetRegisteredEventIdsAsync(paged.Items.Select(e => e.Id).ToList(), cancellationToken).ConfigureAwait(false);
+        foreach (var item in items)
+        {
+            item.IsRegistered = registeredIds.Contains(item.Id);
+        }
+
         return DataResult<PagedResult<EventListItemDto>>.Success(new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    private async Task<HashSet<int>> GetRegisteredEventIdsAsync(List<int> eventIds, CancellationToken cancellationToken)
+    {
+        // Y-22: öğrenci kimliği token'dan çözülür, istemciden gelmez.
+        if (eventIds.Count == 0 || currentUser.UserId is not { } userId)
+        {
+            return [];
+        }
+
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (student is null)
+        {
+            return [];
+        }
+
+        var participations = await participationRepository
+            .GetListAsync(p => p.StudentId == student.Id && eventIds.Contains(p.EventId), cancellationToken)
+            .ConfigureAwait(false);
+
+        return participations.Select(p => p.EventId).ToHashSet();
     }
 
     public async Task<IResult> UpdateAsync(int eventId, UpdateEventRequestDto request, CancellationToken cancellationToken = default)

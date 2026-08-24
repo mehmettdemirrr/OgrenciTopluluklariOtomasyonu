@@ -63,7 +63,10 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 builder.Services.AddScoped<ICorrelationContext, HttpContextCorrelationContext>();
-builder.Services.AddMemoryCache();
+// A-54: sınırlı önbellek. A-50 ile cache anahtarına serbest metin (search) girdiği için, oran sınırı
+// olmayan anonim /api/public/* ucundan rastgele arama üreterek belleği şişirmek mümkün olurdu.
+builder.Services.AddMemoryCache(options =>
+    options.SizeLimit = builder.Configuration.GetValue<long?>("Caching:SizeLimit") ?? 2048);
 
 // Faz 19.0 (K-28/A-53 ön koşulu): ters proxy arkasında gerçek istemci IP'si. Bu olmadan hem trafik
 // logu (RequestLoggingMiddleware) hem oran sınırı proxy'nin tek IP'sini görür — biri değersizleşir,

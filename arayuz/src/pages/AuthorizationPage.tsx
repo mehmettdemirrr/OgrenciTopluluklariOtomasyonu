@@ -22,6 +22,7 @@ import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
@@ -294,16 +295,21 @@ function UsersTab() {
   const [editingUser, setEditingUser] = useState<UserListItemDto | null>(null)
   const [editingRoleNames, setEditingRoleNames] = useState<Set<string>>(new Set())
 
+  // A-50: sunucu araması zaten vardı ama debounce yoktu — her tuşa basışta bir istek gidiyordu.
+  const debouncedSearch = useDebouncedValue(search)
+
   const { paginationModel, setPaginationModel, query: usersQuery } = usePagedQuery({
-    queryKey: ['users', search],
+    queryKey: ['users', debouncedSearch],
     queryFn: async (pageIndex, pageSize) =>
-      (await apiClient.get<PagedResult<UserListItemDto>>('/users', { params: { pageIndex, pageSize, search: search || undefined } })).data,
+      (await apiClient.get<PagedResult<UserListItemDto>>('/users', { params: { pageIndex, pageSize, search: debouncedSearch || undefined } })).data,
   })
 
-  // Rol adı listesi için tam liste gerekiyor — matris ekranında zaten yüklü olan rolleri yeniden kullanır.
+  // Rol atama diyaloğu doğası gereği TÜM rolleri ister (checkbox listesi) — Y-62'nin istisnası:
+  // burada istemci filtreleme yapmaz, sınırlı ve yönetici tarafından tanımlanan bir küme okunur.
+  // Sunucu üst sınırı 100 olduğu için 100 istenir; daha fazlası sessizce kırpılırdı.
   const rolesQuery = useQuery({
-    queryKey: ['roles', 0, 200],
-    queryFn: async () => (await apiClient.get<PagedResult<RoleListItemDto>>('/roles', { params: { pageIndex: 0, pageSize: 200 } })).data,
+    queryKey: ['roles', 'all'],
+    queryFn: async () => (await apiClient.get<PagedResult<RoleListItemDto>>('/roles', { params: { pageIndex: 0, pageSize: 100 } })).data,
   })
 
   const setUserRolesMutation = useMutation({

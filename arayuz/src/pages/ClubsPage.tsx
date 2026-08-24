@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
   Button,
@@ -13,17 +13,14 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
-  InputAdornment,
-  MenuItem,
   Stack,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from '@mui/material'
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
-import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
@@ -31,9 +28,13 @@ import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
 import { useFormDialog } from '../hooks/useFormDialog'
+import { useSearchPagedQuery } from '../hooks/useSearchPagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
+import { RemoteSelect } from '../components/ui/RemoteSelect'
+import { ResultPagination } from '../components/ui/ResultPagination'
+import { SearchField } from '../components/ui/SearchField'
 import { createClubFormSchema, emptyCreateClubFormValues, type CreateClubFormValues } from '../schemas/clubForm'
 import { clubApplicationFormSchema, emptyClubApplicationFormValues, type ClubApplicationFormValues } from '../schemas/clubApplicationForm'
 import type { AcademicStaffListItemDto, ClubListItemDto, PagedResult, SelectableAcademicStaffDto } from '../api/types'
@@ -47,7 +48,6 @@ export function ClubsPage() {
   const canUploadLogo = hasPermission(Permissions.FilesUpload)
   const canManageClubs = hasPermission(Permissions.ClubsWrite)
 
-  const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [logoTargetClubId, setLogoTargetClubId] = useState<number | null>(null)
@@ -63,28 +63,26 @@ export function ClubsPage() {
     defaultValues: emptyCreateClubFormValues,
   })
 
-  const clubsQuery = useQuery({
-    queryKey: ['clubs', 0, 200],
-    queryFn: async () => (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', { params: { pageIndex: 0, pageSize: 200 } })).data,
-  })
-
-  const academicStaffQuery = useQuery({
-    queryKey: ['academic-staff', 0, 200],
-    enabled: canManageClubs && createDialog.open,
-    queryFn: async () => (await apiClient.get<PagedResult<AcademicStaffListItemDto>>('/academic-staff', { params: { pageIndex: 0, pageSize: 200 } })).data,
-  })
+  // A-50/Y-62: arama ve aktif/pasif filtresi sunucuda. "Pasif" düğmesi önceden hiçbir zaman
+  // sonuç vermiyordu — /api/clubs pasif kulüpleri hiç dönmüyordu (bkz. PLAN-V4 §21.1b).
+  const { search, setSearch, items: clubs, pageIndex, setPageIndex, pageCount, totalCount, query: clubsQuery } =
+    useSearchPagedQuery<ClubListItemDto>({
+      queryKey: ['clubs', statusFilter],
+      queryFn: async ({ pageIndex: page, pageSize, search: term }) =>
+        (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', {
+          params: {
+            pageIndex: page,
+            pageSize,
+            search: term || undefined,
+            isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
+          },
+        })).data,
+    })
 
   const applyDialog = useFormDialog()
   const applyForm = useForm<ClubApplicationFormValues>({
     resolver: zodResolver(clubApplicationFormSchema),
     defaultValues: emptyClubApplicationFormValues,
-  })
-
-  // K-29/A-45: reference.manage değil — herhangi bir kimliği doğrulanmış öğrenci danışman seçebilsin diye dar uç.
-  const selectableStaffQuery = useQuery({
-    queryKey: ['academic-staff-selectable', 0, 200],
-    enabled: applyDialog.open,
-    queryFn: async () => (await apiClient.get<PagedResult<SelectableAcademicStaffDto>>('/academic-staff/selectable', { params: { pageIndex: 0, pageSize: 200 } })).data,
   })
 
   const submitClubApplicationMutation = useMutation({
@@ -154,17 +152,6 @@ export function ClubsPage() {
     }
   }
 
-  const filteredClubs = useMemo(() => {
-    const items = clubsQuery.data?.items ?? []
-    const query = search.trim().toLocaleLowerCase('tr-TR')
-    return items.filter((club) => {
-      if (statusFilter === 'active' && !club.isActive) return false
-      if (statusFilter === 'inactive' && club.isActive) return false
-      if (query && !club.name.toLocaleLowerCase('tr-TR').includes(query)) return false
-      return true
-    })
-  }, [clubsQuery.data, search, statusFilter])
-
   return (
     <>
       <PageHeader
@@ -187,26 +174,30 @@ export function ClubsPage() {
       <input ref={logoInputRef} type="file" accept="image/*" hidden onChange={handleLogoFileChange} />
 
       <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
-        <TextField
-          placeholder="Kulüp ara…"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          sx={{ minWidth: 240 }}
-          slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchOutlinedIcon fontSize="small" /></InputAdornment> } }}
-        />
-        <ToggleButtonGroup exclusive size="small" value={statusFilter} onChange={(_, value: StatusFilter | null) => value && setStatusFilter(value)}>
+        <SearchField value={search} onChange={setSearch} placeholder="Kulüp ara…" />
+        <ToggleButtonGroup
+          exclusive
+          size="small"
+          value={statusFilter}
+          onChange={(_, value: StatusFilter | null) => {
+            if (value) {
+              setStatusFilter(value)
+              setPageIndex(0)
+            }
+          }}
+        >
           <ToggleButton value="all">Tümü</ToggleButton>
           <ToggleButton value="active">Aktif</ToggleButton>
           <ToggleButton value="inactive">Pasif</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
-      {!clubsQuery.isLoading && filteredClubs.length === 0 && (
+      {!clubsQuery.isLoading && clubs.length === 0 && (
         <EmptyState icon={GroupsOutlinedIcon} title="Kulüp bulunamadı" description="Arama veya filtre kriterlerinizi değiştirmeyi deneyin." />
       )}
 
       <Grid container spacing={2}>
-        {filteredClubs.map((club) => (
+        {clubs.map((club) => (
           <Grid key={club.id} size={{ xs: 12, sm: 6, md: 4 }}>
             <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               {club.logoFileId ? (
@@ -251,6 +242,8 @@ export function ClubsPage() {
         ))}
       </Grid>
 
+      <ResultPagination pageIndex={pageIndex} pageCount={pageCount} totalCount={totalCount} onChange={setPageIndex} />
+
       <Dialog
         open={createDialog.open}
         onClose={() => {
@@ -278,23 +271,22 @@ export function ClubsPage() {
             name="advisorId"
             control={control}
             render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                select
-                fullWidth
-                margin="dense"
+              <RemoteSelect<AcademicStaffListItemDto>
                 label="Danışman"
-                value={field.value || ''}
-                onChange={(event) => field.onChange(Number(event.target.value))}
+                value={field.value || null}
+                onChange={(value) => field.onChange(value ?? 0)}
+                queryKey={['academic-staff']}
+                enabled={canManageClubs && createDialog.open}
+                fetchOptions={async (term) =>
+                  (await apiClient.get<PagedResult<AcademicStaffListItemDto>>('/academic-staff', {
+                    params: { pageIndex: 0, pageSize: 20, search: term || undefined },
+                  })).data.items
+                }
+                getOptionId={(staff) => staff.id}
+                getOptionLabel={(staff) => `${staff.title} — ${staff.email}`}
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
-              >
-                {(academicStaffQuery.data?.items ?? []).map((staff) => (
-                  <MenuItem key={staff.id} value={staff.id}>
-                    {staff.title} — {staff.email}
-                  </MenuItem>
-                ))}
-              </TextField>
+              />
             )}
           />
         </DialogContent>
@@ -356,27 +348,27 @@ export function ClubsPage() {
               />
             )}
           />
+          {/* K-29/A-45: reference.manage değil — herhangi bir kimliği doğrulanmış öğrenci danışman seçebilsin diye dar uç. */}
           <Controller
             name="proposedAdvisorId"
             control={applyForm.control}
             render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                select
-                fullWidth
-                margin="dense"
+              <RemoteSelect<SelectableAcademicStaffDto>
                 label="Danışman"
-                value={field.value || ''}
-                onChange={(event) => field.onChange(Number(event.target.value))}
+                value={field.value || null}
+                onChange={(value) => field.onChange(value ?? 0)}
+                queryKey={['academic-staff-selectable']}
+                enabled={applyDialog.open}
+                fetchOptions={async (term) =>
+                  (await apiClient.get<PagedResult<SelectableAcademicStaffDto>>('/academic-staff/selectable', {
+                    params: { pageIndex: 0, pageSize: 20, search: term || undefined },
+                  })).data.items
+                }
+                getOptionId={(staff) => staff.id}
+                getOptionLabel={(staff) => `${staff.title} — ${staff.email}`}
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
-              >
-                {(selectableStaffQuery.data?.items ?? []).map((staff) => (
-                  <MenuItem key={staff.id} value={staff.id}>
-                    {staff.title} — {staff.email}
-                  </MenuItem>
-                ))}
-              </TextField>
+              />
             )}
           />
         </DialogContent>

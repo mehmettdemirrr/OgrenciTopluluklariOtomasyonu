@@ -13,16 +13,19 @@ namespace Business.Abstract;
 /// </summary>
 public interface IPublicContentService
 {
+    // A-50: `search` cache anahtarının parçası olur (CacheAspectHandler tüm argümanları yazar);
+    // anahtar sayısını A-54'ün SizeLimit'i, metin uzunluğunu SearchTerm.MaxLength sınırlar.
     [CacheAspect(durationMinutes: 10)]
-    Task<IDataResult<PagedResult<PublicClubListItemDto>>> GetClubsAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+    Task<IDataResult<PagedResult<PublicClubListItemDto>>> GetClubsAsync(
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 
     Task<IDataResult<PublicClubDetailDto>> GetClubByIdAsync(int id, CancellationToken cancellationToken = default);
 
     [CacheAspect(durationMinutes: 10)]
     Task<IDataResult<PagedResult<PublicEventListItemDto>>> GetEventsAsync(
-        int? clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+        int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 
     [CacheAspect(durationMinutes: 10)]
     Task<IDataResult<PagedResult<PublicAnnouncementListItemDto>>> GetAnnouncementsAsync(
-        int? clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+        int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 }

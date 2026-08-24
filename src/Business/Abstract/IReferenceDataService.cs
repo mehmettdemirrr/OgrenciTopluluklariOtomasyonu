@@ -61,7 +61,7 @@ public interface IReferenceDataService
     [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
     [CacheAspect(durationMinutes: 5)]
     Task<IDataResult<PagedResult<AcademicStaffListItemDto>>> GetAcademicStaffPagedAsync(
-        int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// docs/PLAN-V3.md §17.4: topluluk kurma başvurusundaki danışman seçici — [SecuredOperation]
@@ -69,5 +69,5 @@ public interface IReferenceDataService
     /// </summary>
     [CacheAspect(durationMinutes: 5)]
     Task<IDataResult<PagedResult<SelectableAcademicStaffDto>>> GetSelectableAcademicStaffAsync(
-        int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 }

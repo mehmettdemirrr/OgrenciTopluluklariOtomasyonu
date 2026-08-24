@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import { useState } from 'react'
 import { Controller, useForm, type Control } from 'react-hook-form'
@@ -8,11 +8,13 @@ import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
+import { SearchField } from '../components/ui/SearchField'
 import { SectionCard } from '../components/ui/SectionCard'
 import { AnnouncementVisibilityChip } from '../components/ui/StatusChip'
 import { announcementFormSchema, type AnnouncementFormValues } from '../schemas/announcementForm'
@@ -38,10 +40,16 @@ export function AnnouncementsPage() {
     defaultValues: emptyAnnouncementFormValues,
   })
 
+  // A-50: başlık araması sunucuda (LIKE), debounce'lu.
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search)
+
   const { paginationModel, setPaginationModel, query: feedQuery } = usePagedQuery({
-    queryKey: ['announcements-feed'],
+    queryKey: ['announcements-feed', debouncedSearch],
     queryFn: async (pageIndex, pageSize) =>
-      (await apiClient.get<PagedResult<AnnouncementListItemDto>>('/announcements', { params: { pageIndex, pageSize } })).data,
+      (await apiClient.get<PagedResult<AnnouncementListItemDto>>('/announcements', {
+        params: { pageIndex, pageSize, search: debouncedSearch || undefined },
+      })).data,
   })
 
   const createGlobalMutation = useMutation({
@@ -90,6 +98,17 @@ export function AnnouncementsPage() {
           )
         }
       />
+
+      <Box sx={{ mb: 3 }}>
+        <SearchField
+          value={search}
+          onChange={(value) => {
+            setPaginationModel({ ...paginationModel, page: 0 })
+            setSearch(value)
+          }}
+          placeholder="Duyuru ara…"
+        />
+      </Box>
 
       {!feedQuery.isLoading && items.length === 0 ? (
         <EmptyState icon={CampaignOutlinedIcon} title="Henüz duyuru yok" description="Yeni bir duyuru yayınlandığında burada görünecek." />

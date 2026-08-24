@@ -34,7 +34,7 @@ public class PublicContentManagerTests
     {
         var active = new Club { Id = 1, Name = "Aktif Kulüp", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
         var inactive = new Club { Id = 2, Name = "Pasif Kulüp", AdvisorId = 1, IsActive = false, CreatedAtUtc = FixedNow };
-        SetupPagedFilter(_clubRepository, [active, inactive]);
+        SetupPagedFilter<Club, string>(_clubRepository, [active, inactive]);
 
         var result = await _sut.GetClubsAsync(0, 20);
 
@@ -78,7 +78,7 @@ public class PublicContentManagerTests
         var pending = new Event { Id = 3, ClubId = 1, Title = "Onay Bekliyor", StartDateUtc = FixedNow.AddDays(1), EndDateUtc = FixedNow.AddDays(1).AddHours(2), Status = EventStatus.PendingApproval, CreatedAtUtc = FixedNow };
         var rejected = new Event { Id = 4, ClubId = 1, Title = "Reddedildi", StartDateUtc = FixedNow.AddDays(1), EndDateUtc = FixedNow.AddDays(1).AddHours(2), Status = EventStatus.Rejected, CreatedAtUtc = FixedNow };
         var past = new Event { Id = 5, ClubId = 1, Title = "Geçmiş", StartDateUtc = FixedNow.AddDays(-1), EndDateUtc = FixedNow.AddDays(-1).AddHours(2), Status = EventStatus.Published, CreatedAtUtc = FixedNow };
-        SetupPagedFilter(_eventRepository, [published, draft, pending, rejected, past]);
+        SetupPagedFilter<Event, DateTime>(_eventRepository, [published, draft, pending, rejected, past]);
         _clubRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([club]);
 
         var result = await _sut.GetEventsAsync(null, 0, 20);
@@ -96,7 +96,7 @@ public class PublicContentManagerTests
         var clubB = new Club { Id = 2, Name = "B Kulübü", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
         var eventA = new Event { Id = 1, ClubId = 1, Title = "A Etkinliği", StartDateUtc = FixedNow.AddDays(1), EndDateUtc = FixedNow.AddDays(1).AddHours(2), Status = EventStatus.Published, CreatedAtUtc = FixedNow };
         var eventB = new Event { Id = 2, ClubId = 2, Title = "B Etkinliği", StartDateUtc = FixedNow.AddDays(1), EndDateUtc = FixedNow.AddDays(1).AddHours(2), Status = EventStatus.Published, CreatedAtUtc = FixedNow };
-        SetupPagedFilter(_eventRepository, [eventA, eventB]);
+        SetupPagedFilter<Event, DateTime>(_eventRepository, [eventA, eventB]);
         _clubRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([clubA, clubB]);
 
         var result = await _sut.GetEventsAsync(1, 0, 20);
@@ -112,7 +112,7 @@ public class PublicContentManagerTests
         var club = new Club { Id = 1, Name = "Kulüp", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
         var pub = new Announcement { Id = 1, ClubId = 1, Title = "Herkese Açık", Content = "İçerik", Visibility = AnnouncementVisibility.Public, PublishedAtUtc = FixedNow };
         var membersOnly = new Announcement { Id = 2, ClubId = 1, Title = "Yalnızca Üyeler", Content = "Gizli İçerik", Visibility = AnnouncementVisibility.Members, PublishedAtUtc = FixedNow };
-        SetupPagedFilter(_announcementRepository, [pub, membersOnly]);
+        SetupPagedFilter<Announcement, DateTime>(_announcementRepository, [pub, membersOnly]);
         _clubRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([club]);
 
         var result = await _sut.GetAnnouncementsAsync(null, 0, 20);
@@ -122,13 +122,28 @@ public class PublicContentManagerTests
         Assert.Equal("Herkese Açık", item.Title);
     }
 
-    private static void SetupPagedFilter<T>(Mock<IEntityRepository<T>> repository, T[] all) where T : class, Core.Entities.IEntity
+    /// <summary>
+    /// Y-64: sıralı aşırı yükleme taklit edilir ve sıralama <b>gerçekten uygulanır</b> — böylece test
+    /// hem filtreyi hem sırayı LINQ-to-Objects üzerinde doğrular, Moq salt-geçiş olmaz.
+    /// </summary>
+    private static void SetupPagedFilter<T, TKey>(Mock<IEntityRepository<T>> repository, T[] all) where T : class, Core.Entities.IEntity
     {
         repository
-            .Setup(r => r.GetListPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<Expression<Func<T, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((int pageIndex, int pageSize, Expression<Func<T, bool>> filter, CancellationToken _) =>
+            .Setup(r => r.GetListPagedAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<Expression<Func<T, bool>>>(),
+                It.IsAny<Expression<Func<T, TKey>>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int pageIndex, int pageSize, Expression<Func<T, bool>> filter, Expression<Func<T, TKey>> orderBy, bool descending, CancellationToken _) =>
             {
-                var matched = all.AsQueryable().Where(filter).ToList();
+                var filtered = all.AsQueryable().Where(filter);
+                var ordered = descending
+                    ? filtered.OrderByDescending(orderBy).ThenBy(e => e.Id)
+                    : filtered.OrderBy(orderBy).ThenBy(e => e.Id);
+
+                var matched = ordered.ToList();
                 return new PagedResult<T>(matched, matched.Count, pageIndex, pageSize);
             });
     }

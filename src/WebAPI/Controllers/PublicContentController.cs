@@ -16,9 +16,13 @@ namespace WebAPI.Controllers;
 public sealed class PublicContentController(IPublicContentService publicContentService) : ControllerBase
 {
     [HttpGet("clubs")]
-    public async Task<IActionResult> GetClubs([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetClubs(
+        [FromQuery] int pageIndex = 0,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await publicContentService.GetClubsAsync(pageIndex, pageSize, cancellationToken);
+        var result = await publicContentService.GetClubsAsync(pageIndex, pageSize, search, cancellationToken);
         return result.ToActionResult();
     }
 
@@ -31,17 +35,25 @@ public sealed class PublicContentController(IPublicContentService publicContentS
 
     [HttpGet("events")]
     public async Task<IActionResult> GetEvents(
-        [FromQuery] int? clubId = null, [FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+        [FromQuery] int? clubId = null,
+        [FromQuery] int pageIndex = 0,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await publicContentService.GetEventsAsync(clubId, pageIndex, pageSize, cancellationToken);
+        var result = await publicContentService.GetEventsAsync(clubId, pageIndex, pageSize, search, cancellationToken);
         return result.ToActionResult();
     }
 
     [HttpGet("announcements")]
     public async Task<IActionResult> GetAnnouncements(
-        [FromQuery] int? clubId = null, [FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+        [FromQuery] int? clubId = null,
+        [FromQuery] int pageIndex = 0,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await publicContentService.GetAnnouncementsAsync(clubId, pageIndex, pageSize, cancellationToken);
+        var result = await publicContentService.GetAnnouncementsAsync(clubId, pageIndex, pageSize, search, cancellationToken);
         return result.ToActionResult();
     }
 }

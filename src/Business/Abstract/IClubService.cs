@@ -11,7 +11,9 @@ public interface IClubService
 {
     [SecuredOperation(IdentitySeedData.Permissions.ClubsRead)]
     [CacheAspect(durationMinutes: 5)]
-    Task<IDataResult<PagedResult<ClubListItemDto>>> GetListPagedAsync(int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+    /// <summary>A-50: `search` ad üzerinde SQL tarafında; `isActive` null ise aktif/pasif ayrımı yapılmaz.</summary>
+    Task<IDataResult<PagedResult<ClubListItemDto>>> GetListPagedAsync(
+        int pageIndex, int pageSize, string? search = null, bool? isActive = null, CancellationToken cancellationToken = default);
 
     [SecuredOperation(IdentitySeedData.Permissions.ClubsRead)]
     Task<IDataResult<ClubDetailDto>> GetByIdAsync(int id, CancellationToken cancellationToken = default);

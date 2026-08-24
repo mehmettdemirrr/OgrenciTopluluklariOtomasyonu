@@ -41,14 +41,26 @@ public class ClubManagerTests
     public async Task GetListPagedAsync_PageSizeAbove100_ClampedTo100()
     {
         _clubRepository
-            .Setup(r => r.GetListPagedAsync(0, 100, It.IsAny<System.Linq.Expressions.Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetListPagedAsync(
+                0,
+                100,
+                It.IsAny<System.Linq.Expressions.Expression<Func<Club, bool>>>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<Club, string>>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResult<Club>([], 0, 0, 100));
 
         var result = await _sut.GetListPagedAsync(0, 500);
 
         Assert.True(result.IsSuccess);
         _clubRepository.Verify(
-            r => r.GetListPagedAsync(0, 100, It.IsAny<System.Linq.Expressions.Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()),
+            r => r.GetListPagedAsync(
+                0,
+                100,
+                It.IsAny<System.Linq.Expressions.Expression<Func<Club, bool>>>(),
+                It.IsAny<System.Linq.Expressions.Expression<Func<Club, string>>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

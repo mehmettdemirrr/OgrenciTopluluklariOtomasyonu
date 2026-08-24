@@ -53,9 +53,13 @@ public sealed class EventsController(IEventService eventService, IEventParticipa
     }
 
     [HttpGet("events/upcoming")]
-    public async Task<IActionResult> GetUpcoming([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetUpcoming(
+        [FromQuery] int pageIndex = 0,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await eventService.GetUpcomingAsync(pageIndex, pageSize, cancellationToken);
+        var result = await eventService.GetUpcomingAsync(pageIndex, pageSize, search, cancellationToken);
         return result.ToActionResult();
     }
 
@@ -63,6 +67,14 @@ public sealed class EventsController(IEventService eventService, IEventParticipa
     public async Task<IActionResult> GetMine([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {
         var result = await participationService.GetMineAsync(pageIndex, pageSize, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    /// <summary>docs/PLAN-V4.md §21.5 (Y-62): "kayıtlı mıyım" için tüm /events/mine listesini çekmeye son.</summary>
+    [HttpGet("events/{id:int}/participation/mine")]
+    public async Task<IActionResult> GetMyParticipation(int id, CancellationToken cancellationToken)
+    {
+        var result = await participationService.IsRegisteredAsync(id, cancellationToken);
         return result.ToActionResult();
     }
 

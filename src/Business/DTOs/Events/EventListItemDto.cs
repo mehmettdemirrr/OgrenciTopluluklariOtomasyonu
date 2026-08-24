@@ -26,4 +26,11 @@ public sealed class EventListItemDto
 
     /// <summary>docs/MIMARI.md · A-49: yalnızca `Cancelled` durumunda dolu.</summary>
     public string? CancellationReason { get; set; }
+
+    /// <summary>
+    /// docs/PLAN-V4.md §21.5 (Y-62): giriş yapmış öğrencinin bu etkinliğe kaydı var mı.
+    /// <b>null</b> = bu listede hesaplanmadı — arayüz "kayıtlı değil" ile karıştırmasın diye
+    /// bilinçli olarak `bool?`. Yalnızca `/api/events/upcoming` doldurur.
+    /// </summary>
+    public bool? IsRegistered { get; set; }
 }

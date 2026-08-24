@@ -20,10 +20,19 @@ public sealed class PublicContentManager(
     private const int MaxPageSize = 100;
 
     public async Task<IDataResult<PagedResult<PublicClubListItemDto>>> GetClubsAsync(
-        int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default)
     {
+        var term = SearchTerm.Normalize(search);
+
+        // A-50: arama SQL'de. IsActive filtresi kodda sabit kalır (Y-58) — search onu gevşetmez.
         var paged = await clubRepository
-            .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), c => c.IsActive, cancellationToken)
+            .GetListPagedAsync(
+                pageIndex,
+                ClampPageSize(pageSize),
+                c => c.IsActive && (term.Length == 0 || c.Name.Contains(term)),
+                c => c.Name,
+                descending: false,
+                cancellationToken)
             .ConfigureAwait(false);
 
         var items = paged.Items
@@ -52,14 +61,20 @@ public sealed class PublicContentManager(
     }
 
     public async Task<IDataResult<PagedResult<PublicEventListItemDto>>> GetEventsAsync(
-        int? clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+        int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default)
     {
         var now = clock.UtcNow;
+        var term = SearchTerm.Normalize(search);
+
+        // Yaklaşan etkinlik listesi tarihe göre artan sıralanır — vitrinde en yakın etkinlik başta (Y-64).
         var paged = await eventRepository
             .GetListPagedAsync(
                 pageIndex,
                 ClampPageSize(pageSize),
-                e => e.Status == EventStatus.Published && e.StartDateUtc >= now && (clubId == null || e.ClubId == clubId),
+                e => e.Status == EventStatus.Published && e.StartDateUtc >= now && (clubId == null || e.ClubId == clubId)
+                    && (term.Length == 0 || e.Title.Contains(term)),
+                e => e.StartDateUtc,
+                descending: false,
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -88,13 +103,19 @@ public sealed class PublicContentManager(
     }
 
     public async Task<IDataResult<PagedResult<PublicAnnouncementListItemDto>>> GetAnnouncementsAsync(
-        int? clubId, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+        int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default)
     {
+        var term = SearchTerm.Normalize(search);
+
+        // Duyuru akışı en yeniden eskiye (Y-64).
         var paged = await announcementRepository
             .GetListPagedAsync(
                 pageIndex,
                 ClampPageSize(pageSize),
-                a => a.Visibility == AnnouncementVisibility.Public && (clubId == null || a.ClubId == clubId),
+                a => a.Visibility == AnnouncementVisibility.Public && (clubId == null || a.ClubId == clubId)
+                    && (term.Length == 0 || a.Title.Contains(term)),
+                a => a.PublishedAtUtc,
+                descending: true,
                 cancellationToken)
             .ConfigureAwait(false);
 

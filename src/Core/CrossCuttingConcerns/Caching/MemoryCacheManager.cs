@@ -4,6 +4,11 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace Core.CrossCuttingConcerns.Caching;
 
+/// <summary>
+/// docs/MIMARI.md · A-54: önbellek sınırlıdır. Cache anahtarına serbest metin (`search`) girdiği için
+/// hem <see cref="IMemoryCache"/> hem de anahtar defteri sınırsız büyüyebilirdi — girdiler
+/// <c>Size = 1</c> ile sayılır ve tahliye edilen anahtar defterden geri çağrıyla silinir.
+/// </summary>
 public sealed class MemoryCacheManager(IMemoryCache cache) : ICacheManager
 {
     // IMemoryCache anahtarlarını dışarı açmadığı için RemoveByPattern kendi anahtar defterini tutar.
@@ -23,7 +28,17 @@ public sealed class MemoryCacheManager(IMemoryCache cache) : ICacheManager
 
     public void Add(string key, object data, int durationMinutes)
     {
-        cache.Set(key, data, TimeSpan.FromMinutes(durationMinutes));
+        var options = new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(durationMinutes),
+            Size = 1,
+        };
+
+        // Süresi dolan/tahliye edilen girdi defterde kalırsa defter sızıntıya döner (A-54).
+        options.RegisterPostEvictionCallback(static (evictedKey, _, _, state) =>
+            ((ConcurrentDictionary<string, byte>)state!).TryRemove((string)evictedKey, out _), _keys);
+
+        cache.Set(key, data, options);
         _keys.TryAdd(key, 0);
     }
 

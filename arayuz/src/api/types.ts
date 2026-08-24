@@ -177,6 +177,8 @@ export interface EventListItemDto {
   capacity: number | null
   status: EventStatus
   cancellationReason: string | null
+  /** null = bu listede hesaplanmadı; yalnızca /events/upcoming doldurur (PLAN-V4 §21.5). */
+  isRegistered: boolean | null
 }
 
 // src/Business/DTOs/Events/EventParticipantListItemDto.cs

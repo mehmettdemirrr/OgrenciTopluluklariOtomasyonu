@@ -13,10 +13,23 @@ public interface IEntityRepository<TEntity> where TEntity : class, IEntity
 
     Task<List<TEntity>> GetListAsync(Expression<Func<TEntity, bool>>? filter = null, CancellationToken cancellationToken = default);
 
+    /// <summary>Y-64: sıralama verilmezse <c>Id</c> artan uygulanır — sırasız sayfalama mümkün değildir.</summary>
     Task<PagedResult<TEntity>> GetListPagedAsync(
         int pageIndex,
         int pageSize,
         Expression<Func<TEntity, bool>>? filter = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Y-64: alan bazlı sıralama; son kırıcı olarak daima <c>Id</c> eklenir, böylece eşit
+    /// anahtarlı satırlar sayfalar arasında yer değiştiremez.
+    /// </summary>
+    Task<PagedResult<TEntity>> GetListPagedAsync<TKey>(
+        int pageIndex,
+        int pageSize,
+        Expression<Func<TEntity, bool>>? filter,
+        Expression<Func<TEntity, TKey>> orderBy,
+        bool descending = false,
         CancellationToken cancellationToken = default);
 
     Task AddAsync(TEntity entity, CancellationToken cancellationToken = default);

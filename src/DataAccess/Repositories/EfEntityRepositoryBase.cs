@@ -23,11 +23,37 @@ public sealed class EfEntityRepositoryBase<TEntity>(AppDbContext context) : IEnt
         return query.ToListAsync(cancellationToken);
     }
 
-    public async Task<PagedResult<TEntity>> GetListPagedAsync(
+    public Task<PagedResult<TEntity>> GetListPagedAsync(
         int pageIndex,
         int pageSize,
         Expression<Func<TEntity, bool>>? filter = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        // Y-64: sıra verilmediğinde Id artan — sırasız Skip/Take bu sınıftan çıkamaz.
+        PageAsync(pageIndex, pageSize, filter, q => q.OrderBy(e => e.Id), cancellationToken);
+
+    public Task<PagedResult<TEntity>> GetListPagedAsync<TKey>(
+        int pageIndex,
+        int pageSize,
+        Expression<Func<TEntity, bool>>? filter,
+        Expression<Func<TEntity, TKey>> orderBy,
+        bool descending = false,
+        CancellationToken cancellationToken = default) =>
+        PageAsync(
+            pageIndex,
+            pageSize,
+            filter,
+            // Y-64: eşit anahtarlı satırlar sayfalar arasında yer değiştirmesin diye Id son kırıcı.
+            q => descending
+                ? q.OrderByDescending(orderBy).ThenBy(e => e.Id)
+                : q.OrderBy(orderBy).ThenBy(e => e.Id),
+            cancellationToken);
+
+    private async Task<PagedResult<TEntity>> PageAsync(
+        int pageIndex,
+        int pageSize,
+        Expression<Func<TEntity, bool>>? filter,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>> order,
+        CancellationToken cancellationToken)
     {
         IQueryable<TEntity> query = context.Set<TEntity>();
         if (filter is not null)
@@ -36,7 +62,7 @@ public sealed class EfEntityRepositoryBase<TEntity>(AppDbContext context) : IEnt
         }
 
         var totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
-        var items = await query.Skip(pageIndex * pageSize).Take(pageSize).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var items = await order(query).Skip(pageIndex * pageSize).Take(pageSize).ToListAsync(cancellationToken).ConfigureAwait(false);
 
         return new PagedResult<TEntity>(items, totalCount, pageIndex, pageSize);
     }

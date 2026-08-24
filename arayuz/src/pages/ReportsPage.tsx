@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, MenuItem, Select, Stack, Typography } from '@mui/material'
+import { Box, Button, MenuItem, Select, Stack, Typography } from '@mui/material'
 import { BarChart } from '@mui/x-charts/BarChart'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useState } from 'react'
@@ -10,6 +10,7 @@ import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
+import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { SectionCard } from '../components/ui/SectionCard'
 import { StatCard } from '../components/ui/StatCard'
 import { ReportStatusChip } from '../components/ui/StatusChip'
@@ -31,12 +32,6 @@ export function ReportsPage() {
   const summaryQuery = useQuery({
     queryKey: ['reports-summary'],
     queryFn: async () => (await apiClient.get<TermSummaryRowDto[]>('/reports/summary')).data,
-  })
-
-  const clubsQuery = useQuery({
-    queryKey: ['clubs', 'for-report-form'],
-    queryFn: async () =>
-      (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', { params: { pageIndex: 0, pageSize: 100 } })).data,
   })
 
   const { paginationModel, setPaginationModel, query: reportsQuery } = usePagedQuery({
@@ -158,25 +153,23 @@ export function ReportsPage() {
           </Select>
 
           {selectedReportType === 'ClubMembers' && (
-            <Select
-              size="small"
-              displayEmpty
-              value={selectedClubId}
-              onChange={(e) => {
-                const raw = String(e.target.value)
-                setSelectedClubId(raw === '' ? '' : Number(raw))
-              }}
-              sx={{ minWidth: 220 }}
-            >
-              <MenuItem value="">
-                <em>Kulüp seçin</em>
-              </MenuItem>
-              {clubsQuery.data?.items.map((club) => (
-                <MenuItem key={club.id} value={club.id}>
-                  {club.name}
-                </MenuItem>
-              ))}
-            </Select>
+            // A-50/Y-62: kulüp listesi sunucudan aranarak daraltılır — 101. kulüp de seçilebilir.
+            <Box sx={{ minWidth: 260 }}>
+              <RemoteSelect<ClubListItemDto>
+                label="Kulüp"
+                size="small"
+                value={selectedClubId === '' ? null : selectedClubId}
+                onChange={(value) => setSelectedClubId(value ?? '')}
+                queryKey={['clubs', 'for-report-form']}
+                fetchOptions={async (term) =>
+                  (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', {
+                    params: { pageIndex: 0, pageSize: 20, search: term || undefined, isActive: true },
+                  })).data.items
+                }
+                getOptionId={(club) => club.id}
+                getOptionLabel={(club) => club.name}
+              />
+            </Box>
           )}
 
           <Button
