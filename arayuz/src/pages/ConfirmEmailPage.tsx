@@ -3,10 +3,13 @@ import { useEffect, useState } from 'react'
 import { Link as RouterLink, useSearchParams } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 type Status = 'confirming' | 'success' | 'error'
 
 export function ConfirmEmailPage() {
+  useDocumentTitle('E-posta Doğrulama')
+
   const [searchParams] = useSearchParams()
   const userId = searchParams.get('userId')
   const token = searchParams.get('token')

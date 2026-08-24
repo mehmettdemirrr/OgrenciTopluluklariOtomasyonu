@@ -9,12 +9,14 @@ import {
   DialogContent,
   DialogTitle,
   MenuItem,
+  Skeleton,
   Stack,
   Tab,
   Tabs,
   TextField,
   Typography,
 } from '@mui/material'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -54,6 +56,8 @@ export function ClubDetailPage() {
     queryKey: ['clubs', clubId],
     queryFn: async () => (await apiClient.get<ClubDetailDto>(`/clubs/${clubId}`)).data,
   })
+
+  useDocumentTitle(clubQuery.data?.name)
 
   return (
     <>
@@ -116,8 +120,9 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
     editDialog.openDialog()
   }
 
+  // §23.2: bomboş ekran yerine iskelet — üst bileşen `club` gelene kadar undefined geçer.
   if (!club) {
-    return null
+    return <Skeleton variant="rounded" height={180} />
   }
 
   return (
@@ -263,6 +268,7 @@ function MembersTab({ clubId }: { clubId: number }) {
   return (
     <Box>
       <DataTable
+        mobileHiddenFields={['joinedAtUtc']}
         rows={membersQuery.data?.items ?? []}
         columns={columns}
         getRowId={(row) => row.membershipId}

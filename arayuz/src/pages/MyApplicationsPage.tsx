@@ -11,8 +11,11 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import { ApplicationStatusChip } from '../components/ui/StatusChip'
 import type { ClubApplicationListItemDto, MembershipApplicationListItemDto } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function MyApplicationsPage() {
+  useDocumentTitle('Başvurularım')
+
   const [tab, setTab] = useState(0)
 
   return (

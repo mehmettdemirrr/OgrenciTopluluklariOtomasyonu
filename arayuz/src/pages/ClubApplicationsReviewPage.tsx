@@ -17,8 +17,11 @@ import {
   type ClubApplicationDecisionFormValues,
 } from '../schemas/clubApplicationDecisionForm'
 import type { ClubApplicationListItemDto, PagedResult } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function ClubApplicationsReviewPage() {
+  useDocumentTitle('Topluluk Kurma Başvuruları')
+
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const [rejectTarget, setRejectTarget] = useState<ClubApplicationListItemDto | null>(null)
@@ -102,6 +105,7 @@ export function ClubApplicationsReviewPage() {
       <PageHeader title="Topluluk Kurma Başvuruları" description="Öğrencilerin topluluk kurma başvurularını onaylayın veya reddedin." />
 
       <DataTable
+        mobileHiddenFields={['proposedAdvisorTitle', 'appliedAtUtc']}
         rows={applicationsQuery.data?.items ?? []}
         columns={columns}
         getRowHeight={() => 'auto'}

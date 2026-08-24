@@ -7,6 +7,7 @@ import { apiClient } from '../../api/client'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { SectionCard } from '../../components/ui/SectionCard'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import type { PagedResult, PublicAnnouncementListItemDto, PublicClubDetailDto, PublicEventListItemDto } from '../../api/types'
 
 export function PublicClubDetailPage() {
@@ -17,6 +18,8 @@ export function PublicClubDetailPage() {
     queryKey: ['public-club', clubId],
     queryFn: async () => (await apiClient.get<PublicClubDetailDto>(`/public/clubs/${clubId}`)).data,
   })
+
+  useDocumentTitle(clubQuery.data?.name)
 
   const eventsQuery = useQuery({
     queryKey: ['public-events', 'club', clubId],

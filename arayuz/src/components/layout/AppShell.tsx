@@ -28,7 +28,16 @@ export function AppShell() {
           variant="permanent"
           sx={{
             display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { width: SIDENAV_WIDTH, border: 'none' },
+            '& .MuiDrawer-paper': {
+              width: SIDENAV_WIDTH,
+              border: 'none',
+              // docs/PLAN-V4.md §23.1: docked kağıt, sayfa içeriğiyle birlikte uzuyordu (uzun bir
+              // panelde nav kutusu 1598px oluyor) ve menünün kaydırma alanı 400px'e sıkışıp son
+              // öğeleri kırpıyordu. Menü yüksekliği sayfa boyundan bağımsız olmalı.
+              position: 'fixed',
+              top: 0,
+              height: '100vh',
+            },
           }}
           open
         >

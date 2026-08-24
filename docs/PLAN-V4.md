@@ -433,7 +433,7 @@ API'den gelen `message` alanını atıyordu — yani devredilen üyelik sayısı
 
 ---
 
-## Faz 23 — Arayüz cilası (O-8, A-52)
+## Faz 23 — Arayüz cilası (O-8, A-52) — ✅ tamamlandı
 
 Backend'e **hiç dokunulmaz** — `git diff --stat src/ tests/` boş kalmalı (Faz 8/16 disiplini).
 PLAN-V3 §16.3'te ertelenen maddeler + Faz 17/18'de büyüyen menünün yarattığı yeni sorun.
@@ -471,9 +471,47 @@ menü **14'ten 13'e** iner ve gruplar 3-4 öğeye düşer.
 **A-52 (yeni karar):** her sayfa `useDocumentTitle` ile kendi sekme başlığını yazar; her veri çeken
 görünüm yükleme durumunda `Skeleton` gösterir (boş ekran + zıplama yerine).
 
+### 23.3 Teşhis düzeltmesi — menü neden sığmıyordu
+
+§23.1 sorunu **"14 menü öğesi 900px'e sığmıyor"** diye teşhis etmişti. Yanlıştı. Ölçüm:
+
+| Eleman | Yükseklik |
+|---|---|
+| Çekmece kağıdı | 900 px |
+| Menü kaydırma alanı | **400 px** (içerik 659 px → 259 px kırpılıyor) |
+| **Hangfire bağlantısı** | **435 px** |
+
+`MuiListItemButton` `flex-grow: 1` taşır — bir `ListItem` satırının içinde yatay büyümek üzere
+tasarlandığı için. Sütun yönlü flex kabında **doğrudan çocuk** olduğunda bu büyüme *dikey* olur ve
+tek bir bağlantı menünün yarısını yutar. Menüdeki öğe sayısıyla hiç ilgisi yoktu; 10 öğeyken de
+kırpılıyordu (Faz 18 doğrulama ekran görüntüsündeki kayma buydu).
+
+İkinci sorun: `variant="permanent"` çekmecenin kağıdı akış içindeydi ve **sayfa içeriğiyle birlikte
+uzuyordu** (uzun panelde `nav` kutusu 1598 px). Kağıt `position: fixed` + `height: 100vh` yapıldı —
+menü yüksekliği artık sayfa boyundan bağımsız.
+
+Düzeltmeden sonra: kaydırma taşması **0 px**, 13 öğenin tamamı kağıdın içinde.
+
 ### Çıkış koşulu
 `git diff --stat src/ tests/` **boş** · 1400×900'de admin menüsü **kaydırmasız** sığıyor · her sayfanın
 sekme başlığı farklı · 375px genişlikte hiçbir tablo yatay taşmıyor · `npm run build` + `npm run lint` temiz.
+
+### Tamamlanma notu
+
+**`git diff --stat src/ tests/` boş** — backend'e tek satır dokunulmadı (Faz 8/16 disiplini korundu).
+
+| Kontrol | Sonuç |
+|---|---|
+| 1400×900'de menü taşması | **0 px**, 13 öğe / 5 grup, hepsi kağıdın içinde |
+| Sekme başlıkları | 5 sayfa denendi, hepsi farklı (`Kulüpler · MTÜ…`, `Yetki Matrisi · MTÜ…`) |
+| 375px yatay taşma | **0 px** |
+| Mobil kolon gizleme | Masaüstü `Rol Adı · Sistem Rolü · İzinler · (aksiyon)` → mobil `Rol Adı · (aksiyon)` |
+| `npm run build` / `oxlint` | Temiz (yalnızca iki eski `only-export-components` uyarısı) |
+
+**Yapılanlar:** sidebar 5 gruba bölündü (Panel / Keşfet / Benim / İnceleme / Yönetim; boş grup
+başlığı çizilmez) · `useDocumentTitle` 22 sayfaya + 3 detay sayfasına (dinamik: kulüp/etkinlik adı) ·
+`CardGridSkeleton` altı kart galerisine · `DataTable.mobileHiddenFields` 13 tablonun tamamına ·
+`EventDetailPage`'in `return null`'ı yükleme iskeleti + 404 için sayfa içi `Alert`e ayrıldı.
 
 ---
 

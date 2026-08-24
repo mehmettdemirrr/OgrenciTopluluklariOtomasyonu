@@ -7,6 +7,7 @@ import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import type { AuditAction, AuditLogListItemDto, PagedResult, TrafficLogListItemDto } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const actionLabels: Record<AuditAction, { label: string; color: 'success' | 'info' | 'error' }> = {
   Insert: { label: 'Oluşturma', color: 'success' },
@@ -15,6 +16,8 @@ const actionLabels: Record<AuditAction, { label: string; color: 'success' | 'inf
 }
 
 export function AuditLogPage() {
+  useDocumentTitle('Denetim İzi')
+
   const [tab, setTab] = useState(0)
   const [correlationFilter, setCorrelationFilter] = useState<string | null>(null)
 
@@ -120,6 +123,7 @@ function DataChangesTab({
       </SectionCard>
 
       <DataTable
+        mobileHiddenFields={['entityId', 'userId']}
         rows={auditLogsQuery.data?.items ?? []}
         columns={columns}
         loading={auditLogsQuery.isFetching}
@@ -215,6 +219,7 @@ function TrafficTab({ onShowRelatedChanges }: { onShowRelatedChanges: (correlati
       </SectionCard>
 
       <DataTable
+        mobileHiddenFields={['durationMs', 'ipAddress', 'statusCode']}
         rows={trafficLogsQuery.data?.items ?? []}
         columns={columns}
         loading={trafficLogsQuery.isFetching}

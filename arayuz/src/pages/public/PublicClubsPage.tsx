@@ -2,14 +2,18 @@ import { Box, Card, CardContent, CardMedia, Grid, Typography } from '@mui/materi
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../../api/client'
+import { CardGridSkeleton } from '../../components/ui/CardGridSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { ResultPagination } from '../../components/ui/ResultPagination'
 import { SearchField } from '../../components/ui/SearchField'
 import { useSearchPagedQuery } from '../../hooks/useSearchPagedQuery'
 import type { PagedResult, PublicClubListItemDto } from '../../api/types'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 export function PublicClubsPage() {
+  useDocumentTitle('Kulüpler')
+
   // A-50/Y-62: arama sunucuda. Önceden 200 istenip 100 alınıyor ve gerisi istemcide ayıklanıyordu.
   const { search, setSearch, items, pageIndex, setPageIndex, pageCount, totalCount, query } =
     useSearchPagedQuery<PublicClubListItemDto>({
@@ -27,6 +31,8 @@ export function PublicClubsPage() {
       <Box sx={{ mb: 3 }}>
         <SearchField value={search} onChange={setSearch} placeholder="Kulüp ara…" />
       </Box>
+
+      {query.isLoading && <CardGridSkeleton withMedia />}
 
       {!query.isLoading && items.length === 0 && (
         <EmptyState icon={GroupsOutlinedIcon} title="Kulüp bulunamadı" description="Arama kriterinizi değiştirmeyi deneyin." />

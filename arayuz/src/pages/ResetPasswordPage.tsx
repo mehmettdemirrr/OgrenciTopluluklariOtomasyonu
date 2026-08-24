@@ -6,6 +6,7 @@ import { Link as RouterLink, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{6,}$/
 
@@ -16,6 +17,8 @@ const resetPasswordSchema = z.object({
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>
 
 export function ResetPasswordPage() {
+  useDocumentTitle('Şifre Sıfırlama')
+
   const [searchParams] = useSearchParams()
   const userId = searchParams.get('userId')
   const token = searchParams.get('token')

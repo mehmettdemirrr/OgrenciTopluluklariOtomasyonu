@@ -16,6 +16,7 @@ import { StatCard } from '../components/ui/StatCard'
 import { ReportStatusChip } from '../components/ui/StatusChip'
 import { brand } from '../theme/tokens'
 import type { ClubListItemDto, PagedResult, ReportRequestListItemDto, ReportType, TermSummaryRowDto } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const reportTypeLabels: Record<ReportType, string> = {
   ClubMembers: 'Kulüp Üyeleri',
@@ -24,6 +25,8 @@ const reportTypeLabels: Record<ReportType, string> = {
 }
 
 export function ReportsPage() {
+  useDocumentTitle('Raporlarım')
+
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const [selectedReportType, setSelectedReportType] = useState<ReportType>('ClubMembers')
@@ -183,6 +186,7 @@ export function ReportsPage() {
       </SectionCard>
 
       <DataTable
+        mobileHiddenFields={['requestedAtUtc']}
         rows={reportsQuery.data?.items ?? []}
         columns={columns}
         loading={reportsQuery.isFetching}

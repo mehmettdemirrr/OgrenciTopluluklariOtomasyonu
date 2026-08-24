@@ -9,6 +9,7 @@ import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import type { RegistrationDepartmentDto } from '../api/types'
 import logo from '../assets/logo.png'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const currentYear = new Date().getFullYear()
 
@@ -27,6 +28,8 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>
 
 export function RegisterPage() {
+  useDocumentTitle('Kayıt Ol')
+
   const [serverError, setServerError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 

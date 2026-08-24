@@ -16,6 +16,7 @@ import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useSearchPagedQuery } from '../hooks/useSearchPagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { DataTable } from '../components/ui/DataTable'
+import { CardGridSkeleton } from '../components/ui/CardGridSkeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
@@ -24,8 +25,11 @@ import { SearchField } from '../components/ui/SearchField'
 import { EventStatusChip } from '../components/ui/StatusChip'
 import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { ClubListItemDto, EventListItemDto, PagedResult } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function EventsPage() {
+  useDocumentTitle('Etkinlikler')
+
   const { hasPermission } = useAuth()
   const [tab, setTab] = useState(0)
   const canApprove = hasPermission(Permissions.EventsApprove)
@@ -94,6 +98,8 @@ function UpcomingTab() {
       <Stack sx={{ mb: 3 }}>
         <SearchField value={search} onChange={setSearch} placeholder="Etkinlik ara…" />
       </Stack>
+
+      {upcomingQuery.isLoading && <CardGridSkeleton />}
 
       {!upcomingQuery.isLoading && items.length === 0 && (
         <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" description="Şu anda yayında ve başlamamış bir etkinlik bulunmuyor." />
@@ -276,6 +282,7 @@ function EventsTab() {
         />
       ) : (
         <DataTable
+          mobileHiddenFields={['startDateUtc']}
           rows={eventsQuery.data?.items ?? []}
           columns={columns}
           loading={eventsQuery.isFetching}
@@ -445,6 +452,7 @@ function ApprovalQueueTab() {
 
   return (
     <DataTable
+      mobileHiddenFields={['clubName', 'startDateUtc']}
       rows={queueQuery.data?.items ?? []}
       columns={columns}
       loading={queueQuery.isFetching}

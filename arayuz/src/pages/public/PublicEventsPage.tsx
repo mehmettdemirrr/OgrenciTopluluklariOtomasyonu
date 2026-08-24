@@ -2,14 +2,18 @@ import { Box, Card, CardContent, CardMedia, Chip, Grid, Stack, Typography } from
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import { apiClient } from '../../api/client'
+import { CardGridSkeleton } from '../../components/ui/CardGridSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { ResultPagination } from '../../components/ui/ResultPagination'
 import { SearchField } from '../../components/ui/SearchField'
 import { useSearchPagedQuery } from '../../hooks/useSearchPagedQuery'
 import type { PagedResult, PublicEventListItemDto } from '../../api/types'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 export function PublicEventsPage() {
+  useDocumentTitle('Etkinlikler')
+
   const { search, setSearch, items, pageIndex, setPageIndex, pageCount, totalCount, query } =
     useSearchPagedQuery<PublicEventListItemDto>({
       queryKey: ['public-events'],
@@ -27,7 +31,9 @@ export function PublicEventsPage() {
         <SearchField value={search} onChange={setSearch} placeholder="Etkinlik ara…" />
       </Box>
 
-      {!query.isLoading && items.length === 0 ? (
+      {query.isLoading ? (
+        <CardGridSkeleton withMedia />
+      ) : items.length === 0 ? (
         <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" />
       ) : (
         <Grid container spacing={2}>

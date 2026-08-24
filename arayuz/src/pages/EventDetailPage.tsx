@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Skeleton, Stack, TextField, Typography } from '@mui/material'
 import { z } from 'zod'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -49,6 +50,8 @@ export function EventDetailPage() {
     queryKey: ['events', eventId],
     queryFn: async () => (await apiClient.get<EventListItemDto>(`/events/${eventId}`)).data,
   })
+
+  useDocumentTitle(eventQuery.data?.title)
 
   // Y-62: önceden bu soru için TÜM /events/mine listesi (200'lük tek sayfa) çekiliyordu.
   const registrationQuery = useQuery({
@@ -190,9 +193,24 @@ export function EventDetailPage() {
     },
   ]
 
+  // §23.2: `return null` hem yüklenirken hem 404'te bomboş ekran veriyordu — ikisi ayrıldı.
+  if (eventQuery.isLoading) {
+    return (
+      <Stack spacing={2}>
+        <Skeleton variant="text" width={280} height={40} />
+        <Skeleton variant="rounded" height={180} />
+        <Skeleton variant="rounded" height={240} />
+      </Stack>
+    )
+  }
+
   const event = eventQuery.data
   if (!event) {
-    return null
+    return (
+      <Alert severity="error" action={<Button size="small" onClick={() => navigate('/events')}>Etkinliklere Dön</Button>}>
+        {extractErrorMessage(eventQuery.error, 'Etkinlik bulunamadı ya da görüntüleme yetkiniz yok.')}
+      </Alert>
+    )
   }
 
   const canEdit = canManage && (event.status === 'Draft' || event.status === 'Rejected')
@@ -278,6 +296,7 @@ export function EventDetailPage() {
       {canManage && (
         <SectionCard title="Katılımcılar">
           <DataTable
+            mobileHiddenFields={['registeredAtUtc']}
             rows={participantsQuery.data?.items ?? []}
             columns={participantColumns}
             getRowId={(row) => row.studentId}

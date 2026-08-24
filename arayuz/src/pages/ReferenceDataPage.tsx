@@ -24,6 +24,7 @@ import {
   type NameFormValues,
 } from '../schemas/referenceForm'
 import type { AcademicTermListItemDto, DepartmentListItemDto, FacultyListItemDto, PagedResult } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 function NameFormField({ control, label }: { control: Control<NameFormValues>; label: string }) {
   return (
@@ -38,6 +39,8 @@ function NameFormField({ control, label }: { control: Control<NameFormValues>; l
 }
 
 export function ReferenceDataPage() {
+  useDocumentTitle('Referans Verisi')
+
   const [tab, setTab] = useState(0)
 
   return (
@@ -493,6 +496,7 @@ function TermsTab() {
       </Box>
 
       <DataTable
+        mobileHiddenFields={['startDateUtc', 'endDateUtc']}
         rows={termsQuery.data?.items ?? []}
         columns={columns}
         loading={termsQuery.isFetching}

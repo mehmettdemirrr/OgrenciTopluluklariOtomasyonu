@@ -11,8 +11,11 @@ import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
 import { ApplicationStatusChip } from '../components/ui/StatusChip'
 import type { MembershipApplicationListItemDto, PagedResult } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function MembershipReviewPage() {
+  useDocumentTitle('Başvuru İncele')
+
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const [rejectTarget, setRejectTarget] = useState<MembershipApplicationListItemDto | null>(null)
@@ -89,6 +92,7 @@ export function MembershipReviewPage() {
       <PageHeader title="Üyelik Başvuruları" description="Kulüplerinize gelen üyelik başvurularını onaylayın veya reddedin." />
 
       <DataTable
+        mobileHiddenFields={['appliedAtUtc']}
         rows={applicationsQuery.data?.items ?? []}
         columns={columns}
         loading={applicationsQuery.isFetching}

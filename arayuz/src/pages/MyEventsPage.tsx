@@ -5,14 +5,18 @@ import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { CardGridSkeleton } from '../components/ui/CardGridSkeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { EventStatusChip } from '../components/ui/StatusChip'
 import type { EventListItemDto, PagedResult } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function MyEventsPage() {
+  useDocumentTitle('Etkinliklerim')
+
   const queryClient = useQueryClient()
   const notify = useNotifier()
 
@@ -39,7 +43,9 @@ export function MyEventsPage() {
     <>
       <PageHeader title="Etkinliklerim" description="Kayıt olduğunuz etkinlikler." />
 
-      {!mineQuery.isLoading && items.length === 0 ? (
+      {mineQuery.isLoading ? (
+        <CardGridSkeleton count={3} />
+      ) : items.length === 0 ? (
         <EmptyState icon={EventOutlinedIcon} title="Kayıtlı olduğunuz bir etkinlik yok" description="Etkinlikler sayfasından yaklaşan etkinliklere katılabilirsiniz." />
       ) : (
         <Grid container spacing={2}>

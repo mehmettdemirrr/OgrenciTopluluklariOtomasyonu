@@ -6,6 +6,7 @@ import { Link as RouterLink } from 'react-router-dom'
 import { z } from 'zod'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'E-posta gerekli.').email('Geçerli bir e-posta girin.'),
@@ -14,6 +15,8 @@ const forgotPasswordSchema = z.object({
 type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
 
 export function ForgotPasswordPage() {
+  useDocumentTitle('Şifremi Unuttum')
+
   const [serverError, setServerError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 

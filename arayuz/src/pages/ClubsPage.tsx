@@ -30,6 +30,7 @@ import { Permissions } from '../auth/permissions'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { useSearchPagedQuery } from '../hooks/useSearchPagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
+import { CardGridSkeleton } from '../components/ui/CardGridSkeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
@@ -38,10 +39,13 @@ import { SearchField } from '../components/ui/SearchField'
 import { createClubFormSchema, emptyCreateClubFormValues, type CreateClubFormValues } from '../schemas/clubForm'
 import { clubApplicationFormSchema, emptyClubApplicationFormValues, type ClubApplicationFormValues } from '../schemas/clubApplicationForm'
 import type { AcademicStaffListItemDto, ClubListItemDto, PagedResult, SelectableAcademicStaffDto } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 
 export function ClubsPage() {
+  useDocumentTitle('Kulüpler')
+
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const { hasPermission } = useAuth()
@@ -191,6 +195,8 @@ export function ClubsPage() {
           <ToggleButton value="inactive">Pasif</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
+
+      {clubsQuery.isLoading && <CardGridSkeleton withMedia />}
 
       {!clubsQuery.isLoading && clubs.length === 0 && (
         <EmptyState icon={GroupsOutlinedIcon} title="Kulüp bulunamadı" description="Arama veya filtre kriterlerinizi değiştirmeyi deneyin." />

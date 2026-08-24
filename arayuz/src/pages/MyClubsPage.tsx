@@ -7,12 +7,16 @@ import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { CardGridSkeleton } from '../components/ui/CardGridSkeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { ClubRoleChip } from '../components/ui/StatusChip'
 import type { MyClubMembershipDto } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function MyClubsPage() {
+  useDocumentTitle('Kulüplerim')
+
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const [leaveTarget, setLeaveTarget] = useState<MyClubMembershipDto | null>(null)
@@ -52,7 +56,9 @@ export function MyClubsPage() {
         }
       />
 
-      {!myClubsQuery.isLoading && items.length === 0 ? (
+      {myClubsQuery.isLoading ? (
+        <CardGridSkeleton count={3} />
+      ) : items.length === 0 ? (
         <EmptyState
           icon={GroupsOutlinedIcon}
           title="Henüz bir topluluğa üye değilsiniz"

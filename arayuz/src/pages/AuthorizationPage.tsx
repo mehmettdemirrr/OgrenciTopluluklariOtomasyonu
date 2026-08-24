@@ -31,6 +31,7 @@ import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
 import { emptyNameFormValues, nameFormSchema, type NameFormValues } from '../schemas/referenceForm'
 import type { PagedResult, PermissionCatalogItemDto, RoleListItemDto, UserListItemDto } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 function groupByCategory(catalog: PermissionCatalogItemDto[]): Map<string, PermissionCatalogItemDto[]> {
   const groups = new Map<string, PermissionCatalogItemDto[]>()
@@ -44,6 +45,8 @@ function groupByCategory(catalog: PermissionCatalogItemDto[]): Map<string, Permi
 }
 
 export function AuthorizationPage() {
+  useDocumentTitle('Yetki Matrisi')
+
   const [tab, setTab] = useState(0)
 
   const permissionsQuery = useQuery({
@@ -187,6 +190,7 @@ function RolesTab({ permissionCatalog }: { permissionCatalog: PermissionCatalogI
       </Box>
 
       <DataTable
+        mobileHiddenFields={['isSystemRole', 'permissions']}
         rows={rolesQuery.data?.items ?? []}
         columns={columns}
         getRowHeight={() => 'auto'}
@@ -385,6 +389,7 @@ function UsersTab() {
       />
 
       <DataTable
+        mobileHiddenFields={['roles']}
         rows={usersQuery.data?.items ?? []}
         columns={columns}
         getRowHeight={() => 'auto'}

@@ -10,6 +10,7 @@ import { useNotifier } from '../notifications/NotifierProvider'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import type { MeResponseDto, RegistrationDepartmentDto } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{6,}$/
 const currentYear = new Date().getFullYear()
@@ -30,6 +31,8 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>
 
 export function ProfilePage() {
+  useDocumentTitle('Profilim')
+
   const notify = useNotifier()
   const queryClient = useQueryClient()
 

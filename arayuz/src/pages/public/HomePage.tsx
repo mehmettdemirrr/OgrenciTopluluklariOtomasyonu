@@ -8,8 +8,11 @@ import { useAuth } from '../../auth/AuthContext'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { SectionCard } from '../../components/ui/SectionCard'
 import type { PagedResult, PublicAnnouncementListItemDto, PublicClubListItemDto, PublicEventListItemDto } from '../../api/types'
+import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 export function HomePage() {
+  useDocumentTitle('Ana Sayfa')
+
   const { isAuthenticated } = useAuth()
 
   const announcementsQuery = useQuery({

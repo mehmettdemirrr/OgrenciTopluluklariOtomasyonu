@@ -86,6 +86,7 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
       )}
 
       <DataTable
+        mobileHiddenFields={['startDateUtc']}
         rows={eventsQuery.data?.items ?? []}
         columns={columns}
         loading={eventsQuery.isFetching}

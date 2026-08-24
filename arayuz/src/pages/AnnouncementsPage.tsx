@@ -19,10 +19,13 @@ import { SectionCard } from '../components/ui/SectionCard'
 import { AnnouncementVisibilityChip } from '../components/ui/StatusChip'
 import { announcementFormSchema, type AnnouncementFormValues } from '../schemas/announcementForm'
 import type { AnnouncementListItemDto, PagedResult } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const emptyAnnouncementFormValues: AnnouncementFormValues = { title: '', content: '', visibility: 'Public' }
 
 export function AnnouncementsPage() {
+  useDocumentTitle('Duyurular')
+
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const { hasPermission } = useAuth()

@@ -15,8 +15,11 @@ import { SectionCard } from '../components/ui/SectionCard'
 import { StatCard } from '../components/ui/StatCard'
 import { brand } from '../theme/tokens'
 import type { DashboardSummaryDto, EventListItemDto, MembershipApplicationListItemDto, PagedResult } from '../api/types'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function DashboardPage() {
+  useDocumentTitle('Panel')
+
   const { hasPermission } = useAuth()
   const canReviewApplications = hasPermission(Permissions.MembershipsWrite)
 

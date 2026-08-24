@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import logo from '../assets/logo.png'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 // Y-35: yalnızca biçim doğrulanır — "bu e-posta var mı" gibi iş kuralı kararları API'de verilir.
 const loginSchema = z.object({
@@ -17,6 +18,8 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>
 
 export function LoginPage() {
+  useDocumentTitle('Giriş Yap')
+
   const { login } = useAuth()
   const navigate = useNavigate()
   const [serverError, setServerError] = useState<string | null>(null)
