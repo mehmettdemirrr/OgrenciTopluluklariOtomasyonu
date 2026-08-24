@@ -408,12 +408,12 @@ function TermsTab() {
   })
 
   const setCurrentMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiClient.put(`/academic-terms/${id}/current`)
-    },
-    onSuccess: () => {
-      notify({ message: 'Güncel dönem güncellendi.', severity: 'success' })
+    // A-51: cevap kaç üyeliğin devredildiğini söyler; sabit metin yazmak o sayıyı yutardı.
+    mutationFn: async (id: number) => (await apiClient.put<{ message?: string }>(`/academic-terms/${id}/current`)).data,
+    onSuccess: (data) => {
+      notify({ message: data?.message || 'Güncel dönem güncellendi.', severity: 'success' })
       queryClient.invalidateQueries({ queryKey: ['academic-terms'] })
+      queryClient.invalidateQueries({ queryKey: ['clubs-mine'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Güncel dönem güncellenemedi.'), severity: 'error' }),
   })

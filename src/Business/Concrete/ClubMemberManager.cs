@@ -37,8 +37,17 @@ public sealed class ClubMemberManager(
             return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success([]);
         }
 
+        // docs/PLAN-V4.md §22.3: buraya kadar TÜM dönemlerin üyelikleri dönüyordu, oysa
+        // EventManager.EnsureClubWriteAccessAsync yalnızca GÜNCEL dönemin üyeliğine bakar —
+        // arayüz "başkansın" derken backend "değilsin" diyordu. Artık ikisi aynı dönemi konuşuyor.
+        var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
+        if (term is null)
+        {
+            return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success([]);
+        }
+
         var memberships = await clubMembershipRepository
-            .GetListAsync(m => m.StudentId == student.Id, cancellationToken)
+            .GetListAsync(m => m.StudentId == student.Id && m.AcademicTermId == term.Id, cancellationToken)
             .ConfigureAwait(false);
 
         var clubIds = memberships.Select(m => m.ClubId).Distinct().ToList();
@@ -57,6 +66,7 @@ public sealed class ClubMemberManager(
                     ClubIsActive = club?.IsActive ?? false,
                     ClubRole = m.ClubRole,
                     JoinedAtUtc = m.JoinedAtUtc,
+                    AcademicTermName = term.Name,
                 };
             })
             .ToList();

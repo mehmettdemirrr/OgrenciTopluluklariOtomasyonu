@@ -229,6 +229,8 @@ export interface MyClubMembershipDto {
   clubIsActive: boolean
   clubRole: ClubRole
   joinedAtUtc: string
+  /** Liste güncel döneme filtreli (PLAN-V4 §22.3). */
+  academicTermName: string
 }
 
 // src/Entities/Dtos/Dashboard/PersonalDashboardStatsDto.cs

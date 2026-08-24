@@ -14,4 +14,7 @@ public sealed class MyClubMembershipDto
     public ClubRole ClubRole { get; set; }
 
     public DateTime JoinedAtUtc { get; set; }
+
+    /// <summary>docs/PLAN-V4.md §22.3: liste güncel döneme filtreli — hangi dönem olduğu görünsün.</summary>
+    public required string AcademicTermName { get; set; }
 }

@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Business.Concrete;
 using Business.DTOs.Reference;
 using Core.DataAccess;
+using Core.Utilities.Time;
 using Entities;
 using Moq;
 using Xunit;
@@ -12,11 +13,32 @@ namespace Business.Tests;
 public class AcademicTermManagerTests
 {
     private readonly Mock<IEntityRepository<AcademicTerm>> _academicTermRepository = new();
+    private readonly Mock<IEntityRepository<ClubMembership>> _clubMembershipRepository = new();
+    private readonly Mock<IEntityRepository<Club>> _clubRepository = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
+    private readonly Mock<IClock> _clock = new();
     private readonly AcademicTermManager _sut;
 
-    public AcademicTermManagerTests() =>
-        _sut = new AcademicTermManager(_academicTermRepository.Object, _unitOfWork.Object);
+    public AcademicTermManagerTests()
+    {
+        _clock.Setup(c => c.UtcNow).Returns(new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc));
+
+        // A-51: devir kaynak dönemin üyeliklerini okur. Varsayılan olarak boş — devir kurallarının
+        // kendisi entegrasyon testinde (TermRolloverTests) gerçek veritabanına karşı sınanıyor.
+        _clubMembershipRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _clubRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        _sut = new AcademicTermManager(
+            _academicTermRepository.Object,
+            _clubMembershipRepository.Object,
+            _clubRepository.Object,
+            _unitOfWork.Object,
+            _clock.Object);
+    }
 
     [Fact(DisplayName = "SetCurrent: zaten güncel olan dönem için hiç yazma yapılmaz")]
     public async Task SetCurrentAsync_AlreadyCurrent_DoesNotSave()
@@ -43,7 +65,7 @@ public class AcademicTermManagerTests
         Assert.False(result.IsSuccess);
     }
 
-    [Fact(DisplayName = "SetCurrent: eski dönem önce false yapılıp kaydedilir, sonra hedef true yapılıp kaydedilir (iki ayrı SaveChanges)")]
+    [Fact(DisplayName = "SetCurrent: eski dönem önce false yapılıp kaydedilir, sonra hedef true yapılıp kaydedilir (devredilecek üyelik yokken iki SaveChanges)")]
     public async Task SetCurrentAsync_SwitchesCurrentTerm_SavesTwiceInOrder()
     {
         var oldCurrent = new AcademicTerm { Id = 1, Name = "2026-Bahar", StartDateUtc = DateTime.UtcNow.AddMonths(-6), EndDateUtc = DateTime.UtcNow.AddMonths(-1), IsCurrent = true };

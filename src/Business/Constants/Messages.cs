@@ -58,6 +58,9 @@ public static class Messages
     public const string AcademicTermNameTaken = "Bu isimde bir akademik dönem zaten var.";
     public const string AcademicTermAlreadyCurrent = "Bu dönem zaten güncel dönem.";
     public const string AcademicTermSetCurrent = "Güncel dönem güncellendi.";
+
+    /// <summary>docs/MIMARI.md · A-51: {0} = yeni döneme taşınan üyelik sayısı.</summary>
+    public const string AcademicTermSetCurrentWithRollover = "Güncel dönem güncellendi. {0} üyelik yeni döneme taşındı.";
     public const string InvalidAcademicTermDateRange = "Bitiş tarihi başlangıç tarihinden sonra olmalıdır.";
 
     // Faz 13 — Referans veri olgunluğu (A-12)

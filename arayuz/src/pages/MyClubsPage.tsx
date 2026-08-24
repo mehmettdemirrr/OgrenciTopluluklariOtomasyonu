@@ -42,7 +42,15 @@ export function MyClubsPage() {
 
   return (
     <>
-      <PageHeader title="Kulüplerim" description="Üyesi olduğunuz topluluklar ve bu topluluklardaki rolünüz." />
+      {/* §22.3: liste artık yalnızca güncel dönemi gösteriyor — hangi dönem olduğu başlıkta yazar. */}
+      <PageHeader
+        title="Kulüplerim"
+        description={
+          items.length > 0
+            ? `${items[0].academicTermName} döneminde üyesi olduğunuz topluluklar ve bu topluluklardaki rolünüz.`
+            : 'Güncel dönemde üyesi olduğunuz topluluklar ve bu topluluklardaki rolünüz.'
+        }
+      />
 
       {!myClubsQuery.isLoading && items.length === 0 ? (
         <EmptyState

@@ -358,7 +358,7 @@ kulübü aramayla dahi göstermemesi (Y-58).
 
 ---
 
-## Faz 22 — Otomatik dönem devri (K-30, A-51)
+## Faz 22 — Otomatik dönem devri (K-30, A-51) — ✅ tamamlandı
 
 Planın en riskli fazı: **tek bir işlem binlerce satır yazar.**
 
@@ -396,11 +396,40 @@ o yüzden senkron tutuluyor.
 backend "değilsin" diyor. Düzeltme: `GetMineAsync` güncel döneme filtrelenir; DTO'ya `AcademicTermName`
 eklenir ki hangi döneme ait olduğu görünsün.
 
+### 22.4 Planda olmayan bir çakışma: hedef dönemde zaten bir başkan varsa
+
+Devirden önce hedef döneme elle bir başkan atanmışsa, kaynak dönemin başkanını olduğu gibi kopyalamak
+`IX_ClubMemberships_ClubId_AcademicTermId_President` (A-39) filtreli unique index'ini ihlal eder ve
+**tüm devir transaction'ını düşürür**. Kural: elle atanan başkanın sözü geçer, devredilen başkan
+`Officer`'a düşer. Y-23 açısından kayıp yok — `EnsureClubWriteAccessAsync` `Officer`'ı da kabul eder,
+yani kişi kulübü yönetmeye devam eder; yalnızca başkanlık unvanı el değiştirmez.
+
 ### Çıkış koşulu
 İki kulüpte üyeliği (biri `President`) olan bir öğrenci · admin yeni dönemi güncel yapar · öğrencinin
 üyelikleri **rolleriyle** yeni dönemde · **`President` rolüyle etkinlik oluşturabiliyor** (yetki
 kaybı yok) · devir **ikinci kez** çalıştırılınca yeni satır oluşmuyor (idempotent) · pasif kulübün
 üyelikleri devredilmemiş · ayrılmış (soft delete) üyelik devredilmemiş.
+
+### Tamamlanma notu
+
+**Testler:** 296/296 yeşil (176 Business + 10 Architecture + 110 Integration). Yeni `TermRolloverTests`
+5 test:
+
+| Test | Kanıt |
+|---|---|
+| Devir rolleri korur | `President` → `President`, `Member` → `Member`; kaynak dönemin satırları duruyor (devir **kopyalar, taşımaz**) |
+| Pasif kulüp ve ayrılmış üyelik atlanır | 4 kaynak üyelikten yalnızca 2'si devredildi |
+| Devredilen başkan etkinlik oluşturabiliyor | Fazın varlık sebebi. Yalnızca `Member` devredilen kulüpte hâlâ **403** — Y-23 kapsam kuralı gevşemedi |
+| Kopyalama döngüsünün kendi idempotentliği | Hedef dönemde zaten var olan (kulüp, öğrenci) çifti atlanıyor, elle konulan satırın rolü **ezilmiyor**. `SetCurrentAsync`'in `AlreadyCurrent` kısa devresi devre dışıyken sınandı |
+| Başkan çakışması (§22.4) | Devredilen başkan `Officer`'a düşüyor, elle atanan başkan kalıyor, index ihlali yok, etkinlik oluşturma hâlâ çalışıyor |
+
+**Canlı doğrulama:** admin yeni dönemi güncel yaptı → snackbar **"Güncel dönem güncellendi. 2 üyelik
+yeni döneme taşındı."** · öğrencinin iki `President` üyeliği yeni dönemde aynı rollerle · "Kulüplerim"
+başlığı yeni dönem adını yazıyor · aynı dönem tekrar güncel yapılınca satır sayısı değişmedi.
+
+**Yol boyunca çıkan düzeltme:** `ReferenceDataPage` başarı mesajını **sabit metinle** yazıyordu ve
+API'den gelen `message` alanını atıyordu — yani devredilen üyelik sayısı kullanıcıya hiç ulaşmıyordu.
+İlk canlı doğrulama bunu yakaladı (`rolloverMentionsCount: false`).
 
 ---
 

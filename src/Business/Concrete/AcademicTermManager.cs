@@ -1,13 +1,21 @@
+using System.Globalization;
 using Business.Abstract;
 using Business.Constants;
 using Business.DTOs.Reference;
 using Core.DataAccess;
 using Core.Utilities.Results;
+using Core.Utilities.Time;
 using Entities;
+using Entities.Enums;
 
 namespace Business.Concrete;
 
-public sealed class AcademicTermManager(IEntityRepository<AcademicTerm> academicTermRepository, IUnitOfWork unitOfWork) : IAcademicTermService
+public sealed class AcademicTermManager(
+    IEntityRepository<AcademicTerm> academicTermRepository,
+    IEntityRepository<ClubMembership> clubMembershipRepository,
+    IEntityRepository<Club> clubRepository,
+    IUnitOfWork unitOfWork,
+    IClock clock) : IAcademicTermService
 {
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
@@ -100,7 +108,95 @@ public sealed class AcademicTermManager(IEntityRepository<AcademicTerm> academic
         academicTermRepository.Update(target);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        return Result.Success(Messages.AcademicTermSetCurrent);
+        // A-51/K-30: dönem devri. Kaynak dönem, IsCurrent bayrağı düşürülmeden ÖNCE yakalanan
+        // `currentTerm`dir — bayrağa göre sorgulansaydı bu noktada hiçbir dönem güncel görünmezdi.
+        var carriedOver = currentTerm is null
+            ? 0
+            : await CarryOverMembershipsAsync(currentTerm.Id, target.Id, cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(
+            carriedOver == 0
+                ? Messages.AcademicTermSetCurrent
+                : string.Format(CultureInfo.InvariantCulture, Messages.AcademicTermSetCurrentWithRollover, carriedOver));
+    }
+
+    /// <summary>
+    /// docs/MIMARI.md · A-51: önceki dönemin üyeliklerini rolleriyle yeni döneme taşır.
+    /// <b>Idempotent</b>: hedef dönemde zaten var olan (kulüp, öğrenci) çifti atlanır, dolayısıyla
+    /// ikinci çalıştırma sıfır satır üretir. Soft-delete edilmiş üyelikler Y-16 query filter'ı
+    /// tarafından zaten elenir; pasif kulüplerin üyelikleri burada elenir.
+    /// </summary>
+    private async Task<int> CarryOverMembershipsAsync(int sourceTermId, int targetTermId, CancellationToken cancellationToken)
+    {
+        var source = await clubMembershipRepository
+            .GetListAsync(m => m.AcademicTermId == sourceTermId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (source.Count == 0)
+        {
+            return 0;
+        }
+
+        var clubIds = source.Select(m => m.ClubId).Distinct().ToList();
+        var activeClubIds = (await clubRepository
+                .GetListAsync(c => clubIds.Contains(c.Id) && c.IsActive, cancellationToken)
+                .ConfigureAwait(false))
+            .Select(c => c.Id)
+            .ToHashSet();
+
+        var existing = await clubMembershipRepository
+            .GetListAsync(m => m.AcademicTermId == targetTermId, cancellationToken)
+            .ConfigureAwait(false);
+
+        // Y-18: (ClubId, StudentId, AcademicTermId) benzersizdir — çakışacak satır hiç eklenmez.
+        var takenSlots = existing.Select(m => (m.ClubId, m.StudentId)).ToHashSet();
+
+        // A-39: bir kulüpte bir dönemde tek President (filtreli unique index).
+        var clubsWithPresident = existing.Where(m => m.ClubRole == ClubRole.President).Select(m => m.ClubId).ToHashSet();
+
+        var now = clock.UtcNow;
+        var carriedOver = 0;
+
+        foreach (var membership in source)
+        {
+            if (!activeClubIds.Contains(membership.ClubId))
+            {
+                continue;
+            }
+
+            if (!takenSlots.Add((membership.ClubId, membership.StudentId)))
+            {
+                continue;
+            }
+
+            var role = membership.ClubRole;
+            if (role == ClubRole.President && !clubsWithPresident.Add(membership.ClubId))
+            {
+                // Hedef dönemde bu kulübe elle bir başkan atanmışsa onun sözü geçer; devredilen
+                // başkan Officer'a düşer. Y-23 açısından kayıp yok — Officer da kulüp yönetebilir.
+                role = ClubRole.Officer;
+            }
+
+            await clubMembershipRepository.AddAsync(
+                new ClubMembership
+                {
+                    ClubId = membership.ClubId,
+                    StudentId = membership.StudentId,
+                    AcademicTermId = targetTermId,
+                    ClubRole = role,
+                    JoinedAtUtc = now,
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            carriedOver++;
+        }
+
+        if (carriedOver > 0)
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return carriedOver;
     }
 
     private static int ClampPageSize(int pageSize) =>
