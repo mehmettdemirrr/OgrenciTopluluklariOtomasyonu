@@ -11,7 +11,8 @@ import { NotifierProvider } from './notifications/NotifierProvider'
 import { theme } from './theme'
 import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { AuditLogPage } from './pages/AuditLogPage'
-import { AuthorizationPage } from './pages/AuthorizationPage'
+import { RolesPage } from './pages/RolesPage'
+import { UsersPage } from './pages/UsersPage'
 import { ClubApplicationsReviewPage } from './pages/ClubApplicationsReviewPage'
 import { ClubDetailPage } from './pages/ClubDetailPage'
 import { ClubsPage } from './pages/ClubsPage'
@@ -103,11 +104,27 @@ function App() {
                     }
                   />
 
+                  {/*
+                    Faz 29: "Yetki Matrisi" tek sayfa iki sekmeden iki rotaya ayrıldı.
+                    Eski /authorization adresi yönlendirilir — dışarıda kalmış bir link
+                    (yer imi, e-posta) kırılmasın.
+                  */}
+                  <Route path="/authorization" element={<Navigate to="/authorization/roles" replace />} />
+
                   <Route
-                    path="/authorization"
+                    path="/authorization/roles"
                     element={
                       <ProtectedRoute requiredPermission={Permissions.RolesManage}>
-                        <AuthorizationPage />
+                        <RolesPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/authorization/users"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.RolesManage}>
+                        <UsersPage />
                       </ProtectedRoute>
                     }
                   />

@@ -607,7 +607,7 @@ ile kurulamıyordu — join Y-08 gereği DAL'da.)
 
 ---
 
-## Faz 29 — Yetki matrisi ikiye ayrılır (bildirilen #6)
+## Faz 29 — Yetki matrisi ikiye ayrılır (bildirilen #6) — ✅ tamamlandı
 
 Tek sayfa iki sekme → iki rota:
 
@@ -625,6 +625,31 @@ Bu faz en sona konuldu: Faz 26 kullanıcı ekranını baştan yazıyor, önce b�
 ### Çıkış koşulu
 İki rota ayrı ayrı açılıyor, sekme başlıkları farklı, sidebar'da iki öğe var ve menü hâlâ
 kaydırmasız sığıyor · eski `/authorization` linki çalışıyor.
+
+### Tamamlanma notu
+
+**Backend'de sıfır değişiklik** — `git diff --stat src/ tests/` boş. Faz 8'in disipliniyle aynı:
+arayüz fazı backend'e dokunmaz.
+
+`AuthorizationPage.tsx` → `RolesPage.tsx`, `UserManagement.tsx` → `UsersPage.tsx` olarak
+yeniden adlandırıldı (`git mv`, geçmiş korundu). Sekme mekanizması (`Tabs`/`Tab`, `tab` state'i)
+tamamen silindi — iki ekranın ortak hiçbir durumu yoktu, sekme yalnızca iki ayrı işi tek URL'nin
+arkasına saklıyordu.
+
+| Canlı kontrol | Sonuç |
+|---|---|
+| Sidebar "Yönetim" grubu | **Roller ve İzinler** + **Kullanıcılar** — iki ayrı öğe |
+| `/authorization/roles` başlığı | "Roller ve İzinler" · sekme yok (`.MuiTabs-root` sayısı 0) |
+| `/authorization/users` başlığı | "Kullanıcılar" · sütunlar `Ad Soyad · E-posta · Roller · Durum` |
+| Sekme başlıkları (browser) | İkisi farklı — "Roller ve İzinler · …" / "Kullanıcılar · …" |
+| Eski `/authorization` (SPA içi) | → `/authorization/roles` |
+| Eski `/authorization` (tam sayfa yükleme) | → `/authorization/roles` — Faz 24'ün oturum önyüklemesi de böylece bir kez daha doğrulandı |
+
+**Menü taşması ölçüldü** (Faz 23'ün "görünmez öğe" hatasının nöbetçisi): grup 3 öğeden 4'e
+çıktı, toplam 15 link. `scrollHeight === clientHeight === 950` ve çekmecenin alt kenarını aşan
+link **yok**. Ölçüm `getBoundingClientRect().bottom` üzerinden yapıldı — Faz 23'te öğrenildiği
+gibi kırpılmış öğeler de kırpılmamış geometri bildirdiği için tek başına `scrollHeight`
+karşılaştırması yeterli kanıt değil; ikisi birlikte bakıldı.
 
 ---
 

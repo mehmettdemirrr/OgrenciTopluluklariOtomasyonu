@@ -12,8 +12,6 @@ import {
   FormControlLabel,
   FormGroup,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from '@mui/material'
@@ -31,7 +29,6 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { emptyNameFormValues, nameFormSchema, type NameFormValues } from '../schemas/referenceForm'
 import type { PagedResult, PermissionCatalogItemDto, RoleListItemDto } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { UserManagement } from './UserManagement'
 
 function groupByCategory(catalog: PermissionCatalogItemDto[]): Map<string, PermissionCatalogItemDto[]> {
   const groups = new Map<string, PermissionCatalogItemDto[]>()
@@ -44,10 +41,13 @@ function groupByCategory(catalog: PermissionCatalogItemDto[]): Map<string, Permi
   return groups
 }
 
-export function AuthorizationPage() {
-  useDocumentTitle('Yetki Matrisi')
-
-  const [tab, setTab] = useState(0)
+/**
+ * K-31 · Faz 29: eskiden "Yetki Matrisi" tek sayfa, iki sekmeydi. İki ekranın ortak hiçbir
+ * durumu yoktu — sekme yalnızca iki ayrı işi tek URL'nin arkasına saklıyordu. Artık ayrı
+ * rotalar: /authorization/roles ve /authorization/users.
+ */
+export function RolesPage() {
+  useDocumentTitle('Roller ve İzinler')
 
   const permissionsQuery = useQuery({
     queryKey: ['permissions'],
@@ -56,21 +56,13 @@ export function AuthorizationPage() {
 
   return (
     <>
-      <PageHeader title="Yetki Matrisi" description="Rolleri, izinlerini ve kullanıcı-rol atamalarını yönetin." />
-
-      <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
-        <Tab label="Roller / İzinler" />
-        <Tab label="Kullanıcılar / Roller" />
-      </Tabs>
-
-      {tab === 0 && <RolesTab permissionCatalog={permissionsQuery.data ?? []} />}
-      {/* Faz 26: kullanıcı yönetimi kendi bileşenine çıktı — Faz 29 onu ayrı bir rotaya taşıyacak. */}
-      {tab === 1 && <UserManagement />}
+      <PageHeader title="Roller ve İzinler" description="Rolleri oluşturun ve her rolün izinlerini yönetin." />
+      <RolesTable permissionCatalog={permissionsQuery.data ?? []} />
     </>
   )
 }
 
-function RolesTab({ permissionCatalog }: { permissionCatalog: PermissionCatalogItemDto[] }) {
+function RolesTable({ permissionCatalog }: { permissionCatalog: PermissionCatalogItemDto[] }) {
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const [editingRole, setEditingRole] = useState<RoleListItemDto | null>(null)

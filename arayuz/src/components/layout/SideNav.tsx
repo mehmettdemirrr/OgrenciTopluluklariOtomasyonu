@@ -20,6 +20,7 @@ import HowToRegOutlinedIcon from '@mui/icons-material/HowToRegOutlined'
 import PlaylistAddCheckOutlinedIcon from '@mui/icons-material/PlaylistAddCheckOutlined'
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined'
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined'
+import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlined'
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined'
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
@@ -79,7 +80,8 @@ const navGroups: NavGroup[] = [
   {
     label: 'Yönetim',
     items: [
-      { label: 'Yetki Matrisi', to: '/authorization', icon: AdminPanelSettingsOutlinedIcon, permission: Permissions.RolesManage },
+      { label: 'Roller ve İzinler', to: '/authorization/roles', icon: AdminPanelSettingsOutlinedIcon, permission: Permissions.RolesManage },
+      { label: 'Kullanıcılar', to: '/authorization/users', icon: ManageAccountsOutlinedIcon, permission: Permissions.RolesManage },
       { label: 'Referans Verisi', to: '/reference', icon: CategoryOutlinedIcon, permission: Permissions.ReferenceManage },
       { label: 'Denetim İzi', to: '/audit', icon: HistoryOutlinedIcon, permission: Permissions.AuditRead },
     ],

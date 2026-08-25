@@ -22,11 +22,13 @@ import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
+import { PageHeader } from '../components/ui/PageHeader'
 import { SearchField } from '../components/ui/SearchField'
 import { createUserFormSchema, emptyCreateUserFormValues, type CreateUserFormValues } from '../schemas/createUserForm'
 import type { PagedResult, RegistrationDepartmentDto, RoleListItemDto, UserListItemDto } from '../api/types'
@@ -45,8 +47,11 @@ function displayName(user: UserListItemDto): string {
  *
  * v5.0'a kadar bu ekran yalnızca e-posta ve rolleri gösteriyordu; `POST /users` ve
  * `PUT /users/{id}/lockout` uçları backend'de **arayüzsüz** duruyordu (bulgu 11).
+ * Faz 29'da "Yetki Matrisi"nin ikinci sekmesi olmaktan çıkıp kendi rotasına taşındı.
  */
-export function UserManagement() {
+export function UsersPage() {
+  useDocumentTitle('Kullanıcılar')
+
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const { email: currentEmail } = useAuth()
@@ -232,6 +237,8 @@ export function UserManagement() {
 
   return (
     <>
+      <PageHeader title="Kullanıcılar" description="Hesapları görüntüleyin, rollerini değiştirin, pasife alın veya silin." />
+
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
         <SearchField
           value={search}
