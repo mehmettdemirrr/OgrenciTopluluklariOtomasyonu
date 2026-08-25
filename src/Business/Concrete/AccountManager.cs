@@ -254,8 +254,13 @@ public sealed class AccountManager(
         var facultyNames = (await facultyRepository.GetListAsync(cancellationToken: cancellationToken).ConfigureAwait(false))
             .ToDictionary(f => f.Id, f => f.Name);
 
+        // K-34: liste artık 121 satır. Sıralama sunucuda yapılır — arayüz gruplu bir seçici
+        // çiziyor ve MUI Autocomplete grupları YALNIZCA bitişik gelen öğeler için doğru
+        // birleştirir; sırasız gelen liste aynı fakülteyi birden çok kez başlıklandırırdı.
         IReadOnlyCollection<RegistrationDepartmentDto> items = departments
             .Select(d => new RegistrationDepartmentDto { Id = d.Id, Name = d.Name, FacultyName = facultyNames.GetValueOrDefault(d.FacultyId, string.Empty) })
+            .OrderBy(d => d.FacultyName, StringComparer.CurrentCulture)
+            .ThenBy(d => d.Name, StringComparer.CurrentCulture)
             .ToList();
 
         return DataResult<IReadOnlyCollection<RegistrationDepartmentDto>>.Success(items);

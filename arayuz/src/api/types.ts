@@ -80,7 +80,7 @@ export interface ClubApplicationListItemDto {
   description: string | null
   justification: string
   proposedAdvisorId: number
-  proposedAdvisorTitle: string
+  proposedAdvisorDisplayName: string
   status: ApplicationStatus
   appliedAtUtc: string
   reviewedAtUtc: string | null

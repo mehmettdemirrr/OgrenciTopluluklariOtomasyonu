@@ -56,7 +56,7 @@ export function ClubApplicationsReviewPage() {
   const columns: GridColDef<ClubApplicationListItemDto>[] = [
     { field: 'proposedName', headerName: 'Önerilen Ad', flex: 1, minWidth: 180 },
     { field: 'studentNumber', headerName: 'Öğrenci No', width: 130 },
-    { field: 'proposedAdvisorTitle', headerName: 'Önerilen Danışman', flex: 1, minWidth: 180 },
+    { field: 'proposedAdvisorDisplayName', headerName: 'Önerilen Danışman', flex: 1, minWidth: 180 },
     {
       field: 'status',
       headerName: 'Durum',
@@ -105,7 +105,7 @@ export function ClubApplicationsReviewPage() {
       <PageHeader title="Topluluk Kurma Başvuruları" description="Öğrencilerin topluluk kurma başvurularını onaylayın veya reddedin." />
 
       <DataTable
-        mobileHiddenFields={['proposedAdvisorTitle', 'appliedAtUtc']}
+        mobileHiddenFields={['proposedAdvisorDisplayName', 'appliedAtUtc']}
         rows={applicationsQuery.data?.items ?? []}
         columns={columns}
         getRowHeight={() => 'auto'}

@@ -52,6 +52,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     /// <summary>K-28/A-44: trafik/erişim izi yalnızca RequestLoggingMiddleware tarafından yazılır.</summary>
     public DbSet<TrafficLog> TrafficLogs => Set<TrafficLog>();
 
+    /// <summary>K-34/Y-68: demo veri künyesi — yalnızca DemoDataSeeder tarafından yazılır.</summary>
+    public DbSet<DemoSeedRecord> DemoSeedRecords => Set<DemoSeedRecord>();
+
     public async Task<ITransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
         new EfTransaction(await Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false));
 
@@ -102,14 +105,26 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.ApplyConfiguration(new ReportRequestConfiguration());
         builder.ApplyConfiguration(new AuditLogConfiguration());
         builder.ApplyConfiguration(new TrafficLogConfiguration());
+        builder.ApplyConfiguration(new DemoSeedRecordConfiguration());
 
         // A-27: izin/rol seed'i HasData ile — tamamen statik, parola hash'i içermez.
         builder.Entity<ApplicationRole>().HasData(IdentitySeedData.Roles());
         builder.Entity<IdentityRoleClaim<int>>().HasData(IdentitySeedData.RoleClaims());
 
-        // A-27: Faz 5'in dikey diliminin denenebilmesi için asgari referans verisi.
-        builder.Entity<Faculty>().HasData(DomainSeedData.Faculty());
-        builder.Entity<Department>().HasData(DomainSeedData.Department());
         builder.Entity<AcademicTerm>().HasData(DomainSeedData.AcademicTerm());
+
+        // A-58 (K-34): fakülte ve bölümler burada HasData ile verilMEZ — bilinçli bir istisna.
+        //
+        // HasData sabit birincil anahtar ister; oysa bu iki tabloya ÇALIŞMA ZAMANINDA da satır
+        // yazılıyor (ReferenceDataManager.CreateFacultyAsync/CreateDepartmentAsync). Yönetici
+        // arayüzden bir bölüm eklediği anda IDENTITY değeri tüketilir ve migration'ın sabit Id'si
+        // o satırla çakışır — migration "duplicate key" ile düşer, uygulama açılmaz. Bu, yerel
+        // geliştirme veritabanında fiilen yaşandı (Department Id=3 zaten doluydu).
+        //
+        // Bu yüzden 19 fakülte / 121 bölüm migration'a AD üzerinden, üretilebilir (idempotent)
+        // SQL olarak yazılır: Id'yi veritabanı dağıtır, "zaten varsa ekleme" koşulu benzersizlik
+        // indekslerine (Faculty.Name, Department.(FacultyId, Name)) dayanır. Böylece hem boş hem
+        // dolu bir veritabanında, hatta yarım kalmış bir denemeden sonra bile aynı sonucu verir.
+        // Katalog DomainSeedData'da durur — migration ve testler aynı listeyi okur.
     }
 }

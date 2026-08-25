@@ -50,6 +50,13 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["Seed:DemoAdvisorPassword"] = "",
                 ["Seed:DemoStudentEmail"] = "",
                 ["Seed:DemoStudentPassword"] = "",
+
+                // Y-68: demo veri seeder'ı testlerde de kapalıdır. Geliştiricinin user-secrets'ında
+                // Seed:Demo=true olabilir — açıkça boşaltılmazsa her test sınıfı 170+ satırlık demo
+                // veriyle başlar ve sayım bekleyen testler kırılır. Açan tek yer DemoDataSeedTests'tir.
+                ["Seed:Demo"] = "",
+                ["Seed:ResetDemo"] = "",
+                ["Seed:DemoPassword"] = "",
                 ["FileStorage:RootPath"] = FileStorageRootPath,
                 ["Frontend:BaseUrl"] = "https://localhost.test",
 

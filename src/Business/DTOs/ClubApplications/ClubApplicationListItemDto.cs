@@ -18,7 +18,12 @@ public sealed class ClubApplicationListItemDto
 
     public int ProposedAdvisorId { get; set; }
 
-    public required string ProposedAdvisorTitle { get; set; }
+    /// <summary>
+    /// docs/MIMARI.md · A-56: unvan + ad soyad ("Prof. Dr. Elif Yıldırım"). Faz 26'ya kadar
+    /// sistemde ad soyad yoktu ve bu alan yalnızca unvanı taşıyordu — inceleme ekranında
+    /// "Prof. Dr." yazıp kimi kastettiğini söylemiyordu.
+    /// </summary>
+    public required string ProposedAdvisorDisplayName { get; set; }
 
     public ApplicationStatus Status { get; set; }
 

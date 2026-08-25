@@ -147,7 +147,7 @@ function ClubApplicationsTab() {
             <ApplicationStatusChip status={application.status} />
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Önerilen danışman: {application.proposedAdvisorTitle}
+            Önerilen danışman: {application.proposedAdvisorDisplayName}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             {new Date(application.appliedAtUtc).toLocaleString('tr-TR')} tarihinde başvuruldu

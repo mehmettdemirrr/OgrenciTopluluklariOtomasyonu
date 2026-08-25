@@ -6,6 +6,7 @@ using Core.DataAccess;
 using Core.Utilities.Results;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
+using DataAccess.Repositories;
 using Entities;
 using Entities.Enums;
 using Hangfire;
@@ -20,6 +21,7 @@ public sealed class ClubApplicationManager(
     IEntityRepository<Student> studentRepository,
     IEntityRepository<AcademicStaff> academicStaffRepository,
     IEntityRepository<AcademicTerm> academicTermRepository,
+    IAcademicStaffDal academicStaffDal,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     IClock clock,
@@ -101,7 +103,7 @@ public sealed class ClubApplicationManager(
             .GetListAsync(a => a.StudentId == student.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        var items = await MapWithAdvisorTitlesAsync(applications, student.StudentNumber, cancellationToken).ConfigureAwait(false);
+        var items = await MapWithAdvisorNamesAsync(applications, student.StudentNumber, cancellationToken).ConfigureAwait(false);
 
         return DataResult<IReadOnlyList<ClubApplicationListItemDto>>.Success(
             items.OrderByDescending(a => a.AppliedAtUtc).ToList());
@@ -120,9 +122,9 @@ public sealed class ClubApplicationManager(
         var studentNumbers = (await studentRepository.GetListAsync(s => studentIds.Contains(s.Id), cancellationToken).ConfigureAwait(false))
             .ToDictionary(s => s.Id, s => s.StudentNumber);
 
+        // A-56: ad soyad Identity'de yaşadığı için generic repository ile kurulamaz — DAL join'ler.
         var advisorIds = paged.Items.Select(a => a.ProposedAdvisorId).Distinct().ToList();
-        var advisorTitles = (await academicStaffRepository.GetListAsync(s => advisorIds.Contains(s.Id), cancellationToken).ConfigureAwait(false))
-            .ToDictionary(s => s.Id, s => s.Title);
+        var advisorNames = await academicStaffDal.GetDisplayNamesAsync(advisorIds, cancellationToken).ConfigureAwait(false);
 
         var items = paged.Items.Select(a => new ClubApplicationListItemDto
         {
@@ -133,7 +135,7 @@ public sealed class ClubApplicationManager(
             Description = a.Description,
             Justification = a.Justification,
             ProposedAdvisorId = a.ProposedAdvisorId,
-            ProposedAdvisorTitle = advisorTitles.GetValueOrDefault(a.ProposedAdvisorId, string.Empty),
+            ProposedAdvisorDisplayName = advisorNames.GetValueOrDefault(a.ProposedAdvisorId, string.Empty),
             Status = a.Status,
             AppliedAtUtc = a.AppliedAtUtc,
             ReviewedAtUtc = a.ReviewedAtUtc,
@@ -239,12 +241,11 @@ public sealed class ClubApplicationManager(
         return Result.Success(request.Status == ApplicationStatus.Approved ? Messages.ClubApplicationApproved : Messages.ClubApplicationRejected);
     }
 
-    private async Task<List<ClubApplicationListItemDto>> MapWithAdvisorTitlesAsync(
+    private async Task<List<ClubApplicationListItemDto>> MapWithAdvisorNamesAsync(
         List<ClubApplication> applications, string studentNumber, CancellationToken cancellationToken)
     {
         var advisorIds = applications.Select(a => a.ProposedAdvisorId).Distinct().ToList();
-        var advisorTitles = (await academicStaffRepository.GetListAsync(s => advisorIds.Contains(s.Id), cancellationToken).ConfigureAwait(false))
-            .ToDictionary(s => s.Id, s => s.Title);
+        var advisorNames = await academicStaffDal.GetDisplayNamesAsync(advisorIds, cancellationToken).ConfigureAwait(false);
 
         return applications.Select(a => new ClubApplicationListItemDto
         {
@@ -255,7 +256,7 @@ public sealed class ClubApplicationManager(
             Description = a.Description,
             Justification = a.Justification,
             ProposedAdvisorId = a.ProposedAdvisorId,
-            ProposedAdvisorTitle = advisorTitles.GetValueOrDefault(a.ProposedAdvisorId, string.Empty),
+            ProposedAdvisorDisplayName = advisorNames.GetValueOrDefault(a.ProposedAdvisorId, string.Empty),
             Status = a.Status,
             AppliedAtUtc = a.AppliedAtUtc,
             ReviewedAtUtc = a.ReviewedAtUtc,

@@ -85,5 +85,9 @@ public sealed class DataAccessAutofacModule(IConfiguration configuration) : Modu
         builder.RegisterType<EfAcademicStaffDal>()
             .As<IAcademicStaffDal>()
             .InstancePerLifetimeScope();
+
+        builder.RegisterType<EfDemoDataDal>()
+            .As<IDemoDataDal>()
+            .InstancePerLifetimeScope();
     }
 }

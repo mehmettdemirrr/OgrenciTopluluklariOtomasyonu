@@ -442,7 +442,7 @@ olduğu kimliğin parçası — `Student.StudentNumber` ile aynı gerekçe (PLAN
 
 ---
 
-## Faz 28 — Gerçek referans verisi ve demo veri (bildirilen #1, #2)
+## Faz 28 — Gerçek referans verisi ve demo veri (bildirilen #1, #2) — ✅ tamamlandı
 
 ### 28.1 Fakülte ve bölümler — `HasData` (O-17)
 
@@ -515,6 +515,95 @@ Gerekçe: işaretsiz demo veri ile gerçek veri bir kez karıştığında ayrı�
 Kayıt formundaki bölüm seçicisinde 19 fakültenin 121 bölümü aranabiliyor · demo seed sonrası her
 ekran dolu ve her durum rozeti en az bir gerçek kayıtla görülebiliyor · seeder iki kez
 çalıştırıldığında **yeni satır üretmiyor** · `Seed:Demo` kapalıyken hiçbir demo kayıt oluşmuyor.
+
+### Tamamlanma notu
+
+**Testler:** 346/346 yeşil (180 Business + 11 Architecture + 155 Integration). Yeni
+`InstitutionalReferenceDataTests` (4), `DemoDataSeedTests` (8), `DemoDataSeedGuardTests` (6),
+`DemoDataResetTests` (2).
+
+#### Planın `HasData` kararı uygulamada çöktü — ve düzeltildi
+
+§28.1 referans verisini `HasData` ile vermeyi öngörüyordu. Migration yerel geliştirme
+veritabanına uygulandığında **"Violation of PRIMARY KEY constraint 'PK_Departments'. The
+duplicate key value is (3)"** ile düştü.
+
+Kök neden planın gözden kaçırdığı bir şeydi: `Faculties`/`Departments` tablolarına **çalışma
+zamanında da satır yazılıyor** (`ReferenceDataManager.CreateFacultyAsync/CreateDepartmentAsync`).
+Yönetici arayüzden bir bölüm eklediği anda IDENTITY değeri tüketiliyor; `HasData`'nın sabit
+birincil anahtarı o satırla çakışıyor. Bu yerel bir aksaklık değil: **bölüm eklemiş her kurulumda**
+uygulama açılmaz hâle gelirdi.
+
+Çözüm — referans verisi migration'a **ada dayalı, idempotent SQL** olarak yazılır:
+
+```sql
+INSERT INTO Departments (Name, FacultyId) SELECT N'Biyomühendislik', f.Id FROM Faculties f
+WHERE f.Name = N'Mühendislik ve Doğa Bilimleri Fakültesi'
+  AND NOT EXISTS (SELECT 1 FROM Departments d WHERE d.FacultyId = f.Id AND d.Name = N'Biyomühendislik');
+```
+
+Id'yi veritabanı dağıtır; "zaten varsa ekleme" koşulu benzersizlik indekslerine (`Faculty.Name`,
+`Department.(FacultyId, Name)`) dayanır. Böylece betik boş, dolu ve **yarım kalmış** bir
+veritabanında aynı sonucu verir. `Faculty Id=1` yine silinmez, yalnızca yeniden adlandırılır.
+
+Bunun bedeli: bölüm Id'leri artık kuruluma göre değişebilir, bu yüzden `DemoSeedData` bölümleri
+**adla** referanslar (`"Psikoloji"`), Id ile değil. Katalog `DomainSeedData`'da durur ve
+`InstitutionalReferenceDataTests` migration'daki SQL ile katalogun ayrışmadığını sınar.
+
+#### Üretilen demo veri
+
+| Veri | Adet | Veri | Adet |
+|---|---|---|---|
+| Danışman | 6 | Etkinlik | 20 |
+| Öğrenci | 25 | Etkinlik katılımı | 74 |
+| Kulüp | 8 (biri pasif) | Üyelik başvurusu | 10 |
+| Üyelik | 37 | Topluluk kurma başvurusu | 3 |
+| Duyuru | 12 (biri sistem duyurusu) | | |
+
+Testler sayı değil **kapsam** ölçüyor: her `EventStatus`, her `ClubRole`, her
+`AnnouncementVisibility`, kontenjanı dolan bir etkinlik, gerekçeli bir iptal.
+
+#### Y-68'in üç koruma katmanı
+
+1. `Seed:Demo` **açıkça** `"true"` değilse kapalı — `"1"`, `"yes"`, boş değer kapalı sayılır (test edildi).
+2. Parola yalnızca `Seed:DemoPassword`'dan (Y-20); yoksa atlanır.
+3. Üretilen her satır `DemoSeedRecords` ile künyelenir. Sıfırlama **yalnızca** künyeli satırlara
+   dokunabilir; ad kalıbına bakan toplu silme yoktur.
+
+`Seed:ResetDemo=true` künyeli veriyi silip yeniden üretir. Testin taut olmayan kısmı: kulüp
+Id'lerinin **tümüyle değişmiş** olması aranıyor — aynı sayıyı görmek, seeder hiç çalışmasa da
+mümkün olurdu. Sıfırlama tek transaction içinde: gerçek bir kayıt demo bir satıra bağlıysa FK
+kısıtı silmeyi reddeder ve **hiçbir şey** silinmez.
+
+#### Yerel veritabanı temizliği
+
+Dev veritabanındaki 108 sahte kulüp, 11 test etkinliği ve 5 test duyurusu doğrulama betiklerinin
+artığıydı ve **künyesizdi** — yani sıfırlama komutu onlara dokunamaz (Y-68 gereği dokunmamalı da).
+Temizlik uygulamanın dışına, elle çalıştırılan `scripts/gelistirme-veritabani-temizligi.sql`
+betiğine alındı. Ad kalıbına bakan toplu silmeyi uygulamaya koymak, üretimde gerçek bir kulübün
+adı kalıba uyduğu gün veri kaybı demek olurdu.
+
+| Canlı kontrol | Sonuç |
+|---|---|
+| Migration kirli veritabanına uygulanıyor | ✅ (önceki `HasData` denemesi burada düşmüştü) |
+| Kayıt formu bölüm seçicisi | 121 seçenek, 19 fakülte başlığı, aranabilir |
+| `"Zootekni"` araması | 2 sonuç, doğru fakültelerde (Ziraat / Lisansüstü) |
+| `"Bilgisayar Tekno"` araması | 2 sonuç, farklı fakültelerde — aynı ad tekrarı doğrulandı |
+| Demo öğrenci hesabıyla giriş | ✅ |
+| Kulüpler | 9 kayıt, gerçekçi adlar, **Pasif** rozeti görünür, artık yok |
+| Etkinlikler | 9 yaklaşan etkinlik, kontenjan/kulüp/yer bilgileriyle |
+| Duyurular | Dolu, **Yalnızca Üyeler** rozeti görünür |
+| Kulüplerim | "Yapay Zekâ ve Veri Bilimi Topluluğu — **Başkan**" |
+| Topluluk Kurma Başvuruları | 2 bekleyen başvuru, **Bekliyor** rozeti |
+
+#### Doğrulama sırasında bulunan ek eksik
+
+Topluluk kurma inceleme ekranı "Önerilen Danışman" sütununda yalnızca **unvanı** gösteriyordu
+("Prof. Dr."), kimi kastettiğini söylemiyordu — `ClubApplicationListItemDto.ProposedAdvisorTitle`
+Faz 26'dan (ad soyad) önce yazılmıştı ve güncellenmemişti. Demo veri bunu görünür kıldı.
+`IAcademicStaffDal.GetDisplayNamesAsync` eklendi, alan `ProposedAdvisorDisplayName` oldu; ekran
+artık "Prof. Dr. Elif Yıldırım" yazıyor. (Ad soyad Identity'de yaşadığı için generic repository
+ile kurulamıyordu — join Y-08 gereği DAL'da.)
 
 ---
 

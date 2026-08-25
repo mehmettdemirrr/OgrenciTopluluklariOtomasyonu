@@ -180,6 +180,13 @@ using (var startupScope = app.Services.CreateScope())
     await startupScope.ServiceProvider.GetRequiredService<IDatabaseMigrator>().MigrateAsync();
     await startupScope.ServiceProvider.GetRequiredService<IIdentitySeeder>().SeedAsync();
 
+    // K-34/Y-68: demo veri yalnızca Seed:Demo=true iken üretilir. Sonucu loglamak gerekli —
+    // "neden ekranlar boş" sorusunun cevabı (anahtar kapalı / parola yok / zaten var) burada görünür.
+    var demoOutcome = await startupScope.ServiceProvider.GetRequiredService<IDemoDataSeeder>().SeedAsync();
+    startupScope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("DemoDataSeeder")
+        .LogInformation("Demo veri seed sonucu: {Outcome}", demoOutcome);
+
     // Hangfire.AspNetCore normalde LogProvider'ı kendi IHostedService'i (host Start() olduğunda,
     // yani buradan SONRA) üzerinden ayarlar. UseSqlServerStorage'ı migration'dan hemen sonra, host
     // henüz Start() olmadan çağırdığımız için LogProvider ya hiç kurulmamış olur ya da (testte aynı

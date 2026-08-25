@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Autocomplete, Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -154,26 +154,37 @@ export function RegisterPage() {
                 )}
               />
 
+              {/*
+                K-34: liste 1 bölümden 121'e çıktı — düz bir Select'te kaydırmadan bulunamaz.
+                Autocomplete istemcide arar; Y-62 ihlali değildir çünkü bu sunucu sayfalı bir
+                domain listesi değil, tek seferde inen SINIRLI referans verisidir (kullanıcı
+                henüz oturum açmamıştır, arama ucu çağıramaz).
+              */}
               <Controller
                 name="departmentId"
                 control={control}
                 render={({ field, fieldState }) => (
-                  <TextField
-                    {...field}
-                    select
-                    label="Bölüm"
-                    value={field.value || ''}
-                    onChange={(event) => field.onChange(Number(event.target.value))}
-                    error={!!fieldState.error}
-                    helperText={fieldState.error?.message}
+                  <Autocomplete
+                    options={departmentsQuery.data ?? []}
+                    loading={departmentsQuery.isPending}
+                    loadingText="Bölümler yükleniyor…"
+                    noOptionsText="Bölüm bulunamadı."
+                    groupBy={(option) => option.facultyName}
+                    getOptionLabel={(option) => option.name}
+                    isOptionEqualToValue={(option, selected) => option.id === selected.id}
+                    value={(departmentsQuery.data ?? []).find((dept) => dept.id === field.value) ?? null}
+                    onChange={(_, selected) => field.onChange(selected?.id ?? 0)}
+                    onBlur={field.onBlur}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Bölüm"
+                        error={!!fieldState.error}
+                        helperText={fieldState.error?.message}
+                      />
+                    )}
                     fullWidth
-                  >
-                    {(departmentsQuery.data ?? []).map((dept) => (
-                      <MenuItem key={dept.id} value={dept.id}>
-                        {dept.name} ({dept.facultyName})
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  />
                 )}
               />
 
