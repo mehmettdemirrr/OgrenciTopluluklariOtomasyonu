@@ -1,4 +1,5 @@
 using Business.Abstract;
+using Business.DTOs.Reference;
 using Microsoft.AspNetCore.Mvc;
 using WebAPI.Extensions;
 
@@ -28,6 +29,29 @@ public sealed class AcademicStaffController(IReferenceDataService referenceDataS
         CancellationToken cancellationToken = default)
     {
         var result = await referenceDataService.GetSelectableAcademicStaffAsync(pageIndex, pageSize, search, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    /// <summary>docs/MIMARI.md · K-33: mevcut bir kullanıcıya akademik personel profili ekler.</summary>
+    [HttpPost]
+    public async Task<IActionResult> Create(CreateAcademicStaffRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await referenceDataService.CreateAcademicStaffAsync(request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, UpdateAcademicStaffRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await referenceDataService.UpdateAcademicStaffAsync(id, request, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    /// <summary>Kulübe danışmanlık yapıyorsa 409 — yetim kulüp bırakılmaz.</summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var result = await referenceDataService.DeleteAcademicStaffAsync(id, cancellationToken);
         return result.ToActionResult();
     }
 }

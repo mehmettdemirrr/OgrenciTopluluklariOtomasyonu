@@ -4,11 +4,13 @@ import { z } from 'zod'
 export const clubFormSchema = z.object({
   name: z.string().min(1, 'Topluluk adı gerekli.'),
   description: z.string(),
+  // K-33: 0 = "değiştirme" — API'ye null gider ve mevcut danışman korunur (kısmi güncelleme).
+  advisorId: z.number().int(),
 })
 
 export type ClubFormValues = z.infer<typeof clubFormSchema>
 
-export const emptyClubFormValues: ClubFormValues = { name: '', description: '' }
+export const emptyClubFormValues: ClubFormValues = { name: '', description: '', advisorId: 0 }
 
 export const createClubFormSchema = clubFormSchema.extend({
   advisorId: z.number({ error: 'Danışman seçin.' }).int().positive('Danışman seçin.'),

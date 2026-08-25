@@ -25,6 +25,7 @@ import {
 } from '../schemas/referenceForm'
 import type { AcademicTermListItemDto, DepartmentListItemDto, FacultyListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { AcademicStaffTab } from './AcademicStaffTab'
 
 function NameFormField({ control, label }: { control: Control<NameFormValues>; label: string }) {
   return (
@@ -45,15 +46,18 @@ export function ReferenceDataPage() {
 
   return (
     <>
-      <PageHeader title="Referans Verisi" description="Fakülte, bölüm ve akademik dönem verilerini yönetin." />
+      <PageHeader title="Referans Verisi" description="Fakülte, bölüm, akademik dönem ve akademik personel verilerini yönetin." />
 
       <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
         <Tab label="Fakülte / Bölüm" />
         <Tab label="Akademik Dönemler" />
+        {/* K-33: akademik personel artık salt-okunur değil — kulüplere danışman buradan doğar. */}
+        <Tab label="Akademik Personel" />
       </Tabs>
 
       {tab === 0 && <FacultiesTab />}
       {tab === 1 && <TermsTab />}
+      {tab === 2 && <AcademicStaffTab />}
     </>
   )
 }

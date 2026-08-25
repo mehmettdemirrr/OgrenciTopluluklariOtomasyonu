@@ -70,4 +70,27 @@ public interface IReferenceDataService
     [CacheAspect(durationMinutes: 5)]
     Task<IDataResult<PagedResult<SelectableAcademicStaffDto>>> GetSelectableAcademicStaffAsync(
         int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · K-33: akademik personel artık salt-okunur değil. v5.0'a kadar hiçbir uç
+    /// `AcademicStaff` oluşturmuyordu — tek kayıt demo seed'inden geliyordu, dolayısıyla sisteme
+    /// yeni danışman eklemek imkânsızdı (PLAN-V5 bildirilen #3).
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [ValidationAspect(typeof(CreateAcademicStaffRequestValidator))]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IDataResult<int>> CreateAcademicStaffAsync(CreateAcademicStaffRequestDto request, CancellationToken cancellationToken = default);
+
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [ValidationAspect(typeof(UpdateAcademicStaffRequestValidator))]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IResult> UpdateAcademicStaffAsync(int staffId, UpdateAcademicStaffRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>Kulübe danışmanlık yapıyorsa <c>Conflict</c> — yetim kulüp bırakılmaz.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IResult> DeleteAcademicStaffAsync(int staffId, CancellationToken cancellationToken = default);
 }

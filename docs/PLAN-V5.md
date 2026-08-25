@@ -380,7 +380,7 @@ korur — orada gerçekten gerekli.
 
 ---
 
-## Faz 27 — Danışman yönetimi ve kulüp danışmanı değişimi (bildirilen #3)
+## Faz 27 — Danışman yönetimi ve kulüp danışmanı değişimi (bildirilen #3) — ✅ tamamlandı
 
 ### 27.1 `AcademicStaff` salt-okunur olmaktan çıkar
 
@@ -409,6 +409,36 @@ doğrular (`AdvisorNotFound` precedent'i) ve `[CacheRemoveAspect]` zaten yerinde
 ### Çıkış koşulu
 Admin yeni bir danışman oluşturup kulübe atayabiliyor · eski danışman o kulüpte artık işlem
 yapamıyor, yenisi yapabiliyor · kulübe danışmanlık yapan personel silinemiyor (409).
+
+### Tamamlanma notu
+
+**Testler:** 325/325 yeşil (180 Business + 11 Architecture + 134 Integration). Yeni
+`AdvisorTransferTests` (5) ve `ReferenceDataManagerTests`'e 3 birim testi.
+
+**Yetki devri simetrik olarak sınandı** — testin asıl konusu buydu:
+
+| An | Eski danışman | Yeni danışman |
+|---|---|---|
+| Devirden **önce** | Etkinlik oluşturabiliyor (200) | **403** |
+| Devirden **sonra** | **403** | Etkinlik oluşturabiliyor (200) |
+
+Ek bir kod gerekmedi: `Ensure*` metotları `club.AdvisorId`'yi okuduğu için devir kendiliğinden
+yetkiyi taşıyor. Test bunun gerçekten böyle olduğunu kanıtlıyor.
+
+| Canlı kontrol | Sonuç |
+|---|---|
+| Referans Verisi → **Akademik Personel** sekmesi | Var (`Ad Soyad · Unvan · E-posta`) |
+| Kullanıcı seçici (sunucu aramalı) | Kullanıcıyı buldu |
+| Akademik personel oluşturma | Başarılı |
+| Kulüp düzenleme diyaloğunda **Danışman** alanı | Var |
+| Danışman değiştirme | Başarılı |
+
+**Tasarım notu:** `UpdateClubRequestDto.AdvisorId` **nullable** — `null` gelirse mevcut danışman
+korunur (kısmi güncelleme). Aksi hâlde yalnızca adı düzeltmek isteyen her istek danışmanı da
+göndermek zorunda kalır, unutulduğunda kulüp sessizce danışmansız kalırdı.
+
+`UpdateAcademicStaffRequestDto`'da `ApplicationUserId` **yok**: profilin hangi kullanıcıya ait
+olduğu kimliğin parçası — `Student.StudentNumber` ile aynı gerekçe (PLAN-V4 §19.2).
 
 ---
 

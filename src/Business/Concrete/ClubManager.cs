@@ -105,12 +105,26 @@ public sealed class ClubManager(
             return Result.Conflict(Messages.ClubNameTaken);
         }
 
+        // K-33: danışman değişimi. null gelirse mevcut danışman korunur (kısmi güncelleme).
+        var advisorChanged = false;
+        if (request.AdvisorId is { } advisorId && advisorId != club.AdvisorId)
+        {
+            var advisor = await academicStaffRepository.GetAsync(s => s.Id == advisorId, cancellationToken).ConfigureAwait(false);
+            if (advisor is null)
+            {
+                return Result.NotFound(Messages.AdvisorNotFound);
+            }
+
+            club.AdvisorId = advisor.Id;
+            advisorChanged = true;
+        }
+
         club.Name = name;
         club.Description = request.Description?.Trim();
         clubRepository.Update(club);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        return Result.Success(Messages.ClubUpdated);
+        return Result.Success(advisorChanged ? Messages.ClubAdvisorChanged : Messages.ClubUpdated);
     }
 
     public async Task<IResult> SetStatusAsync(int clubId, SetClubStatusRequestDto request, CancellationToken cancellationToken = default)

@@ -11,6 +11,8 @@ namespace Business.Concrete;
 public sealed class ReferenceDataManager(
     IEntityRepository<Faculty> facultyRepository,
     IEntityRepository<Department> departmentRepository,
+    IEntityRepository<AcademicStaff> academicStaffRepository,
+    IEntityRepository<Club> clubRepository,
     IAcademicStaffDal academicStaffDal,
     IUnitOfWork unitOfWork) : IReferenceDataService
 {
@@ -195,6 +197,84 @@ public sealed class ReferenceDataManager(
             .ToList();
         return DataResult<PagedResult<SelectableAcademicStaffDto>>.Success(
             new PagedResult<SelectableAcademicStaffDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<int>> CreateAcademicStaffAsync(
+        CreateAcademicStaffRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var department = await departmentRepository.GetAsync(d => d.Id == request.DepartmentId, cancellationToken).ConfigureAwait(false);
+        if (department is null)
+        {
+            return DataResult<int>.NotFound(Messages.DepartmentNotFound);
+        }
+
+        // A-14: AcademicStaff ↔ ApplicationUser 1-1 (unique index). Önden kontrol edilir ki
+        // kullanıcı 500 yerine anlaşılır bir çakışma mesajı görsün (A-15: DB son sözü söyler).
+        var existing = await academicStaffRepository
+            .GetAsync(a => a.ApplicationUserId == request.ApplicationUserId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (existing is not null)
+        {
+            return DataResult<int>.Conflict(Messages.AcademicStaffAlreadyExists);
+        }
+
+        var staff = new AcademicStaff
+        {
+            ApplicationUserId = request.ApplicationUserId,
+            Title = request.Title.Trim(),
+            DepartmentId = department.Id,
+        };
+
+        await academicStaffRepository.AddAsync(staff, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return DataResult<int>.Success(staff.Id, Messages.AcademicStaffCreated);
+    }
+
+    public async Task<IResult> UpdateAcademicStaffAsync(
+        int staffId, UpdateAcademicStaffRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var staff = await academicStaffRepository.GetAsync(a => a.Id == staffId, cancellationToken).ConfigureAwait(false);
+        if (staff is null)
+        {
+            return Result.NotFound(Messages.AdvisorNotFound);
+        }
+
+        var department = await departmentRepository.GetAsync(d => d.Id == request.DepartmentId, cancellationToken).ConfigureAwait(false);
+        if (department is null)
+        {
+            return Result.NotFound(Messages.DepartmentNotFound);
+        }
+
+        staff.Title = request.Title.Trim();
+        staff.DepartmentId = department.Id;
+        academicStaffRepository.Update(staff);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.AcademicStaffUpdated);
+    }
+
+    public async Task<IResult> DeleteAcademicStaffAsync(int staffId, CancellationToken cancellationToken = default)
+    {
+        var staff = await academicStaffRepository.GetAsync(a => a.Id == staffId, cancellationToken).ConfigureAwait(false);
+        if (staff is null)
+        {
+            return Result.NotFound(Messages.AdvisorNotFound);
+        }
+
+        // Kulüpler `AdvisorId` üzerinden Restrict ile bağlı — silinirse kulüp danışmansız kalırdı
+        // ve EnsureClubWriteAccessAsync'in danışman dalı kimseyi eşleştiremezdi.
+        var advisedClub = await clubRepository.GetAsync(c => c.AdvisorId == staffId, cancellationToken).ConfigureAwait(false);
+        if (advisedClub is not null)
+        {
+            return Result.Conflict(Messages.AcademicStaffHasClubs);
+        }
+
+        academicStaffRepository.Delete(staff);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.AcademicStaffDeleted);
     }
 
     /// <summary>A-56: ad soyad birleşimi; ikisi de boşsa null döner ve çağıran e-postaya düşer.</summary>

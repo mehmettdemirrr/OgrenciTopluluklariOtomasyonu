@@ -15,11 +15,71 @@ public class ReferenceDataManagerTests
     private readonly Mock<IEntityRepository<Faculty>> _facultyRepository = new();
     private readonly Mock<IEntityRepository<Department>> _departmentRepository = new();
     private readonly Mock<IAcademicStaffDal> _academicStaffDal = new();
+
+    // Faz 27 (K-33): akademik personel artık yazılabilir, silme ise kulüp bağı kontrol ediyor.
+    private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
+    private readonly Mock<IEntityRepository<Club>> _clubRepository = new();
+
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly ReferenceDataManager _sut;
 
     public ReferenceDataManagerTests() =>
-        _sut = new ReferenceDataManager(_facultyRepository.Object, _departmentRepository.Object, _academicStaffDal.Object, _unitOfWork.Object);
+        _sut = new ReferenceDataManager(
+            _facultyRepository.Object,
+            _departmentRepository.Object,
+            _academicStaffRepository.Object,
+            _clubRepository.Object,
+            _academicStaffDal.Object,
+            _unitOfWork.Object);
+
+    [Fact(DisplayName = "K-33: kulübe danışmanlık yapan akademik personel silinemez (Conflict)")]
+    public async Task DeleteAcademicStaffAsync_AdvisingAClub_ReturnsConflict()
+    {
+        _academicStaffRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 4, ApplicationUserId = 9, Title = "Dr.", DepartmentId = 1 });
+        _clubRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Club { Id = 1, Name = "Kulüp", AdvisorId = 4, IsActive = true, CreatedAtUtc = DateTime.UtcNow });
+
+        var result = await _sut.DeleteAcademicStaffAsync(4);
+
+        Assert.False(result.IsSuccess);
+        _academicStaffRepository.Verify(r => r.Delete(It.IsAny<AcademicStaff>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "K-33: kulübe bağlı olmayan akademik personel silinir")]
+    public async Task DeleteAcademicStaffAsync_NotAdvising_ReturnsSuccess()
+    {
+        _academicStaffRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 4, ApplicationUserId = 9, Title = "Dr.", DepartmentId = 1 });
+        _clubRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Club?)null);
+
+        var result = await _sut.DeleteAcademicStaffAsync(4);
+
+        Assert.True(result.IsSuccess);
+        _academicStaffRepository.Verify(r => r.Delete(It.IsAny<AcademicStaff>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "A-14: aynı kullanıcıya ikinci akademik personel profili açılamaz")]
+    public async Task CreateAcademicStaffAsync_UserAlreadyHasProfile_ReturnsConflict()
+    {
+        _departmentRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Department, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Department { Id = 1, Name = "Bilgisayar Mühendisliği", FacultyId = 1 });
+        _academicStaffRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 4, ApplicationUserId = 9, Title = "Dr.", DepartmentId = 1 });
+
+        var result = await _sut.CreateAcademicStaffAsync(
+            new CreateAcademicStaffRequestDto { ApplicationUserId = 9, Title = "Prof. Dr.", DepartmentId = 1 });
+
+        Assert.False(result.IsSuccess);
+        _academicStaffRepository.Verify(r => r.AddAsync(It.IsAny<AcademicStaff>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 
     [Fact(DisplayName = "CreateFaculty: ad zaten varsa yeni satır oluşturmadan mevcut satırı Success ile döner")]
     public async Task CreateFacultyAsync_NameExists_ReturnsExistingWithoutInsert()

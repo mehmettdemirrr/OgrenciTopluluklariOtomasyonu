@@ -139,6 +139,14 @@ public static class Messages
     public const string StudentNumberTaken = "Bu öğrenci numarası zaten kayıtlı.";
     public const string AdvisorProfileRequired = "Danışman rolü için akademik unvan zorunludur.";
 
+    // Faz 27 — Danışman yönetimi (K-33)
+    public const string AcademicStaffAlreadyExists = "Bu kullanıcının zaten bir akademik personel profili var.";
+    public const string AcademicStaffCreated = "Akademik personel kaydı oluşturuldu.";
+    public const string AcademicStaffUpdated = "Akademik personel kaydı güncellendi.";
+    public const string AcademicStaffDeleted = "Akademik personel kaydı silindi.";
+    public const string AcademicStaffHasClubs = "Bu personel bir topluluğa danışmanlık yaptığı için silinemez. Önce topluluğa yeni bir danışman atayın.";
+    public const string ClubAdvisorChanged = "Topluluk danışmanı değiştirildi.";
+
     // Faz 12 — Dashboard (K-25)
     public const string DashboardAccessDenied = "Panel özetini görüntülemek için oturum açmanız gerekir.";
 

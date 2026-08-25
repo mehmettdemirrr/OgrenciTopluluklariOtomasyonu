@@ -32,10 +32,11 @@ import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
+import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { SectionCard } from '../components/ui/SectionCard'
 import { ClubRoleChip } from '../components/ui/StatusChip'
 import { clubFormSchema, emptyClubFormValues, type ClubFormValues } from '../schemas/clubForm'
-import type { ClubDetailDto, ClubMemberListItemDto, ClubRole, PagedResult } from '../api/types'
+import type { AcademicStaffListItemDto, ClubDetailDto, ClubMemberListItemDto, ClubRole, PagedResult } from '../api/types'
 import { ClubAnnouncementsTab } from './ClubDetailAnnouncementsTab'
 import { ClubEventsTab } from './ClubDetailEventsTab'
 
@@ -105,7 +106,12 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
 
   const updateMutation = useMutation({
     mutationFn: async (values: ClubFormValues) => {
-      await apiClient.put(`/clubs/${clubId}`, { name: values.name.trim(), description: values.description.trim() || null })
+      await apiClient.put(`/clubs/${clubId}`, {
+        name: values.name.trim(),
+        description: values.description.trim() || null,
+        // K-33: 0 seçilmediyse null gider ve mevcut danışman korunur.
+        advisorId: values.advisorId || null,
+      })
     },
     onSuccess: () => {
       notify({ message: 'Topluluk güncellendi.', severity: 'success' })
@@ -127,7 +133,7 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
   })
 
   const openEditDialog = () => {
-    reset({ name: club?.name ?? '', description: club?.description ?? '' })
+    reset({ name: club?.name ?? '', description: club?.description ?? '', advisorId: club?.advisorId ?? 0 })
     editDialog.openDialog()
   }
 
@@ -180,6 +186,32 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
             name="description"
             control={control}
             render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
+          />
+
+          {/* K-33: danışman değişimi. Eski danışman bu kulüpteki tüm yetkisini anında kaybeder. */}
+          <Controller
+            name="advisorId"
+            control={control}
+            render={({ field, fieldState }) => (
+              <RemoteSelect<AcademicStaffListItemDto>
+                label="Danışman"
+                value={field.value || null}
+                onChange={(value) => field.onChange(value ?? 0)}
+                queryKey={['academic-staff', 'club-advisor']}
+                enabled={editDialog.open}
+                fetchOptions={async (term) =>
+                  (await apiClient.get<PagedResult<AcademicStaffListItemDto>>('/academic-staff', {
+                    params: { pageIndex: 0, pageSize: 20, search: term || undefined },
+                  })).data.items
+                }
+                getOptionId={(staff) => staff.id}
+                getOptionLabel={(staff) =>
+                  [staff.title, [staff.firstName, staff.lastName].filter(Boolean).join(' ') || staff.email].join(' ')
+                }
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message ?? 'Boş bırakılırsa mevcut danışman korunur.'}
+              />
+            )}
           />
         </DialogContent>
         <DialogActions>
