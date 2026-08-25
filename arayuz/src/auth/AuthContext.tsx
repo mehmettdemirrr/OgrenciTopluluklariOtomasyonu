@@ -1,9 +1,15 @@
-import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react'
-import { apiClient, type AuthResponse } from '../api/client'
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { apiClient, restoreSession, type AuthResponse } from '../api/client'
 import { getSession, setSession, setSessionEmail, subscribe } from './tokenStore'
 
 interface AuthContextValue {
   isAuthenticated: boolean
+  /**
+   * A-59: açılıştaki sessiz refresh sürerken true. `ProtectedRoute` bu sırada **karar vermez** —
+   * aksi hâlde token gelmeden verilen "anonim" kararı geri alınamaz ve kullanıcı her F5'te
+   * giriş ekranına düşer.
+   */
+  isBootstrapping: boolean
   permissions: string[]
   email: string | null
   hasPermission: (permission: string) => boolean
@@ -15,6 +21,23 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const session = useSyncExternalStore(subscribe, getSession)
+  const [isBootstrapping, setIsBootstrapping] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+
+    // Sonuç ne olursa olsun önyükleme biter: başarılıysa oturum geri gelmiştir,
+    // başarısızsa ProtectedRoute artık /login'e yönlendirebilir.
+    restoreSession().finally(() => {
+      if (!cancelled) {
+        setIsBootstrapping(false)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const login = async (email: string, password: string) => {
     const response = await apiClient.post<AuthResponse>('/auth/login', { email, password })
@@ -32,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     isAuthenticated: session.accessToken !== null,
+    isBootstrapping,
     permissions: session.permissions,
     email: session.email,
     hasPermission: (permission) => session.permissions.includes(permission),

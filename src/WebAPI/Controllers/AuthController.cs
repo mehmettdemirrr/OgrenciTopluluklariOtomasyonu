@@ -91,6 +91,23 @@ public sealed class AuthController(IAuthService authService, IAccountService acc
         return Ok(BuildAuthResponse(result.Data));
     }
 
+    /// <summary>
+    /// docs/MIMARI.md · A-59: sayfa yenilendiğinde bellekteki CSRF istek token'ı da kaybolur —
+    /// bu uç olmadan açılıştaki sessiz refresh, `X-XSRF-TOKEN` başlığını üretemediği için
+    /// daha ilk adımda başarısız olur (K-01'in oturum sürekliliği bu yüzden hiç çalışmıyordu).
+    ///
+    /// Y-48 zayıflamaz: `GetAndStoreTokens` çerez token'ını çağıranın KENDİ tarayıcısına yazar ve
+    /// ona karşılık gelen istek token'ını döner. Başka origin'den çağıran saldırgan kurbanın
+    /// çerezini okuyamaz, kendi aldığı çift ise kurbanın oturumunda işe yaramaz.
+    /// </summary>
+    [HttpGet("csrf")]
+    [AllowAnonymous]
+    public IActionResult GetCsrfToken()
+    {
+        var tokens = antiforgery.GetAndStoreTokens(HttpContext);
+        return Ok(new { csrfToken = tokens.RequestToken! });
+    }
+
     [HttpPost("refresh")]
     [AllowAnonymous]
     [TypeFilter(typeof(AntiforgeryActionFilter))]
@@ -123,6 +140,9 @@ public sealed class AuthController(IAuthService authService, IAccountService acc
         }
 
         Response.Cookies.Delete(RefreshTokenCookieName);
+
+        // Y-65: panel erişimi oturumdan sonra sürmesin.
+        HangfireTokenBridge.ClearCookie(Response);
         return Ok();
     }
 

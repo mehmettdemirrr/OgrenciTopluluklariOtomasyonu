@@ -127,22 +127,15 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             ClockSkew = TimeSpan.Zero,
         };
 
-        // K-14: Hangfire paneli V1'in tek izleme aracı, ama access token sessionStorage'da
-        // (yalnızca header) taşındığı için düz tarayıcı navigasyonu Authorization header'ı
-        // göndermez. SignalR'da da kullanılan bilinen köprü deseni: yalnızca /hangfire yoluna
-        // özel query string'den token okunur. Bilinçli taviz: kısa ömürlü token URL/loglarda görünebilir.
+        // K-14/A-59: Hangfire paneli V1'in tek izleme aracı, ama access token yalnızca header'da
+        // taşındığı için düz tarayıcı navigasyonu Authorization göndermez. Query string'den okumak
+        // (v4.0'daki hâli) yalnızca ilk isteği çözüyordu — panelin CSS/JS varlıkları ve iç
+        // gezinmeleri o parametreyi taşımadığı için 401 alıyor, panel stilsiz açılıyordu.
+        // Köprü artık /hangfire kapsamlı bir çerez: bkz. HangfireTokenBridge (Y-65).
         options.Events = new JwtBearerEvents
         {
-            OnMessageReceived = context =>
-            {
-                if (context.Request.Path.StartsWithSegments("/hangfire") &&
-                    context.Request.Query.TryGetValue("access_token", out var token))
-                {
-                    context.Token = token;
-                }
-
-                return Task.CompletedTask;
-            },
+            OnMessageReceived = HangfireTokenBridge.ResolveTokenAsync,
+            OnTokenValidated = HangfireTokenBridge.PersistTokenAsync,
         };
     });
 

@@ -91,7 +91,7 @@ bugün dev DB'de 100+ sahte kulüp var (bulgu 2).
 
 ---
 
-## Faz 24 — Oturum sürekliliği ve Hangfire paneli
+## Faz 24 — Oturum sürekliliği ve Hangfire paneli — ✅ tamamlandı
 
 En küçük, günlük etkisi en yüksek faz. Şema değişikliği yok.
 
@@ -135,10 +135,49 @@ yazılır; `OnMessageReceived` token'ı önce query'den, yoksa bu çerezden okur
 **Y-65 (yeni kural):** Hangfire köprü çerezi `/hangfire` dışında bir yola yazılamaz ve API kimlik
 doğrulaması bu çerezi asla kabul etmez — aksi hâlde CSRF yüzeyi (Y-48) sessizce geri açılır.
 
+### 24.3 Uygulama sırasında çıkan engel: CSRF token'ı da kayboluyor
+
+Planı yazarken gözden kaçan nokta: `performRefresh()` **bellekteki** `csrfToken`'ı şart koşuyor
+(`client.ts`). F5 sonrası o da gittiği için fonksiyon daha ilk satırda `null` dönüp çıkıyordu —
+yani "açılışta refresh dene" demek tek başına yetmiyor, denemenin **başlayabilmesi** için yeni bir
+CSRF çifti gerekiyor.
+
+Eklenen uç: `GET /api/auth/csrf` (anonim). `antiforgery.GetAndStoreTokens` çerez token'ını çağıranın
+kendi tarayıcısına yazar ve ona karşılık gelen istek token'ını döner.
+
+> **Y-48 zayıflamıyor:** başka origin'den çağıran saldırgan kurbanın çerezini okuyamaz (CORS), kendi
+> aldığı çift ise kurbanın oturumunda işe yaramaz. Bu, Microsoft'un SPA antiforgery kalıbının aynısı.
+> Test bunu ayrıca sınıyor: başlıksız refresh hâlâ reddediliyor.
+
+Ek olarak `localStorage`'a **token olmayan** bir oturum ipucu (`auth.session-hint`) yazılır: hiç
+giriş yapmamış ziyaretçi her sayfa açılışında boşuna `csrf` + `refresh` çifti göndermesin. K-01
+ihlal edilmez — ipucunun taşıdığı tek bilgi bir bayrak.
+
 ### Çıkış koşulu
 F5 sonrası panelde kalınıyor, giriş ekranı görünmüyor · refresh çerezi süresi dolmuşsa `/login`'e
 düşülüyor · Hangfire paneli **stilli** açılıyor, "İşler / Sunucular" sayfaları arasında 401 almadan
 gezilebiliyor · `/hangfire` çerezi `/api/*` isteklerine **gitmiyor** (ağ sekmesinde doğrulanır).
+
+### Tamamlanma notu
+
+**Testler:** 303/303 yeşil (176 Business + 10 Architecture + 117 Integration). Yeni
+`SessionBootstrapTests` (3) ve `HangfireCookieScopeTests` (4).
+
+| Canlı kontrol | Sonuç |
+|---|---|
+| `/panel`'de F5 | `/panel`'de kalındı, panel içeriği göründü |
+| `/reference`'ta F5 (derin sayfa) | `/reference`'ta kalındı |
+| Hangfire paneli stil | **Yüklendi** (2 CSS isteği, `.navbar` hesaplanmış stilli) |
+| Hangfire iç sayfası | `/hangfire/jobs/enqueued` — URL'de `access_token` **yok** |
+| Hangfire 401 sayısı | **0** |
+| Köprü çerezi | `Path=/hangfire`, `HttpOnly`, `Secure`, `SameSite=Strict` |
+| Çerez `/api/*`'a gidiyor mu | **Hayır** |
+
+**Test altyapısı hakkında düzeltilen varsayım:** `WebApplicationFactory.CreateClient()` çerezleri
+tarayıcı gibi saklıyor (`HandleCookies` varsayılan `true`). İlk yazdığım test çerezleri elle
+taşımaya çalışıyordu ve antiforgery geçerli çerez varken yenisini yazmadığı için `Set-Cookie`
+bulunamayıp patladı. Test gerçek akışa çevrildi — F5 zaten "çerezler durur, bellek sıfırlanır"
+demek, fabrika istemcisi bunu doğrudan taklit ediyor.
 
 ---
 
