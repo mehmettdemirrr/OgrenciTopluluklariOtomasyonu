@@ -36,6 +36,10 @@ public class EventManagerTests
     public EventManagerTests()
     {
         _clock.Setup(c => c.UtcNow).Returns(FixedNow);
+
+        // Y-66: kapsam metotları artık ilk satırda currentUser.Permissions okuyor — varsayılan boş.
+        // Yönetici yolunu sınayan test bunu kendi içinde ezer.
+        _currentUser.Setup(c => c.Permissions).Returns([]);
         _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(_club);
         _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(_term);
 

@@ -157,6 +157,12 @@ public sealed class AnnouncementManager(
 
     private async Task<string?> EnsureAnnouncementWriteAccessAsync(Announcement announcement, CancellationToken cancellationToken)
     {
+        // Y-66: yönetici kontrolü her kapsam metodunun İLK satırıdır (A-55).
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
+        {
+            return null;
+        }
+
         // A-43: sistem duyurusunu yalnızca announcements.global taşıyan (Admin) düzenleyebilir/silebilir.
         if (announcement.ClubId is not { } clubId)
         {
@@ -177,6 +183,12 @@ public sealed class AnnouncementManager(
     // Y-23: announcements.write izni yeterli değil — EventManager.EnsureClubWriteAccessAsync ile aynı desen.
     private async Task<string?> EnsureClubWriteAccessAsync(Club club, CancellationToken cancellationToken)
     {
+        // Y-66: yönetici kontrolü her kapsam metodunun İLK satırıdır (A-55).
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
+        {
+            return null;
+        }
+
         if (currentUser.UserId is not { } userId)
         {
             return Messages.NotClubAdvisorOrOfficer;

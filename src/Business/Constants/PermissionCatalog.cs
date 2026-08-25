@@ -25,5 +25,7 @@ public static class PermissionCatalog
             [IdentitySeedData.Permissions.RolesManage] = ("Yetki Matrisi", "Rolleri, izinleri ve kullanıcı-rol atamalarını yönetir."),
             [IdentitySeedData.Permissions.ReferenceManage] = ("Referans Verisi", "Fakülte, bölüm ve akademik dönemleri yönetir."),
             [IdentitySeedData.Permissions.EventsApprove] = ("Etkinlik Onayı", "Etkinlikleri onaylar veya reddeder."),
+            [IdentitySeedData.Permissions.ClubsManageAll] =
+                ("Tüm Toplulukları Yönet", "Danışmanı olmadığı topluluklarda da etkinlik, duyuru, üye rolü ve logo işlemi yapar."),
         };
 }

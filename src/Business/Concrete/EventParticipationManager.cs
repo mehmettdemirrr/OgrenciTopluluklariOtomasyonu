@@ -221,7 +221,9 @@ public sealed class EventParticipationManager(
     // ek olarak ClubMemberManager.EnsureMemberViewAccessAsync'teki reports.read.all blanket bypass'ı taşır.
     private async Task<string?> EnsureViewAccessAsync(Club club, CancellationToken cancellationToken)
     {
-        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ReportsReadAll))
+        // Y-66: yönetici kontrolü her kapsam metodunun İLK satırıdır (A-55).
+        // v4.0'a kadar burada `reports.read.all` vardı — bkz. PLAN-V5 §25.1, bulgu 15.
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
         {
             return null;
         }

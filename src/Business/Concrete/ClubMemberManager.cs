@@ -253,7 +253,10 @@ public sealed class ClubMemberManager(
     // olan öğrenci, ya da reports.read.all taşıyan yönetici (blanket) üye listesini görebilir.
     private async Task<string?> EnsureMemberViewAccessAsync(Club club, CancellationToken cancellationToken)
     {
-        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ReportsReadAll))
+        // Y-66: yönetici kontrolü her kapsam metodunun İLK satırıdır (A-55).
+        // v4.0'a kadar burada `reports.read.all` vardı — rapor izni fiilen yönetim izni gibi
+        // davranıyordu; artık ayrı ve açık bir izin (bkz. PLAN-V5 §25.1, bulgu 15).
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
         {
             return null;
         }
@@ -294,6 +297,12 @@ public sealed class ClubMemberManager(
     // events.approve'un "yalnızca danışman" precedent'iyle aynı sınıf, blanket admin bypass'ı yok.
     private async Task<string?> EnsureRoleManagementAccessAsync(Club club, CancellationToken cancellationToken)
     {
+        // Y-66: yönetici kontrolü her kapsam metodunun İLK satırıdır (A-55).
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
+        {
+            return null;
+        }
+
         if (currentUser.UserId is not { } userId)
         {
             return Messages.NotClubAdvisorOrPresident;

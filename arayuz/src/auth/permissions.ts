@@ -18,4 +18,6 @@ export const Permissions = {
   AnnouncementsWrite: 'announcements.write',
   AnnouncementsGlobal: 'announcements.global',
   AuditRead: 'audit.read',
+  /** A-55: danışmanı olunmayan kulüplerde de etkinlik/duyuru/üye rolü/logo işlemi (K-31). */
+  ClubsManageAll: 'clubs.manage.all',
 } as const

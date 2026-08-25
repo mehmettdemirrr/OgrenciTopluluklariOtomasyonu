@@ -181,7 +181,7 @@ demek, fabrika istemcisi bunu doğrudan taklit ediyor.
 
 ---
 
-## Faz 25 — Yönetici kapsamı (bildirilen #4, #5 + bulgu 12, 13, 14, 15)
+## Faz 25 — Yönetici kapsamı (bildirilen #4, #5 + bulgu 12, 13, 14, 15) — ✅ tamamlandı
 
 ### 25.1 Sorunun tam tarifi
 
@@ -242,6 +242,47 @@ Admin bir kulübün **etkinliklerini görüyor ve oluşturabiliyor** · duyuru y
 değiştirebiliyor · logo yükleyebiliyor · `clubs.manage.all` taşımayan bir kullanıcı bunların
 hiçbirini yapamıyor (her biri için bir kabul + bir ret testi, A-20) · mimari test 8. kapsam
 metodunu unutmayı yakalıyor.
+
+### Tamamlanma notu
+
+**Testler:** 309/309 yeşil (176 Business + 11 Architecture + 122 Integration). Yeni
+`AdminClubScopeTests` (5) ve `ScopeGuardTests` (1).
+
+**Mimari test gerçekten çalışıyor mu — negatif kontrol yapıldı.** `FileManager`'daki muhafız
+geçici olarak kaldırıldı; test tam olarak o metodu işaret etti:
+
+```
+Kapsam metodu 'clubs.manage.all' iznini kontrol etmiyor — yönetici bu uçta kilitli kalır (Y-66):
+FileManager.EnsureClubAdvisorAsync
+```
+
+Muhafız geri konunca yeşile döndü. Test "yeşil olduğu için doğru" değil, **kırmızıya dönebildiği
+için** anlamlı.
+
+| Canlı kontrol (admin, danışmanı olmadığı kulüpte) | Sonuç |
+|---|---|
+| Yönetici bilgi şeridi | Görünüyor |
+| Etkinlikler sekmesi | Yüklendi, **0** adet 403 (önceden tamamı 403'tü) |
+| Etkinlik oluşturma | Başarılı, 0 adet 403 |
+| Üyeler sekmesi | 0 adet 403 |
+| Duyurular sekmesi | 0 adet 403 |
+
+**Uygulama sırasında çıkan iki engel:**
+
+1. **State machine tuzağı.** İlk yazdığım mimari test 7 metodun 7'sini de "ihlal" olarak işaretledi
+   — oysa muhafız hepsine eklenmişti. Sebep: kapsam metotlarının hepsi `async`, derleyici gövdeyi
+   ayrı bir state machine tipine taşıyor ve geriye yalnızca onu kuran bir saplama bırakıyor.
+   `AsyncHygieneTests`'in ters yönde tarif ettiği aynı tuzak. Test `AsyncStateMachineAttribute`
+   üzerinden `MoveNext` gövdesini de tarayacak şekilde düzeltildi.
+2. **Yeni izin `HasData` seed'i, migration ister.** Kabul testleri önce 403 dönmeye devam etti:
+   `Claim(37, …)` modele eklenmişti ama migration üretilmemişti, dolayısıyla test veritabanında
+   satır yoktu. `20260825_Faz25_YoneticiKapsami` migration'ı eklendi.
+
+**Birim testlerinde beklenen kırılma:** kapsam metotları artık ilk satırda `currentUser.Permissions`
+okuduğu için, bu mock'u yapılandırmayan `EventManagerTests` ve `FileManagerTests` düştü (Moq
+yapılandırılmamış üye için `null` döner). Varsayılan boş koleksiyon eklendi.
+`ClubMemberManagerTests`'teki "reports.read.all taşıyan yönetici" testi de adıyla birlikte
+`clubs.manage.all`'a taşındı — testin *niyeti* aynı, izin kodu değişti.
 
 ---
 

@@ -33,6 +33,9 @@ public class FileManagerTests
     public FileManagerTests()
     {
         _clock.Setup(c => c.UtcNow).Returns(FixedNow);
+
+        // Y-66: kapsam metotları artık ilk satırda currentUser.Permissions okuyor — varsayılan boş.
+        _currentUser.Setup(c => c.Permissions).Returns([]);
         var settings = Options.Create(new FileStorageSettings { MaxUploadBytes = 5 * 1024 * 1024 });
 
         _sut = new FileManager(

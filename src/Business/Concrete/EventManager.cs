@@ -6,6 +6,7 @@ using Core.DataAccess;
 using Core.Utilities.Results;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
+using DataAccess.Seed;
 using Entities;
 using Entities.Enums;
 using Hangfire;
@@ -430,6 +431,12 @@ public sealed class EventManager(
     // dönemde bu kulüpte Officer/President üyeliği olan kişi etkinlik oluşturabilir/gönderebilir.
     private async Task<string?> EnsureClubWriteAccessAsync(Club club, CancellationToken cancellationToken)
     {
+        // Y-66: yönetici kontrolü her kapsam metodunun İLK satırıdır (A-55).
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
+        {
+            return null;
+        }
+
         if (currentUser.UserId is not { } userId)
         {
             return Messages.NotClubAdvisorOrOfficer;

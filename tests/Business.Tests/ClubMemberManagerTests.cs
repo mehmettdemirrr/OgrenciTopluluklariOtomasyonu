@@ -178,10 +178,12 @@ public class ClubMemberManagerTests
         Assert.False(membership.IsDeleted);
     }
 
-    [Fact(DisplayName = "GetMembersPagedAsync: reports.read.all taşıyan yönetici herhangi bir kulübün üyelerini görebilir")]
-    public async Task GetMembersPagedAsync_ReportsReadAllHolder_ReturnsSuccess()
+    // A-55: v4.0'da bu bypass `reports.read.all` ile yapılıyordu — rapor izni fiilen yönetim izni
+    // gibi davranıyordu. Faz 25'te ayrı ve açık bir izne taşındı (Y-66).
+    [Fact(DisplayName = "GetMembersPagedAsync: clubs.manage.all taşıyan yönetici herhangi bir kulübün üyelerini görebilir")]
+    public async Task GetMembersPagedAsync_ClubsManageAllHolder_ReturnsSuccess()
     {
-        _currentUser.Setup(c => c.Permissions).Returns([IdentitySeedData.Permissions.ReportsReadAll]);
+        _currentUser.Setup(c => c.Permissions).Returns([IdentitySeedData.Permissions.ClubsManageAll]);
         _clubMembershipRepository
             .Setup(r => r.GetListPagedAsync(0, 20, It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResult<ClubMembership>([], 0, 0, 20));

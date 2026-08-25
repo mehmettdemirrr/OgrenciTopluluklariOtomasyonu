@@ -6,6 +6,7 @@ using Core.Utilities.Files;
 using Core.Utilities.Results;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
+using DataAccess.Seed;
 using Entities;
 using Entities.Enums;
 using Microsoft.Extensions.Options;
@@ -113,6 +114,12 @@ public sealed class FileManager(
     // Y-23: izin claim'i (files.upload) yeterli değil — yalnızca kulübün danışmanı yükleyebilir.
     private async Task<string?> EnsureClubAdvisorAsync(Club club, CancellationToken cancellationToken)
     {
+        // Y-66: yönetici kontrolü her kapsam metodunun İLK satırıdır (A-55).
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
+        {
+            return null;
+        }
+
         if (currentUser.UserId is not { } userId)
         {
             return Messages.NotClubAdvisor;

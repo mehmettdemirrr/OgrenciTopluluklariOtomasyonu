@@ -65,6 +65,17 @@ public static class IdentitySeedData
 
         /// <summary>Faz 13: denetim izi görüntüleme (K-12) — yalnız Admin.</summary>
         public const string AuditRead = "audit.read";
+
+        /// <summary>
+        /// docs/MIMARI.md · K-31/A-55/Y-66: kulüp kapsamının yönetici anahtarı. Danışmanı veya
+        /// yetkilisi olunmayan kulüplerde de etkinlik/duyuru/üye rolü/logo işlemi yapabilmeyi
+        /// sağlar. <b>Her <c>Ensure*Access*</c> metodunun ilk kontrolüdür.</b>
+        ///
+        /// Bu izin ayrı bir kod olarak var çünkü v4.0'a kadar aynı işi <c>reports.read.all</c>
+        /// görüyordu: yetki matrisinden bir role rapor izni veren kişi, farkında olmadan kulüp
+        /// yönetimi de vermiş oluyordu.
+        /// </summary>
+        public const string ClubsManageAll = "clubs.manage.all";
     }
 
     /// <summary>Y-03: bu roller silinemez/yeniden adlandırılamaz; izinleri değiştirilebilir.</summary>
@@ -92,6 +103,7 @@ public static class IdentitySeedData
         Permissions.AnnouncementsWrite,
         Permissions.AnnouncementsGlobal,
         Permissions.AuditRead,
+        Permissions.ClubsManageAll,
     ];
 
     public static IEnumerable<ApplicationRole> Roles() =>
@@ -162,6 +174,9 @@ public static class IdentitySeedData
 
         // Faz 13 — Denetim izi ve referans veri olgunluğu.
         Claim(36, AdminRoleId, Permissions.AuditRead),
+
+        // Faz 25 — K-31/A-55: yönetici kulüp kapsamı.
+        Claim(37, AdminRoleId, Permissions.ClubsManageAll),
     ];
 
     private static IdentityRoleClaim<int> Claim(int id, int roleId, string permission) => new()

@@ -8,6 +8,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Alert,
   MenuItem,
   Skeleton,
   Stack,
@@ -59,9 +60,19 @@ export function ClubDetailPage() {
 
   useDocumentTitle(clubQuery.data?.name)
 
+  const managesAllClubs = hasPermission(Permissions.ClubsManageAll)
+
   return (
     <>
       <PageHeader title={clubQuery.data?.name ?? 'Topluluk'} description="Topluluk bilgileri, üyelik, etkinlik ve duyuru yönetimi." />
+
+      {/* §25.4: hangi yetkiyle işlem yapıldığı belirsiz kalmasın — danışman olmadan yönetiliyor. */}
+      {managesAllClubs && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Bu topluluğu <strong>yönetici yetkisiyle</strong> görüntülüyorsunuz; danışmanı veya başkanı olmasanız da
+          etkinlik, duyuru, üye rolü ve logo işlemlerini yapabilirsiniz.
+        </Alert>
+      )}
 
       <Tabs value={tab} onChange={(_, value: TabKey) => setTab(value)} sx={{ mb: 2 }}>
         <Tab label="Genel" value="general" />
