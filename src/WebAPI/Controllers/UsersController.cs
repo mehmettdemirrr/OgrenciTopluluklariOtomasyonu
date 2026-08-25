@@ -37,4 +37,12 @@ public sealed class UsersController(IRoleAdminService roleAdminService) : Contro
         var result = await roleAdminService.SetLockoutAsync(id, request, cancellationToken);
         return result.ToActionResult();
     }
+
+    /// <summary>docs/MIMARI.md · A-57: bağlı kaydı olan kullanıcı silinemez (409); kendini silemez.</summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteUser(int id, CancellationToken cancellationToken)
+    {
+        var result = await roleAdminService.DeleteUserAsync(id, cancellationToken);
+        return result.ToActionResult();
+    }
 }

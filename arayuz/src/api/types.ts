@@ -44,13 +44,16 @@ export interface AcademicStaffListItemDto {
   id: number
   title: string
   email: string
+  firstName: string | null
+  lastName: string | null
 }
 
 // src/Business/DTOs/Reference/SelectableAcademicStaffDto.cs
 export interface SelectableAcademicStaffDto {
   id: number
   title: string
-  email: string
+  /** A-56: e-posta bu uctan kaldirildi; ad soyad yoksa e-postaya duser. */
+  fullName: string
 }
 
 // src/Entities/Enums/ApplicationStatus.cs (JsonStringEnumConverter ile metin olarak taşınır)
@@ -136,6 +139,11 @@ export interface RoleListItemDto {
 export interface UserListItemDto {
   id: number
   email: string
+  /** A-56: bos olabilir — arayuz e-postaya duser. */
+  firstName: string | null
+  lastName: string | null
+  /** A-57: pasif hesap giris yapamaz. */
+  isLockedOut: boolean
   roles: string[]
 }
 
@@ -212,6 +220,9 @@ export interface RegistrationDepartmentDto {
 // src/Business/DTOs/Auth/MeResponseDto.cs
 export interface MeResponseDto {
   email: string
+  /** A-56: boşsa arayüz e-postaya düşer. */
+  firstName: string | null
+  lastName: string | null
   roles: string[]
   permissions: string[]
   // Öğrenci profili — danışman/admin hesaplarında hepsi null.

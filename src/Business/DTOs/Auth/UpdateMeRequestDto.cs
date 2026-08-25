@@ -11,4 +11,14 @@ public sealed class UpdateMeRequestDto
     public int DepartmentId { get; set; }
 
     public int EnrollmentYear { get; set; }
+
+    /// <summary>
+    /// docs/MIMARI.md · A-56: ad soyad. Öğrenci numarasının aksine kimliğin veritabanı tarafındaki
+    /// parçası değil — kullanıcı kendi adını düzeltebilir. Mevcut hesaplar boş başladığı için
+    /// profil sayfası doldurmanın tek yolu.
+    /// </summary>
+    public string? FirstName { get; set; }
+
+    /// <inheritdoc cref="FirstName"/>
+    public string? LastName { get; set; }
 }

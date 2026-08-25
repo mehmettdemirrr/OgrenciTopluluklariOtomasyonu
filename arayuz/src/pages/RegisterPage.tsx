@@ -18,6 +18,9 @@ const currentYear = new Date().getFullYear()
 const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{6,}$/
 
 const registerSchema = z.object({
+  // A-56: ad soyad zorunlu DEĞİL — mevcut hesaplarla tutarlı kalsın diye (bkz. PLAN-V5 O-15).
+  firstName: z.string().max(100, 'En fazla 100 karakter.'),
+  lastName: z.string().max(100, 'En fazla 100 karakter.'),
   email: z.string().min(1, 'E-posta gerekli.').email('Geçerli bir e-posta girin.'),
   password: z.string().regex(strongPasswordRegex, 'Parola en az 6 karakter olmalı; büyük harf, küçük harf, rakam ve alfanumerik olmayan bir karakter içermelidir.'),
   studentNumber: z.string().min(1, 'Öğrenci numarası gerekli.'),
@@ -45,7 +48,7 @@ export function RegisterPage() {
     formState: { isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { email: '', password: '', studentNumber: '', departmentId: 0, enrollmentYear: currentYear },
+    defaultValues: { firstName: '', lastName: '', email: '', password: '', studentNumber: '', departmentId: 0, enrollmentYear: currentYear },
   })
 
   const onSubmit = async (values: RegisterFormValues) => {
@@ -110,6 +113,23 @@ export function RegisterPage() {
             </Stack>
           ) : (
             <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Stack direction="row" spacing={2}>
+                <Controller
+                  name="firstName"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <TextField {...field} label="Ad" autoComplete="given-name" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                  )}
+                />
+                <Controller
+                  name="lastName"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <TextField {...field} label="Soyad" autoComplete="family-name" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                  )}
+                />
+              </Stack>
+
               <Controller
                 name="email"
                 control={control}

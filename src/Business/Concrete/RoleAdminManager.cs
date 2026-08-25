@@ -6,12 +6,21 @@ using Core.Utilities.Results;
 using Core.Utilities.Security;
 using DataAccess.Repositories;
 using DataAccess.Seed;
+using Entities;
 
 namespace Business.Concrete;
 
 public sealed class RoleAdminManager(
     IIdentityAdminDal identityAdminDal,
     IIdentityAdminGateway identityAdminGateway,
+    IEntityRepository<Student> studentRepository,
+    IEntityRepository<AcademicStaff> academicStaffRepository,
+    IEntityRepository<Department> departmentRepository,
+    IEntityRepository<Club> clubRepository,
+    IEntityRepository<ClubMembership> clubMembershipRepository,
+    IEntityRepository<EventParticipation> eventParticipationRepository,
+    IEntityRepository<MembershipApplication> membershipApplicationRepository,
+    IUnitOfWork unitOfWork,
     ICurrentUser currentUser) : IRoleAdminService
 {
     private const int DefaultPageSize = 20;
@@ -137,7 +146,15 @@ public sealed class RoleAdminManager(
             .ToDictionary(g => g.Key, g => (IReadOnlyCollection<string>)g.Select(r => r.RoleName).ToArray());
 
         var items = paged.Items
-            .Select(u => new UserListItemDto { Id = u.Id, Email = u.Email, Roles = rolesByUser.GetValueOrDefault(u.Id, []) })
+            .Select(u => new UserListItemDto
+            {
+                Id = u.Id,
+                Email = u.Email,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                IsLockedOut = u.IsLockedOut,
+                Roles = rolesByUser.GetValueOrDefault(u.Id, []),
+            })
             .ToList();
 
         var result = new PagedResult<UserListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize);
@@ -183,8 +200,160 @@ public sealed class RoleAdminManager(
             }
         }
 
-        var userId = await identityAdminGateway.CreateUserAsync(request.Email.Trim(), request.Password, request.RoleNames).ConfigureAwait(false);
-        return userId is { } id ? DataResult<int>.Success(id, Messages.UserCreated) : DataResult<int>.Conflict(Messages.UserCreationFailed);
+        // Y-67: profil gerektiren rol seçildiyse alanlar ZORUNLU. Identity kaydı yazıldıktan sonra
+        // eksik alan fark edilirse geriye yarım kullanıcı kalırdı — doğrulama önce yapılır.
+        var needsStudent = request.RoleNames.Contains(IdentitySeedData.MemberRoleName);
+        var needsStaff = request.RoleNames.Contains(IdentitySeedData.AdvisorRoleName);
+
+        var profileError = await ValidateProfileFieldsAsync(request, needsStudent, needsStaff, cancellationToken).ConfigureAwait(false);
+        if (profileError is not null)
+        {
+            return DataResult<int>.ValidationError(profileError);
+        }
+
+        var userId = await identityAdminGateway
+            .CreateUserAsync(request.Email.Trim(), request.Password, request.RoleNames, request.FirstName, request.LastName)
+            .ConfigureAwait(false);
+
+        if (userId is not { } id)
+        {
+            return DataResult<int>.Conflict(Messages.UserCreationFailed);
+        }
+
+        if (needsStudent)
+        {
+            await studentRepository.AddAsync(
+                new Student
+                {
+                    ApplicationUserId = id,
+                    StudentNumber = request.StudentNumber!.Trim(),
+                    DepartmentId = request.DepartmentId!.Value,
+                    EnrollmentYear = request.EnrollmentYear!.Value,
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (needsStaff)
+        {
+            await academicStaffRepository.AddAsync(
+                new AcademicStaff
+                {
+                    ApplicationUserId = id,
+                    Title = request.Title!.Trim(),
+                    DepartmentId = request.DepartmentId!.Value,
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (needsStudent || needsStaff)
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return DataResult<int>.Success(id, Messages.UserCreated);
+    }
+
+    /// <summary>Y-67: rol seçimi profil alanlarını zorunlu kılar; eksikse kullanıcı hiç oluşturulmaz.</summary>
+    private async Task<string?> ValidateProfileFieldsAsync(
+        CreateUserRequestDto request, bool needsStudent, bool needsStaff, CancellationToken cancellationToken)
+    {
+        if (!needsStudent && !needsStaff)
+        {
+            return null;
+        }
+
+        if (request.DepartmentId is not { } departmentId)
+        {
+            return Messages.ProfileDepartmentRequired;
+        }
+
+        var department = await departmentRepository.GetAsync(d => d.Id == departmentId, cancellationToken).ConfigureAwait(false);
+        if (department is null)
+        {
+            return Messages.DepartmentNotFound;
+        }
+
+        if (needsStudent)
+        {
+            if (string.IsNullOrWhiteSpace(request.StudentNumber) || request.EnrollmentYear is null)
+            {
+                return Messages.StudentProfileRequired;
+            }
+
+            var numberTaken = await studentRepository
+                .GetAsync(s => s.StudentNumber == request.StudentNumber.Trim(), cancellationToken)
+                .ConfigureAwait(false);
+
+            if (numberTaken is not null)
+            {
+                return Messages.StudentNumberTaken;
+            }
+        }
+
+        if (needsStaff && string.IsNullOrWhiteSpace(request.Title))
+        {
+            return Messages.AdvisorProfileRequired;
+        }
+
+        return null;
+    }
+
+    public async Task<IResult> DeleteUserAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        // Y-03/A-57: yönetici kendi hesabını silemez — CannotLockOwnAccount ile aynı öz-kısıtlama.
+        if (currentUser.UserId == userId)
+        {
+            return Result.Conflict(Messages.CannotDeleteOwnAccount);
+        }
+
+        var blocker = await FindDeletionBlockerAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (blocker is not null)
+        {
+            return Result.Conflict(blocker);
+        }
+
+        var deleted = await identityAdminGateway.DeleteUserAsync(userId).ConfigureAwait(false);
+        return deleted ? Result.Success(Messages.UserDeleted) : Result.NotFound(Messages.UserNotFound);
+    }
+
+    /// <summary>
+    /// A-57: silmeyi engelleyen ilk bağı döner. Sessizce yetim kayıt bırakmak yerine hangi bağın
+    /// engellediği söylenir — FK'lar `Restrict`, Y-16 soft delete var ve K-19 (KVKK) V1 dışı.
+    /// </summary>
+    private async Task<string?> FindDeletionBlockerAsync(int userId, CancellationToken cancellationToken)
+    {
+        var staff = await academicStaffRepository.GetAsync(a => a.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (staff is not null)
+        {
+            var advisedClub = await clubRepository.GetAsync(c => c.AdvisorId == staff.Id, cancellationToken).ConfigureAwait(false);
+            if (advisedClub is not null)
+            {
+                return Messages.UserHasAdvisedClubs;
+            }
+        }
+
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (student is null)
+        {
+            return null;
+        }
+
+        if (await clubMembershipRepository.GetAsync(m => m.StudentId == student.Id, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            return Messages.UserHasClubMemberships;
+        }
+
+        if (await eventParticipationRepository.GetAsync(p => p.StudentId == student.Id, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            return Messages.UserHasEventParticipations;
+        }
+
+        if (await membershipApplicationRepository.GetAsync(a => a.StudentId == student.Id, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            return Messages.UserHasApplications;
+        }
+
+        return null;
     }
 
     public async Task<IResult> SetLockoutAsync(int userId, SetLockoutRequestDto request, CancellationToken cancellationToken = default)

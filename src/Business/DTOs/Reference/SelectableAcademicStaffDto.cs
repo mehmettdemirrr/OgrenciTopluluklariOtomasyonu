@@ -11,5 +11,13 @@ public sealed class SelectableAcademicStaffDto
 
     public required string Title { get; set; }
 
-    public required string Email { get; set; }
+    /// <summary>
+    /// docs/MIMARI.md · A-56: <b>e-posta bu DTO'dan kaldırıldı.</b> v5.0'a kadar burada e-posta
+    /// vardı çünkü gösterilecek başka alan yoktu — yani herhangi bir öğrenci tüm danışmanların
+    /// e-postasını görebiliyordu (PLAN-V3 §17.4'te bilinçli taviz olarak kaydedilmişti).
+    ///
+    /// Ad soyad boş olan eski kayıtlarda e-postaya düşülür; seçici kullanılamaz hâle gelmesin diye.
+    /// Faz 26 sonrası oluşturulan her danışmanın adı var, yani bu geçiş dönemine özgüdür.
+    /// </summary>
+    public required string FullName { get; set; }
 }

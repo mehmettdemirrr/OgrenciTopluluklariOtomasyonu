@@ -163,7 +163,16 @@ public sealed class ReferenceDataManager(
             .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), SearchTerm.Normalize(search), cancellationToken)
             .ConfigureAwait(false);
 
-        var items = paged.Items.Select(s => new AcademicStaffListItemDto { Id = s.Id, Title = s.Title, Email = s.Email }).ToList();
+        var items = paged.Items
+            .Select(s => new AcademicStaffListItemDto
+            {
+                Id = s.Id,
+                Title = s.Title,
+                Email = s.Email,
+                FirstName = s.FirstName,
+                LastName = s.LastName,
+            })
+            .ToList();
         return DataResult<PagedResult<AcademicStaffListItemDto>>.Success(
             new PagedResult<AcademicStaffListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
     }
@@ -175,9 +184,24 @@ public sealed class ReferenceDataManager(
             .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), SearchTerm.Normalize(search), cancellationToken)
             .ConfigureAwait(false);
 
-        var items = paged.Items.Select(s => new SelectableAcademicStaffDto { Id = s.Id, Title = s.Title, Email = s.Email }).ToList();
+        // A-56: e-posta bu uçtan çıktı — ad soyad boşsa (eski kayıt) seçici kullanılamaz olmasın diye düşülür.
+        var items = paged.Items
+            .Select(s => new SelectableAcademicStaffDto
+            {
+                Id = s.Id,
+                Title = s.Title,
+                FullName = BuildFullName(s.FirstName, s.LastName) ?? s.Email,
+            })
+            .ToList();
         return DataResult<PagedResult<SelectableAcademicStaffDto>>.Success(
             new PagedResult<SelectableAcademicStaffDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    /// <summary>A-56: ad soyad birleşimi; ikisi de boşsa null döner ve çağıran e-postaya düşer.</summary>
+    private static string? BuildFullName(string? firstName, string? lastName)
+    {
+        var full = $"{firstName} {lastName}".Trim();
+        return full.Length == 0 ? null : full;
     }
 
     private static int ClampPageSize(int pageSize) =>

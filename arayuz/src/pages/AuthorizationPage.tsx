@@ -22,7 +22,6 @@ import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
-import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
@@ -30,8 +29,9 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
 import { emptyNameFormValues, nameFormSchema, type NameFormValues } from '../schemas/referenceForm'
-import type { PagedResult, PermissionCatalogItemDto, RoleListItemDto, UserListItemDto } from '../api/types'
+import type { PagedResult, PermissionCatalogItemDto, RoleListItemDto } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { UserManagement } from './UserManagement'
 
 function groupByCategory(catalog: PermissionCatalogItemDto[]): Map<string, PermissionCatalogItemDto[]> {
   const groups = new Map<string, PermissionCatalogItemDto[]>()
@@ -64,7 +64,8 @@ export function AuthorizationPage() {
       </Tabs>
 
       {tab === 0 && <RolesTab permissionCatalog={permissionsQuery.data ?? []} />}
-      {tab === 1 && <UsersTab />}
+      {/* Faz 26: kullanıcı yönetimi kendi bileşenine çıktı — Faz 29 onu ayrı bir rotaya taşıyacak. */}
+      {tab === 1 && <UserManagement />}
     </>
   )
 }
@@ -292,142 +293,3 @@ function RolesTab({ permissionCatalog }: { permissionCatalog: PermissionCatalogI
   )
 }
 
-function UsersTab() {
-  const queryClient = useQueryClient()
-  const notify = useNotifier()
-  const [search, setSearch] = useState('')
-  const [editingUser, setEditingUser] = useState<UserListItemDto | null>(null)
-  const [editingRoleNames, setEditingRoleNames] = useState<Set<string>>(new Set())
-
-  // A-50: sunucu araması zaten vardı ama debounce yoktu — her tuşa basışta bir istek gidiyordu.
-  const debouncedSearch = useDebouncedValue(search)
-
-  const { paginationModel, setPaginationModel, query: usersQuery } = usePagedQuery({
-    queryKey: ['users', debouncedSearch],
-    queryFn: async (pageIndex, pageSize) =>
-      (await apiClient.get<PagedResult<UserListItemDto>>('/users', { params: { pageIndex, pageSize, search: debouncedSearch || undefined } })).data,
-  })
-
-  // Rol atama diyaloğu doğası gereği TÜM rolleri ister (checkbox listesi) — Y-62'nin istisnası:
-  // burada istemci filtreleme yapmaz, sınırlı ve yönetici tarafından tanımlanan bir küme okunur.
-  // Sunucu üst sınırı 100 olduğu için 100 istenir; daha fazlası sessizce kırpılırdı.
-  const rolesQuery = useQuery({
-    queryKey: ['roles', 'all'],
-    queryFn: async () => (await apiClient.get<PagedResult<RoleListItemDto>>('/roles', { params: { pageIndex: 0, pageSize: 100 } })).data,
-  })
-
-  const setUserRolesMutation = useMutation({
-    mutationFn: async ({ userId, roleNames }: { userId: number; roleNames: string[] }) => {
-      await apiClient.put(`/users/${userId}/roles`, { roleNames })
-    },
-    onSuccess: () => {
-      notify({ message: 'Kullanıcı rolleri güncellendi.', severity: 'success' })
-      setEditingUser(null)
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-    },
-    onError: (error) => notify({ message: extractErrorMessage(error, 'Roller güncellenemedi.'), severity: 'error' }),
-  })
-
-  const openEditDialog = (user: UserListItemDto) => {
-    setEditingUser(user)
-    setEditingRoleNames(new Set(user.roles))
-  }
-
-  const toggleRole = (name: string) => {
-    setEditingRoleNames((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) {
-        next.delete(name)
-      } else {
-        next.add(name)
-      }
-      return next
-    })
-  }
-
-  const columns: GridColDef<UserListItemDto>[] = [
-    { field: 'email', headerName: 'E-posta', flex: 1, minWidth: 220 },
-    {
-      field: 'roles',
-      headerName: 'Roller',
-      flex: 1,
-      minWidth: 220,
-      sortable: false,
-      renderCell: (params) => (
-        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5, py: 0.5 }}>
-          {params.row.roles.map((name) => (
-            <Chip key={name} size="small" label={name} />
-          ))}
-        </Stack>
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: '',
-      width: 160,
-      sortable: false,
-      filterable: false,
-      renderCell: (params) => (
-        <Button size="small" variant="outlined" onClick={() => openEditDialog(params.row)}>
-          Rolleri Düzenle
-        </Button>
-      ),
-    },
-  ]
-
-  return (
-    <>
-      <TextField
-        size="small"
-        label="E-posta ara"
-        value={search}
-        onChange={(event) => {
-          setPaginationModel({ ...paginationModel, page: 0 })
-          setSearch(event.target.value)
-        }}
-        sx={{ mb: 2, width: 280 }}
-      />
-
-      <DataTable
-        mobileHiddenFields={['roles']}
-        rows={usersQuery.data?.items ?? []}
-        columns={columns}
-        getRowHeight={() => 'auto'}
-        loading={usersQuery.isFetching}
-        paginationMode="server"
-        rowCount={usersQuery.data?.totalCount ?? 0}
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        pageSizeOptions={[10, 20, 50]}
-        emptyTitle="Kullanıcı bulunamadı"
-      />
-
-      <Dialog open={editingUser !== null} onClose={() => setEditingUser(null)} fullWidth maxWidth="xs">
-        <DialogTitle>{editingUser?.email} — Roller</DialogTitle>
-        <DialogContent>
-          <FormGroup>
-            {(rolesQuery.data?.items ?? []).map((role) => (
-              <FormControlLabel
-                key={role.id}
-                control={<Checkbox checked={editingRoleNames.has(role.name)} onChange={() => toggleRole(role.name)} />}
-                label={role.name}
-              />
-            ))}
-          </FormGroup>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditingUser(null)}>Vazgeç</Button>
-          <Button
-            variant="contained"
-            disabled={setUserRolesMutation.isPending}
-            onClick={() =>
-              editingUser && setUserRolesMutation.mutate({ userId: editingUser.id, roleNames: Array.from(editingRoleNames) })
-            }
-          >
-            Kaydet
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
-  )
-}

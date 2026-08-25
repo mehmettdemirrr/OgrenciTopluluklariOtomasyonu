@@ -36,7 +36,15 @@ public sealed class AccountManager(
             return Result.NotFound(Messages.DepartmentNotFound);
         }
 
-        var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = false };
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = false,
+            // A-56: ad soyad zorunlu değil — boşsa null kalır ve arayüz e-postaya düşer.
+            FirstName = string.IsNullOrWhiteSpace(request.FirstName) ? null : request.FirstName.Trim(),
+            LastName = string.IsNullOrWhiteSpace(request.LastName) ? null : request.LastName.Trim(),
+        };
 
         // Y-46: [TransactionAspect] kasıtlı olarak kullanılmaz — commit'ten SONRA Hangfire'a doğrulama
         // e-postası işi eklenebilmesi için transaction burada elle yönetilir (ReviewAsync precedent'i).
@@ -180,6 +188,8 @@ public sealed class AccountManager(
         var response = new MeResponseDto
         {
             Email = user.Email ?? string.Empty,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
             Roles = roles,
             Permissions = permissions,
         };
@@ -231,6 +241,9 @@ public sealed class AccountManager(
         student.EnrollmentYear = request.EnrollmentYear;
         studentRepository.Update(student);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        // A-56: ad soyad Identity kaydında yaşar — Student profilinden ayrı bir yazma.
+        await accountGateway.SetNameAsync(userId, request.FirstName, request.LastName).ConfigureAwait(false);
 
         return Result.Success(Messages.ProfileUpdated);
     }

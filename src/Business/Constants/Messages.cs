@@ -127,6 +127,18 @@ public static class Messages
     public const string LockoutUpdated = "Kullanıcı durumu güncellendi.";
     public const string CannotLockOwnAccount = "Kendi hesabınızı kilitleyemezsiniz.";
 
+    // Faz 26 — Kişi kimliği ve kullanıcı yönetimi (K-32, A-56, A-57, Y-67)
+    public const string CannotDeleteOwnAccount = "Kendi hesabınızı silemezsiniz.";
+    public const string UserDeleted = "Kullanıcı silindi.";
+    public const string UserHasAdvisedClubs = "Bu kullanıcı bir topluluğun danışmanı olduğu için silinemez. Önce topluluğa yeni bir danışman atayın.";
+    public const string UserHasClubMemberships = "Bu kullanıcının topluluk üyelikleri olduğu için silinemez. Önce üyeliklerini sonlandırın.";
+    public const string UserHasEventParticipations = "Bu kullanıcının etkinlik kayıtları olduğu için silinemez.";
+    public const string UserHasApplications = "Bu kullanıcının üyelik başvuruları olduğu için silinemez.";
+    public const string ProfileDepartmentRequired = "Seçilen rol için bölüm zorunludur.";
+    public const string StudentProfileRequired = "Öğrenci rolü için öğrenci numarası ve kayıt yılı zorunludur.";
+    public const string StudentNumberTaken = "Bu öğrenci numarası zaten kayıtlı.";
+    public const string AdvisorProfileRequired = "Danışman rolü için akademik unvan zorunludur.";
+
     // Faz 12 — Dashboard (K-25)
     public const string DashboardAccessDenied = "Panel özetini görüntülemek için oturum açmanız gerekir.";
 

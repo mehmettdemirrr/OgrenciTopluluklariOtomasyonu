@@ -371,7 +371,7 @@ export function ClubsPage() {
                   })).data.items
                 }
                 getOptionId={(staff) => staff.id}
-                getOptionLabel={(staff) => `${staff.title} — ${staff.email}`}
+                getOptionLabel={(staff) => `${staff.title} ${staff.fullName}`}
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
               />

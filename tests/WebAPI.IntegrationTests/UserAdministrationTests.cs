@@ -38,8 +38,28 @@ public sealed class UserAdministrationTests : IClassFixture<CustomWebApplication
         const string newUserEmail = "admin-created@test.local";
         const string newUserPassword = "Str0ng!Pass1";
 
+        // Y-67 (Faz 26): Member rolü artık öğrenci profili ister — alanlar olmadan kullanıcı
+        // hiç oluşturulmaz. Testin konusu "hemen giriş yapabilme", o yüzden alanlar sağlanıyor.
+        int departmentId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            departmentId = (await db.Departments.FirstAsync()).Id;
+        }
+
         var createResponse = await SendWithBearerAsync(
-            HttpMethod.Post, "/api/users", adminToken, new { Email = newUserEmail, Password = newUserPassword, RoleNames = new[] { "Member" } });
+            HttpMethod.Post,
+            "/api/users",
+            adminToken,
+            new
+            {
+                Email = newUserEmail,
+                Password = newUserPassword,
+                RoleNames = new[] { "Member" },
+                StudentNumber = $"AC{Guid.NewGuid():N}"[..10],
+                DepartmentId = departmentId,
+                EnrollmentYear = 2026,
+            });
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
 
         var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new { Email = newUserEmail, Password = newUserPassword });

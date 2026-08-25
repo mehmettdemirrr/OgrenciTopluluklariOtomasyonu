@@ -83,6 +83,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     {
         base.OnModelCreating(builder);
 
+        builder.ApplyConfiguration(new ApplicationUserConfiguration());
         builder.ApplyConfiguration(new RefreshTokenConfiguration());
 
         builder.ApplyConfiguration(new FacultyConfiguration());

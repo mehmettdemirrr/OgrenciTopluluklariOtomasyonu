@@ -14,10 +14,22 @@ public sealed class EfAcademicStaffDal(AppDbContext context) : IAcademicStaffDal
         var query =
             from staff in context.AcademicStaff.AsNoTracking()
             join user in context.Users.AsNoTracking() on staff.ApplicationUserId equals user.Id
-            where term.Length == 0 || user.Email!.Contains(term) || staff.Title.Contains(term)
+            where term.Length == 0
+                || user.Email!.Contains(term)
+                || staff.Title.Contains(term)
+                || (user.FirstName != null && user.FirstName.Contains(term))
+                || (user.LastName != null && user.LastName.Contains(term))
             // Y-64: e-posta benzersiz olduğundan tek başına deterministik sıra sağlar.
             orderby user.Email
-            select new AcademicStaffRowDto { Id = staff.Id, Title = staff.Title, Email = user.Email! };
+            select new AcademicStaffRowDto
+            {
+                Id = staff.Id,
+                Title = staff.Title,
+                Email = user.Email!,
+                // A-56: ad soyad geldi; seçicide artık e-posta yerine bu gösterilir.
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+            };
 
         var totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
         var items = await query

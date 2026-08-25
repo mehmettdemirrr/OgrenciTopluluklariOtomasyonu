@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Business.Abstract;
 using Business.Concrete;
 using Business.DTOs.Admin;
@@ -5,6 +6,7 @@ using Core.DataAccess;
 using Core.Utilities.Security;
 using DataAccess.Repositories;
 using DataAccess.Seed;
+using Entities;
 using Entities.Dtos.Admin;
 using Moq;
 using Xunit;
@@ -17,12 +19,36 @@ public class RoleAdminManagerTests
     private readonly Mock<IIdentityAdminDal> _identityAdminDal = new();
     private readonly Mock<IIdentityAdminGateway> _identityAdminGateway = new();
     private readonly Mock<ICurrentUser> _currentUser = new();
+
+    // Faz 26 (Y-67/A-57): kullanıcı oluşturma domain profili de üretiyor, silme ise bağlı kayıt
+    // kontrolü yapıyor — manager artık bu depoları da tanıyor.
+    private readonly Mock<IEntityRepository<Student>> _studentRepository = new();
+    private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
+    private readonly Mock<IEntityRepository<Department>> _departmentRepository = new();
+    private readonly Mock<IEntityRepository<Club>> _clubRepository = new();
+    private readonly Mock<IEntityRepository<ClubMembership>> _clubMembershipRepository = new();
+    private readonly Mock<IEntityRepository<EventParticipation>> _eventParticipationRepository = new();
+    private readonly Mock<IEntityRepository<MembershipApplication>> _membershipApplicationRepository = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
+
     private readonly RoleAdminManager _sut;
 
     public RoleAdminManagerTests()
     {
         _currentUser.Setup(c => c.UserId).Returns(999);
-        _sut = new RoleAdminManager(_identityAdminDal.Object, _identityAdminGateway.Object, _currentUser.Object);
+
+        _sut = new RoleAdminManager(
+            _identityAdminDal.Object,
+            _identityAdminGateway.Object,
+            _studentRepository.Object,
+            _academicStaffRepository.Object,
+            _departmentRepository.Object,
+            _clubRepository.Object,
+            _clubMembershipRepository.Object,
+            _eventParticipationRepository.Object,
+            _membershipApplicationRepository.Object,
+            _unitOfWork.Object,
+            _currentUser.Object);
     }
 
     [Fact(DisplayName = "CreateRole: aynı isimde rol varsa Conflict döner")]
@@ -184,18 +210,62 @@ public class RoleAdminManagerTests
         Assert.Contains(IdentitySeedData.Permissions.RolesManage, editorRole.Permissions);
     }
 
-    [Fact(DisplayName = "CreateUser: geçerli rollerle kullanıcı oluşturulur")]
-    public async Task CreateUserAsync_ValidRoles_ReturnsSuccessWithId()
+    // Y-67: Member rolü artık öğrenci profili ister — bu test o alanları da sağlar.
+    [Fact(DisplayName = "CreateUser: geçerli rol ve profil alanlarıyla kullanıcı oluşturulur ve Student profili yazılır")]
+    public async Task CreateUserAsync_ValidRolesAndProfile_ReturnsSuccessWithId()
     {
         _identityAdminGateway.Setup(g => g.RoleExistsByNameAsync("Member")).ReturnsAsync(true);
+        _departmentRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Department, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Department { Id = 3, Name = "Bilgisayar Mühendisliği", FacultyId = 1 });
+        _studentRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Student?)null);
         _identityAdminGateway
-            .Setup(g => g.CreateUserAsync("new@test.local", "Str0ng!Pass", It.Is<IReadOnlyCollection<string>>(r => r.Contains("Member"))))
+            .Setup(g => g.CreateUserAsync(
+                "new@test.local",
+                "Str0ng!Pass",
+                It.Is<IReadOnlyCollection<string>>(r => r.Contains("Member")),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .ReturnsAsync(77);
 
-        var result = await _sut.CreateUserAsync(new CreateUserRequestDto { Email = "new@test.local", Password = "Str0ng!Pass", RoleNames = ["Member"] });
+        var result = await _sut.CreateUserAsync(new CreateUserRequestDto
+        {
+            Email = "new@test.local",
+            Password = "Str0ng!Pass",
+            FirstName = "Ayşe",
+            LastName = "Yılmaz",
+            RoleNames = ["Member"],
+            StudentNumber = "20260099",
+            DepartmentId = 3,
+            EnrollmentYear = 2026,
+        });
 
         Assert.True(result.IsSuccess);
         Assert.Equal(77, result.Data);
+        _studentRepository.Verify(r => r.AddAsync(It.IsAny<Student>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "Y-67: Member rolü seçilip profil alanları verilmezse kullanıcı HİÇ oluşturulmaz")]
+    public async Task CreateUserAsync_MemberRoleWithoutProfile_ReturnsValidationErrorAndCreatesNothing()
+    {
+        _identityAdminGateway.Setup(g => g.RoleExistsByNameAsync("Member")).ReturnsAsync(true);
+
+        var result = await _sut.CreateUserAsync(new CreateUserRequestDto
+        {
+            Email = "half@test.local",
+            Password = "Str0ng!Pass",
+            RoleNames = ["Member"],
+        });
+
+        Assert.False(result.IsSuccess);
+
+        // Kritik: Identity kaydı da yazılmamalı — aksi hâlde geriye yarım kullanıcı kalırdı.
+        _identityAdminGateway.Verify(
+            g => g.CreateUserAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<string?>(), It.IsAny<string?>()),
+            Times.Never);
     }
 
     [Fact(DisplayName = "CreateUser: var olmayan role atanmak istenirse NotFound döner, kullanıcı oluşturulmaz")]

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Business.Abstract;
 using Entities;
 using Microsoft.AspNetCore.Identity;
@@ -31,4 +32,19 @@ public sealed class AccountGateway(UserManager<ApplicationUser> userManager) : I
 
     public async Task<IReadOnlyCollection<string>> GetRoleNamesAsync(ApplicationUser user) =>
         (await userManager.GetRolesAsync(user).ConfigureAwait(false)).ToArray();
+
+    public async Task<bool> SetNameAsync(int userId, string? firstName, string? lastName)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString(CultureInfo.InvariantCulture)).ConfigureAwait(false);
+        if (user is null)
+        {
+            return false;
+        }
+
+        user.FirstName = string.IsNullOrWhiteSpace(firstName) ? null : firstName.Trim();
+        user.LastName = string.IsNullOrWhiteSpace(lastName) ? null : lastName.Trim();
+
+        var result = await userManager.UpdateAsync(user).ConfigureAwait(false);
+        return result.Succeeded;
+    }
 }

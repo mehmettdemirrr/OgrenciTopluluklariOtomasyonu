@@ -31,8 +31,19 @@ public interface IIdentityAdminGateway
     Task<bool> SetUserRolesAsync(int userId, IReadOnlyCollection<string> roleNames);
 
     /// <summary>docs/PLAN-V2.md · Faz 11: yönetici kullanıcıyı doğrudan oluşturur — EmailConfirmed=true (K-03 akışını atlar).</summary>
-    Task<int?> CreateUserAsync(string email, string password, IReadOnlyCollection<string> roleNames);
+    Task<int?> CreateUserAsync(
+        string email, string password, IReadOnlyCollection<string> roleNames, string? firstName = null, string? lastName = null);
 
     /// <summary>Kullanıcı bulunamazsa false döner.</summary>
     Task<bool> SetLockoutAsync(int userId, bool locked);
+
+    /// <summary>
+    /// docs/MIMARI.md · A-57: kalıcı silme. Bağlı domain kaydı kontrolü <b>burada değil</b>
+    /// RoleAdminManager'da yapılır — bu seam yalnızca Identity yazma yüzeyidir.
+    /// Kullanıcı bulunamazsa false döner.
+    /// </summary>
+    Task<bool> DeleteUserAsync(int userId);
+
+    /// <summary>A-56: profil güncelleme (ad soyad). Kullanıcı bulunamazsa false döner.</summary>
+    Task<bool> SetNameAsync(int userId, string? firstName, string? lastName);
 }

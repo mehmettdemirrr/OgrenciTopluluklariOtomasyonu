@@ -105,11 +105,19 @@ public sealed class IdentityAdminGateway(UserManager<ApplicationUser> userManage
         return true;
     }
 
-    public async Task<int?> CreateUserAsync(string email, string password, IReadOnlyCollection<string> roleNames)
+    public async Task<int?> CreateUserAsync(
+        string email, string password, IReadOnlyCollection<string> roleNames, string? firstName = null, string? lastName = null)
     {
         // K-17 admin akışı Faz 11'in e-posta doğrulama zincirini atlar — yönetici zaten kimliği doğrulanmış
         // bir aktördür, hesabı kendisi oluşturuyor.
-        var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true,
+            FirstName = string.IsNullOrWhiteSpace(firstName) ? null : firstName.Trim(),
+            LastName = string.IsNullOrWhiteSpace(lastName) ? null : lastName.Trim(),
+        };
         var result = await userManager.CreateAsync(user, password).ConfigureAwait(false);
         if (!result.Succeeded)
         {
@@ -134,6 +142,35 @@ public sealed class IdentityAdminGateway(UserManager<ApplicationUser> userManage
 
         await userManager.SetLockoutEndDateAsync(user, locked ? DateTimeOffset.MaxValue : null).ConfigureAwait(false);
         return true;
+    }
+
+    public async Task<bool> DeleteUserAsync(int userId)
+    {
+        var user = await FindUserAsync(userId).ConfigureAwait(false);
+        if (user is null)
+        {
+            return false;
+        }
+
+        // Identity kendi bağımlı satırlarını (UserRoles, UserClaims, UserLogins, UserTokens)
+        // cascade ile temizler; domain kayıtlarının kontrolü çağırana aittir (A-57).
+        var result = await userManager.DeleteAsync(user).ConfigureAwait(false);
+        return result.Succeeded;
+    }
+
+    public async Task<bool> SetNameAsync(int userId, string? firstName, string? lastName)
+    {
+        var user = await FindUserAsync(userId).ConfigureAwait(false);
+        if (user is null)
+        {
+            return false;
+        }
+
+        user.FirstName = string.IsNullOrWhiteSpace(firstName) ? null : firstName.Trim();
+        user.LastName = string.IsNullOrWhiteSpace(lastName) ? null : lastName.Trim();
+
+        var result = await userManager.UpdateAsync(user).ConfigureAwait(false);
+        return result.Succeeded;
     }
 
     private Task<ApplicationRole?> FindRoleAsync(int roleId) =>

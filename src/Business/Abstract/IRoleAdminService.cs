@@ -56,4 +56,13 @@ public interface IRoleAdminService
     [SecuredOperation(IdentitySeedData.Permissions.RolesManage)]
     [TransactionAspect]
     Task<IResult> SetLockoutAsync(int userId, SetLockoutRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · A-57 (K-32): kalıcı silme. Bağlı domain kaydı (üyelik, etkinlik kaydı,
+    /// başvuru, danışmanlık) varsa <c>Conflict</c> döner ve hangi bağın engellediğini söyler;
+    /// yönetici kendi hesabını silemez.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.RolesManage)]
+    [TransactionAspect]
+    Task<IResult> DeleteUserAsync(int userId, CancellationToken cancellationToken = default);
 }

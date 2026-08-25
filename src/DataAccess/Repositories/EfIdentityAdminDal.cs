@@ -37,16 +37,32 @@ public sealed class EfIdentityAdminDal(AppDbContext context) : IIdentityAdminDal
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            query = query.Where(u => u.Email!.Contains(search));
+            // A-56: arama artık ad ve soyadı da kapsıyor — yönetici kişiyi e-postasıyla değil
+            // adıyla arayabilmeli. Filtreleme SQL'de (A-50/Y-62).
+            query = query.Where(u =>
+                u.Email!.Contains(search)
+                || (u.FirstName != null && u.FirstName.Contains(search))
+                || (u.LastName != null && u.LastName.Contains(search)));
         }
 
         query = query.OrderBy(u => u.Email);
+
+        var now = DateTimeOffset.UtcNow;
 
         var totalCount = await query.CountAsync(cancellationToken).ConfigureAwait(false);
         var items = await query
             .Skip(pageIndex * pageSize)
             .Take(pageSize)
-            .Select(u => new UserRowDto { Id = u.Id, Email = u.Email! })
+            .Select(u => new UserRowDto
+            {
+                Id = u.Id,
+                Email = u.Email!,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                // A-57: pasif = kilit geleceğe kurulmuş. Geçmişte kalan LockoutEnd "süresi dolmuş
+                // kilit" demektir ve kullanıcı yeniden giriş yapabilir — pasif sayılmamalı.
+                IsLockedOut = u.LockoutEnd != null && u.LockoutEnd > now,
+            })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 

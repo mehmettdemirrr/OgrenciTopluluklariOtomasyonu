@@ -30,4 +30,7 @@ public interface IAccountGateway
     Task<bool> ChangePasswordAsync(ApplicationUser user, string currentPassword, string newPassword);
 
     Task<IReadOnlyCollection<string>> GetRoleNamesAsync(ApplicationUser user);
+
+    /// <summary>docs/MIMARI.md · A-56: ad soyad Identity kaydında yaşar; kullanıcı kendi adını düzeltebilir.</summary>
+    Task<bool> SetNameAsync(int userId, string? firstName, string? lastName);
 }

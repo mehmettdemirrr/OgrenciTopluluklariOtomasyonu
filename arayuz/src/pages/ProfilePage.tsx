@@ -24,6 +24,9 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>
 
 // Y-35: yalnızca biçim — bölümün var olup olmadığı API'nin kararı.
 const profileSchema = z.object({
+  // A-56: mevcut hesaplarda ad soyad boş başlar — doldurmanın tek yolu bu form.
+  firstName: z.string().max(100, 'En fazla 100 karakter.'),
+  lastName: z.string().max(100, 'En fazla 100 karakter.'),
   departmentId: z.number({ error: 'Bölüm seçin.' }).int().positive('Bölüm seçin.'),
   enrollmentYear: z.number().int().min(2000).max(currentYear + 1),
 })
@@ -51,14 +54,19 @@ export function ProfilePage() {
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { departmentId: 0, enrollmentYear: currentYear },
+    defaultValues: { firstName: '', lastName: '', departmentId: 0, enrollmentYear: currentYear },
   })
 
   // /me yüklendiğinde formu mevcut değerlerle doldur.
   const { reset: resetProfileForm } = profileForm
   useEffect(() => {
     if (meQuery.data?.departmentId != null && meQuery.data.enrollmentYear != null) {
-      resetProfileForm({ departmentId: meQuery.data.departmentId, enrollmentYear: meQuery.data.enrollmentYear })
+      resetProfileForm({
+        firstName: meQuery.data.firstName ?? '',
+        lastName: meQuery.data.lastName ?? '',
+        departmentId: meQuery.data.departmentId,
+        enrollmentYear: meQuery.data.enrollmentYear,
+      })
     }
   }, [meQuery.data, resetProfileForm])
 
@@ -115,6 +123,24 @@ export function ProfilePage() {
               onSubmit={profileForm.handleSubmit((values) => updateProfileMutation.mutate(values))}
               sx={{ maxWidth: 420 }}
             >
+              {/* A-56: ad soyad — öğrenci numarasının aksine kullanıcının kendi düzeltebileceği alan. */}
+              <Stack direction="row" spacing={2}>
+                <Controller
+                  name="firstName"
+                  control={profileForm.control}
+                  render={({ field, fieldState }) => (
+                    <TextField {...field} label="Ad" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                  )}
+                />
+                <Controller
+                  name="lastName"
+                  control={profileForm.control}
+                  render={({ field, fieldState }) => (
+                    <TextField {...field} label="Soyad" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                  )}
+                />
+              </Stack>
+
               {/* §19.2: öğrenci numarası kimliğin parçası — salt okunur, DTO'da alanı bile yok. */}
               <TextField
                 label="Öğrenci Numarası"

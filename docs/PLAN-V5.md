@@ -286,7 +286,7 @@ yapılandırılmamış üye için `null` döner). Varsayılan boş koleksiyon ek
 
 ---
 
-## Faz 26 — Kişi kimliği ve kullanıcı yönetimi (bildirilen #7 + bulgu 10, 11)
+## Faz 26 — Kişi kimliği ve kullanıcı yönetimi (bildirilen #7 + bulgu 10, 11) — ✅ tamamlandı
 
 ### 26.1 Ad soyad (O-15)
 
@@ -346,6 +346,37 @@ Admin ad soyadla kullanıcı oluşturuyor · `Member` seçince öğrenci no isti
 **gerçekten kulübe başvurabiliyor** · pasife alınan kullanıcı giriş yapamıyor · üyeliği olan
 kullanıcı silinemiyor (409, sebep mesajda) · admin kendini silemiyor/kilitleyemiyor · danışman
 seçicide e-posta yerine ad soyad görünüyor · `/api/public/*` cevaplarında ad soyad **geçmiyor**.
+
+### Tamamlanma notu
+
+**Testler:** 317/317 yeşil (177 Business + 11 Architecture + 129 Integration). Yeni
+`UserProvisioningTests` (7).
+
+| Canlı kontrol | Sonuç |
+|---|---|
+| Kullanıcı listesi kolonları | `Ad Soyad · E-posta · Roller · Durum` |
+| "Yeni Kullanıcı" düğmesi | Var (uç ilk kez arayüze bağlandı) |
+| Profil alanları rol seçilmeden | **Gizli** |
+| `Member` seçilince | Öğrenci no / bölüm / kayıt yılı **beliriyor** |
+| Ad soyadla arama | Bulundu |
+| Pasife alma | Rozet `Aktif` → `Pasif` |
+| Silme (bağsız kullanıcı) | Başarılı |
+
+**Beklenen ve kastedilen iki test kırılması** — ikisi de Y-67'nin kanıtı:
+`RoleAdminManagerTests.CreateUserAsync_ValidRoles` ve `UserAdministrationTests`'in "admin doğrudan
+kullanıcı oluşturur" testi, `Member` rolüyle **profilsiz** kullanıcı oluşturuyordu. Artık bu bir
+hata; ikisi de profil alanlarını sağlayacak şekilde güncellendi ve yanına "alanlar eksikse Identity
+kaydı da yazılmaz" reddi eklendi.
+
+**Planda olmayan bir iyileştirme:** `SelectableAcademicStaffDto`'dan **e-posta kaldırıldı.**
+Bu uç `reference.manage` istemiyor — yani herhangi bir öğrenci tüm danışmanların e-postasını
+görebiliyordu (PLAN-V3 §17.4'te "gösterecek başka alan yok" gerekçesiyle bilinçli taviz olarak
+kaydedilmişti). Ad soyad gelince gerekçe ortadan kalktı; DTO artık `FullName` taşıyor ve yalnızca
+adı boş olan eski kayıtlarda e-postaya düşüyor. Yönetici ucu (`AcademicStaffListItemDto`) e-postayı
+korur — orada gerçekten gerekli.
+
+**Y-31 ihlali yakalandı:** `RoleAdminManager`'a eklediğim `IClock` hiç kullanılmıyordu
+(`CS9113`). Kaldırıldı — tam yeniden derlemede 0 uyarı.
 
 ---
 
