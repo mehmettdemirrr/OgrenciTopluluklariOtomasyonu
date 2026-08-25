@@ -1,15 +1,17 @@
 # Öğrenci Toplulukları Otomasyonu — Mimari Taslak
 
-**Sürüm:** v4.0 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
+**Sürüm:** v5.0 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
 eklendi) · v3.0: 23 Ağustos 2026 (Faz 15-18 eklendi) · v4.0: 23 Ağustos 2026 (Faz 19-23 eklendi)
+· v5.0: 25 Ağustos 2026 (Faz 24-29 eklendi)
 **Referans mimari:** [engindemirog/NetCoreBackend](https://github.com/engindemirog/NetCoreBackend)
 **Uygulama planları:** [docs/PLAN-V2.md](PLAN-V2.md) (Faz 8-14) · [docs/PLAN-V3.md](PLAN-V3.md) (Faz 15-18)
-· [docs/PLAN-V4.md](PLAN-V4.md) (Faz 19-23) — gerekçe, sıra ve doğrulama adımları
+· [docs/PLAN-V4.md](PLAN-V4.md) (Faz 19-23) · [docs/PLAN-V5.md](PLAN-V5.md) (Faz 24-29) — gerekçe, sıra
+ve doğrulama adımları
 
 Tek uygulama, beş katman, tek veritabanı. v1.0'ın 36 kararı, v2.0'ın 7 yeni kararı (A-37…A-43) verildi;
 v3.0 dört yeni fazla (K-28, K-29) 4 karar (A-44…A-47) ve 2 kural (Y-59, Y-60) ekledi; v4.0 beş yeni fazla
-(K-30) 7 karar (A-48…A-54) ve 4 kural (Y-61…Y-64) ekledi. Yığın, kapsam ve kurallar sabit; bundan sonrası
-uygulama.
+(K-30) 7 karar (A-48…A-54) ve 4 kural (Y-61…Y-64) ekledi; v5.0 altı yeni fazla (K-31…K-34) 5 karar
+(A-55…A-59) ve 4 kural (Y-65…Y-68) ekledi. Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
 
 > **Bu belge tek doğruluk kaynağıdır.** Bir kural veya kapsam değişikliği gerekirse önce burası
 > güncellenir, sonra kod. Aksi hâlde belge ile kod arasındaki fark sessizce büyür ve mimari testler
@@ -17,10 +19,10 @@ uygulama.
 
 | | |
 |---|---|
-| Karar | 53 (36 v1.0 + 7 v2.0 + 4 v3.0 + 6 v4.0) |
-| Yasak kural | 63 (52 v1.0 + 6 v2.0 + 2 v3.0 + 3 v4.0) |
+| Karar | 59 (36 v1.0 + 7 v2.0 + 4 v3.0 + 7 v4.0 + 5 v5.0) |
+| Yasak kural | 68 (52 v1.0 + 6 v2.0 + 2 v3.0 + 4 v4.0 + 4 v5.0) |
 | V1 dışı madde | 13 (K-13 v4.0'da **ikiye bölündü** — bkz. §3) |
-| Uygulama fazı | 23 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0) |
+| Uygulama fazı | 29 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0 + 6 v5.0) |
 
 **Yığın:** .NET 8 LTS · ASP.NET Core Identity · EF Core 8 / MSSQL · Autofac + async AOP ·
 FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · React 18 + Vite + TypeScript + MUI
@@ -30,11 +32,11 @@ FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · 
 ## İçindekiler
 
 1. [Katmanlar ve bağımlılık yönü](#1-katmanlar-ve-bağımlılık-yönü)
-2. [Açıkça yasak (Y-01 … Y-64)](#2-açıkça-yasak)
-3. [V1 kapsamı (K-01 … K-30)](#3-v1-kapsamı)
+2. [Açıkça yasak (Y-01 … Y-68)](#2-açıkça-yasak)
+3. [V1 kapsamı (K-01 … K-34)](#3-v1-kapsamı)
 4. [Teknoloji ve domain](#4-teknoloji-ve-domain)
 5. [Uygulama sırası](#5-uygulama-sırası)
-6. [Karar kaydı (A-01 … A-54)](#6-karar-kaydı)
+6. [Karar kaydı (A-01 … A-59)](#6-karar-kaydı)
 7. [Sessiz onaylar](#7-sessiz-onaylar)
 
 ---
@@ -206,6 +208,15 @@ değiştiririz — ama önce belge değişir, sonra kod.
 | **Y-63** | E-posta üreten anonim ucu (`register`, `forgot-password`, `resend-confirmation`) oran sınırı olmadan yayına almak | `[EnableRateLimiting]` ile IP bazlı sınır (A-53). Gerekçe: tek uçtan SMTP kotasının tüketilmesi **tüm** bildirim altyapısını durdurur — kayıt doğrulama dahil |
 | **Y-64** | Belirlenmiş bir sıralama olmadan `Skip`/`Take` ile sayfalamak | Sıra, sayfalamanın parçasıdır: `IEntity.Id` üzerinden **daima** son kırıcı (tie-breaker) uygulanır, alan bazlı sıralama `OrderBy`+`ThenBy(Id)` ile gelir. Gerekçe: SQL Server `OFFSET/FETCH` için `ORDER BY` şart olduğundan EF Core sırasız sorguya `ORDER BY (SELECT 1)` üretir — 2. sayfa 1. sayfanın satırlarını **tekrarlayabilir veya atlayabilir**. Sayfalama bunu yaparsa "sunucu taraflı sayfalama" bir görüntüden ibarettir (Y-11, Y-62) |
 
+### V5 eklentileri (Faz 24-29)
+
+| # | Yasak | Bunun yerine |
+|---|---|---|
+| **Y-65** | Hangfire köprü çerezini `/hangfire` dışında bir yola yazmak veya API kimlik doğrulamasında kabul etmek | Çerez `Path=/hangfire`, `HttpOnly`, `Secure`, `SameSite=Strict` ve access token ile aynı ömürlü (A-59). Gerekçe: çerez `/api/*`'a da giderse K-01'in "access token çerezde taşınmaz" kararı ve Y-48'in CSRF savunması sessizce delinir |
+| **Y-66** | Kulüp kapsamı kontrol eden bir metodu yönetici kontrolü olmadan yazmak | Her `Ensure*Access*` metodu **ilk satırda** `clubs.manage.all` iznine bakar (A-55). Gerekçe: satır unutulunca yönetici kendi yönettiği sistemde sessizce kilitlenir ve hata mesajı ("danışmanı olmanız gerekir") sebebi söylemez. `ScopeGuardArchitectureTest` ihlali IL taramasıyla yakalar |
+| **Y-67** | Öğrenci veya danışman rolü atanan kullanıcıyı domain profili (`Student` / `AcademicStaff`) olmadan oluşturmak | Rol seçimi profil alanlarını zorunlu kılar, eksikse `400` (A-57). Gerekçe: profilsiz kullanıcı giriş yapar ama hiçbir şey yapamaz; ne kullanıcı ne de onu oluşturan yönetici sebebi görebilir |
+| **Y-68** | Demo veriyi üretim veritabanına yazmak veya geri bulunamayacak şekilde üretmek | `DemoDataSeeder` yalnızca açık konfigürasyon anahtarıyla (`Seed:Demo`) çalışır ve ürettiği kayıtları işaretler (A-58). Gerekçe: işaretsiz demo veri gerçek veriyle bir kez karıştığında ayrıştırılamaz |
+
 ---
 
 ## 3. V1 kapsamı
@@ -261,6 +272,22 @@ değiştiririz — ama önce belge değişir, sonra kod.
 
 > **K-22 notu (v4.0):** etkinlik yaşam döngüsüne `Cancelled` eklenir (A-49) — yayınlanmış etkinlik
 > **silinmez, iptal edilir** ve kayıtlı katılımcılara e-posta gider. Silme yalnızca `Draft` için kalır.
+
+### V5'e alınanlar (Faz 24-29)
+
+| # | Özellik | Ne var | Getirdiği iş |
+|---|---|---|---|
+| **K-31** | **Yönetici kapsamı** | Yönetici, danışmanı olmadığı kulüplerde de etkinlik/duyuru/üye rolü/logo işlemi yapabilir | `clubs.manage.all` izni, 7 `Ensure*Access` metodunun tamamında ilk kontrol; mevcut `reports.read.all` bypass'ları buraya taşınır (A-55, Y-66) |
+| **K-32** | **Kişi kimliği ve kullanıcı yönetimi** | Ad soyad; kullanıcı oluşturma/pasife alma/silme arayüzü; rol seçimine göre domain profili | `ApplicationUser.FirstName/LastName`, `DELETE /api/users/{id}`, `POST /users` profil de üretir (A-56, A-57, Y-67) |
+| **K-33** | **Danışman yönetimi** | Akademik personel oluşturulabilir/düzenlenebilir; kulübün danışmanı değiştirilebilir | `AcademicStaff` CRUD uçları, `UpdateClubRequestDto.AdvisorId` |
+| **K-34** | **Kurumsal referans verisi ve demo veri** | 19 fakülte / 121 bölüm; kulüp-etkinlik-duyuru-üyelik demo verisi | Referans `HasData` ile kalıcı, demo `DemoDataSeeder` ile config kapılı (A-58, Y-68) |
+
+> **K-01 notu (v5.0):** access token bellekte kalmaya devam eder, ama uygulama açılışında **bir kez**
+> sessiz refresh denenir (A-59). Bu, K-01'i gevşetmez: token yine hiçbir zaman kalıcı depoya yazılmaz;
+> yalnızca zaten var olan httpOnly refresh çerezi kullanılır.
+
+> **K-14 notu (v5.0):** Hangfire panelinin token köprüsü query string'den çereze taşınır (A-59, Y-65) —
+> panelin kendi CSS/JS istekleri query parametresi taşımadığı için bugün 401 alıyor ve panel stilsiz açılıyor.
 
 ### V1 dışında kalanlar — bilinçli kararlar
 
@@ -363,7 +390,7 @@ Sıra önemlidir: **yetki → validasyon → transaction → cache.** Hepsi asyn
 
 | Varlık | Rolü | Karar izi |
 |---|---|---|
-| `ApplicationUser` | Identity kullanıcısı, `int` anahtarlı, PBKDF2 parola | A-09, A-11, A-28 |
+| `ApplicationUser` | Identity kullanıcısı, `int` anahtarlı, PBKDF2 parola. **`FirstName`/`LastName` (nullable)** — anonim uçlardan dönmez | A-09, A-11, A-28, A-56, Y-58 |
 | `ApplicationRole` · `RoleClaim` | Roller ve ince taneli izinler | A-10, K-17, Y-37 |
 | `RefreshToken` | Tek kullanımlık, iptal edilebilir, çerezde taşınır | K-01, A-30, Y-38 |
 | `Student` · `AcademicStaff` | 1-1 profil tabloları | A-14 |
@@ -517,6 +544,30 @@ sıfır yeni satır üretiyor (idempotent).
 Sidebar yeniden gruplanır, `Skeleton`/`useDocumentTitle`/mobil kolon gizleme eklenir (A-52). Backend'e dokunulmaz.
 **Bitti sayılır:** `git diff --stat src/` boş; 1400×900'de admin menüsü kaydırmasız sığıyor.
 
+### 24 — Oturum sürekliliği ve Hangfire paneli
+Açılışta bir kez sessiz refresh (`bootstrapping` durumu); Hangfire token'ı `/hangfire` kapsamlı çerezden okunur (A-59, Y-65).
+**Bitti sayılır:** F5 sonrası oturum açık kalıyor; panel stilli açılıyor ve iç sayfalarında 401 alınmıyor; çerez `/api/*`'a gitmiyor.
+
+### 25 — Yönetici kapsamı
+`clubs.manage.all` izni 7 kapsam metodunun tamamına girer (K-31, A-55, Y-66); mimari test unutmayı yakalar.
+**Bitti sayılır:** admin kulüp etkinliği/duyurusu/üye rolü/logosunu yönetebiliyor; izni olmayan aynı uçlarda 403.
+
+### 26 — Kişi kimliği ve kullanıcı yönetimi
+Ad soyad eklenir; kullanıcı oluşturma rol'e göre domain profili de üretir; pasife alma ve korumalı silme arayüze gelir (K-32, A-56, A-57, Y-67).
+**Bitti sayılır:** `Member` rolüyle oluşturulan kullanıcı gerçekten kulübe başvurabiliyor; bağlı kaydı olan kullanıcı silinemiyor (409); anonim uçlarda ad soyad geçmiyor.
+
+### 27 — Danışman yönetimi
+`AcademicStaff` CRUD ve kulübün danışmanının değiştirilmesi (K-33).
+**Bitti sayılır:** yeni danışman oluşturulup kulübe atanabiliyor; eski danışman o kulüpte artık işlem yapamıyor.
+
+### 28 — Kurumsal referans verisi ve demo veri
+19 fakülte / 121 bölüm `HasData` ile; kulüp/etkinlik/duyuru/üyelik demo verisi config kapılı seeder ile (K-34, A-58, Y-68).
+**Bitti sayılır:** bölüm seçicide 121 bölüm aranabiliyor; seeder ikinci çalıştırmada sıfır satır üretiyor; `Seed:Demo` kapalıyken hiç demo kayıt yok.
+
+### 29 — Yetki matrisi ikiye ayrılır
+`/authorization/roles` ve `/authorization/users` ayrı rotalar olur.
+**Bitti sayılır:** iki rota ayrı açılıyor, eski `/authorization` linki yönleniyor, menü hâlâ kaydırmasız sığıyor.
+
 ---
 
 ## 6. Karar kaydı
@@ -579,6 +630,11 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | **A-52** | Arayüz cilası sözleşmesi | A | Her sayfa `useDocumentTitle` ile kendi sekme başlığını yazar; veri çeken her görünüm yüklenirken `Skeleton` gösterir |
 | **A-53** | Anonim kimlik uçlarında oran sınırı | B | `AddRateLimiter` (çerçeve içi, NuGet paketi yok), IP bazlı `FixedWindow`; **global limiter yok**, giriş yapmış kullanıcı sınırlanmaz; 429 → ProblemDetails (Y-25, Y-63) |
 | **A-54** | Önbellek sınırlıdır | B | `AddMemoryCache(SizeLimit)` + her girdi `Size = 1`; `MemoryCacheManager` anahtar defterini **tahliye geri çağrısıyla** temizler. Gerekçe: A-50 ile birlikte cache anahtarına **serbest metin** (`search`) girdi — anonim `/api/public/*` ucundan rastgele arama üreterek hem `IMemoryCache`'i hem anahtar defterini sınırsız büyütmek mümkün olurdu (A-17'nin sınırı) |
+| **A-55** | Yönetici kapsamı ayrı bir izindir | A | `clubs.manage.all`; Admin rolüne verilir, 7 kapsam metodunun ilk kontrolü olur. `reports.read.all`'ın fiilen "admin mi" bayrağı olarak kullanılması **sona erer** — o izin yalnızca `ReportScopeResolver`'da rapor kapsamı için kalır (K-31, Y-66) |
+| **A-56** | Kişi adları ve anonim yüzey sınırı | A | `ApplicationUser.FirstName/LastName` (nullable). Kayıt, admin kullanıcı oluşturma, profil ve **danışman seçici** ad soyad gösterir; `/api/public/*` uçlarından **asla** dönmez (Y-58). Boşsa arayüz e-postaya düşer — mevcut hesaplar geçersiz duruma düşmez (K-32) |
+| **A-57** | Kullanıcı silme sözleşmesi | B | Pasife alma = mevcut `lockout` (geri alınabilir). Silme kalıcıdır ama bağlı kayıt (üyelik, etkinlik kaydı, başvuru, danışmanlık) varsa **409** ve sebep mesajda. Kendini silemez/kilitleyemez. Koşulsuz silme seçilmedi: FK'lar `Restrict`, Y-16 soft delete var, K-19 (KVKK) V1 dışı (K-32) |
+| **A-58** | Seed ikiye ayrılır | A | Gerçek referans verisi (19 fakülte / 121 bölüm) migration `HasData` ile kalıcı ve üretime gider; kulüp/etkinlik/duyuru/üyelik demo verisi `DemoDataSeeder` ile yalnızca `Seed:Demo=true` iken ve idempotent üretilir (K-34, Y-68) |
+| **A-59** | Oturum önyüklemesi ve panel köprüsü | B | `AuthProvider` açılışta bir kez `/auth/refresh` dener ve bu sürede **üçüncü bir durum** (`bootstrapping`) yayınlar — `ProtectedRoute` o sırada karar vermez. Hangfire token'ı query yerine `/hangfire` kapsamlı çerezden okunur (K-01, K-14, Y-65) |
 
 ### Kararların birbirini etkilediği yerler
 
