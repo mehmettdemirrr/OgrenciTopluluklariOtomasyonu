@@ -1,17 +1,18 @@
 # Öğrenci Toplulukları Otomasyonu — Mimari Taslak
 
-**Sürüm:** v5.0 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
+**Sürüm:** v6.0 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
 eklendi) · v3.0: 23 Ağustos 2026 (Faz 15-18 eklendi) · v4.0: 23 Ağustos 2026 (Faz 19-23 eklendi)
-· v5.0: 25 Ağustos 2026 (Faz 24-29 eklendi)
+· v5.0: 25 Ağustos 2026 (Faz 24-29 eklendi) · v6.0: 26 Ağustos 2026 (Faz 30-34 eklendi)
 **Referans mimari:** [engindemirog/NetCoreBackend](https://github.com/engindemirog/NetCoreBackend)
 **Uygulama planları:** [docs/PLAN-V2.md](PLAN-V2.md) (Faz 8-14) · [docs/PLAN-V3.md](PLAN-V3.md) (Faz 15-18)
-· [docs/PLAN-V4.md](PLAN-V4.md) (Faz 19-23) · [docs/PLAN-V5.md](PLAN-V5.md) (Faz 24-29) — gerekçe, sıra
-ve doğrulama adımları
+· [docs/PLAN-V4.md](PLAN-V4.md) (Faz 19-23) · [docs/PLAN-V5.md](PLAN-V5.md) (Faz 24-29)
+· [docs/PLAN-V6.md](PLAN-V6.md) (Faz 30-34) — gerekçe, sıra ve doğrulama adımları
 
 Tek uygulama, beş katman, tek veritabanı. v1.0'ın 36 kararı, v2.0'ın 7 yeni kararı (A-37…A-43) verildi;
 v3.0 dört yeni fazla (K-28, K-29) 4 karar (A-44…A-47) ve 2 kural (Y-59, Y-60) ekledi; v4.0 beş yeni fazla
 (K-30) 7 karar (A-48…A-54) ve 4 kural (Y-61…Y-64) ekledi; v5.0 altı yeni fazla (K-31…K-34) 5 karar
-(A-55…A-59) ve 4 kural (Y-65…Y-68) ekledi. Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
+(A-55…A-59) ve 4 kural (Y-65…Y-68) ekledi; v6.0 beş yeni fazla (K-35…K-39) 7 karar (A-60…A-66) ve
+5 kural (Y-69…Y-73) ekledi. Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
 
 > **Bu belge tek doğruluk kaynağıdır.** Bir kural veya kapsam değişikliği gerekirse önce burası
 > güncellenir, sonra kod. Aksi hâlde belge ile kod arasındaki fark sessizce büyür ve mimari testler
@@ -19,10 +20,10 @@ v3.0 dört yeni fazla (K-28, K-29) 4 karar (A-44…A-47) ve 2 kural (Y-59, Y-60)
 
 | | |
 |---|---|
-| Karar | 59 (36 v1.0 + 7 v2.0 + 4 v3.0 + 7 v4.0 + 5 v5.0) |
-| Yasak kural | 68 (52 v1.0 + 6 v2.0 + 2 v3.0 + 4 v4.0 + 4 v5.0) |
+| Karar | 66 (36 v1.0 + 7 v2.0 + 4 v3.0 + 7 v4.0 + 5 v5.0 + 7 v6.0) |
+| Yasak kural | 73 (52 v1.0 + 6 v2.0 + 2 v3.0 + 4 v4.0 + 4 v5.0 + 5 v6.0) |
 | V1 dışı madde | 13 (K-13 v4.0'da **ikiye bölündü** — bkz. §3) |
-| Uygulama fazı | 29 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0 + 6 v5.0) |
+| Uygulama fazı | 34 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0 + 6 v5.0 + 5 v6.0) |
 
 **Yığın:** .NET 8 LTS · ASP.NET Core Identity · EF Core 8 / MSSQL · Autofac + async AOP ·
 FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · React 18 + Vite + TypeScript + MUI
@@ -32,11 +33,11 @@ FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · 
 ## İçindekiler
 
 1. [Katmanlar ve bağımlılık yönü](#1-katmanlar-ve-bağımlılık-yönü)
-2. [Açıkça yasak (Y-01 … Y-68)](#2-açıkça-yasak)
-3. [V1 kapsamı (K-01 … K-34)](#3-v1-kapsamı)
+2. [Açıkça yasak (Y-01 … Y-73)](#2-açıkça-yasak)
+3. [V1 kapsamı (K-01 … K-39)](#3-v1-kapsamı)
 4. [Teknoloji ve domain](#4-teknoloji-ve-domain)
 5. [Uygulama sırası](#5-uygulama-sırası)
-6. [Karar kaydı (A-01 … A-59)](#6-karar-kaydı)
+6. [Karar kaydı (A-01 … A-66)](#6-karar-kaydı)
 7. [Sessiz onaylar](#7-sessiz-onaylar)
 
 ---
@@ -96,7 +97,7 @@ OgrenciTopluluklariOtomasyonu/
 
 ## 2. Açıkça yasak
 
-Elli iki kural. Tartışmaya kapalı. Bir kuralın gerçekten yanlış olduğunu düşünüyorsan kuralı
+Yetmiş üç kural. Tartışmaya kapalı. Bir kuralın gerçekten yanlış olduğunu düşünüyorsan kuralı
 değiştiririz — ama önce belge değişir, sonra kod.
 
 ### Katman ve bağımlılık
@@ -217,6 +218,16 @@ değiştiririz — ama önce belge değişir, sonra kod.
 | **Y-67** | Öğrenci veya danışman rolü atanan kullanıcıyı domain profili (`Student` / `AcademicStaff`) olmadan oluşturmak | Rol seçimi profil alanlarını zorunlu kılar, eksikse `400` (A-57). Gerekçe: profilsiz kullanıcı giriş yapar ama hiçbir şey yapamaz; ne kullanıcı ne de onu oluşturan yönetici sebebi görebilir |
 | **Y-68** | Demo veriyi üretim veritabanına yazmak veya geri bulunamayacak şekilde üretmek | `DemoDataSeeder` yalnızca açık konfigürasyon anahtarıyla (`Seed:Demo`) çalışır ve ürettiği kayıtları işaretler (A-58). Gerekçe: işaretsiz demo veri gerçek veriyle bir kez karıştığında ayrıştırılamaz |
 
+### V6 eklentileri (Faz 30-34)
+
+| # | Yasak | Bunun yerine |
+|---|---|---|
+| **Y-69** | Topluluk içi rol tanımına izin kodu, claim veya `RoleClaim` referansı bağlamak; `ClubRoleDefinition`'ı yetkinin kaynağı yapmak | Tanım yalnızca **unvan** taşır ve bir `ClubRole` yetki seviyesine bağlanır; yetki kararı yine `ClubMembership.ClubRole`'den okunur (A-61). Gerekçe: Y-37'nin kulüp karşılığı — Identity'nin yanına ikinci bir yetki sistemi açmak, izinlerin nereden geldiğini sorulamaz hâle getirir. Mimari test tipin ilkel alanlar + `ClubRole` dışında bir şey taşımadığını doğrular |
+| **Y-70** | Başvuru evrakını `Public` görünürlükle kaydetmek veya anonim dosya ucundan servis etmek; indirmede yetkiyi yeniden kontrol etmemek | Evrak daima `FileVisibility.Protected`; erişim yalnızca `GET /api/club-applications/{id}/documents/{documentId}` ucundan, **indirme anında** yeniden kontrol edilen yetkiyle (A-63). Y-52'nin ve Y-51'in evrak karşılığı — adli sicil ve kurucu üye dilekçesi kişisel veridir, K-19 (KVKK akışı) hâlâ V1 dışıdır |
+| **Y-71** | Zorunlu evrak bütünlüğünü yalnızca arayüzde kontrol etmek veya FluentValidation kuralına gömmek | Kontrol `ClubApplicationManager` içinde, evrak tipi katalogunu okuyarak (A-62). Gerekçe: "hangi evrak zorunlu" cevabı veritabanındadır — biçimsel doğrulama değil iş kuralıdır (Y-03, Y-35) |
+| **Y-72** | Kitle alanı olmadan etkinlik kaydetmek; anonim vitrin ucunun `ClubMembers` kitleli etkinliği döndürmesi; kayıt anında üyelik kontrolünü atlamak | `Event.Audience` yazma anında zorunlu; anonim uç yalnızca `Audience == Public` döner; `RegisterAsync` `ClubMembers` etkinlikte **güncel dönem** üyeliği arar (A-65). Y-57'nin etkinlik karşılığı — duyuru ve etkinlik aynı soruya aynı cevabı verir |
+| **Y-73** | Başvuru penceresi kontrolünü yalnızca arayüzde yapmak; kapalı olduğunu söylerken sebebini ve ne zaman açılacağını söylememek; pencere kararını iki ayrı yerde hesaplamak | Muhafız `SubmitAsync`'in içinde (Y-35: düğmeyi gizlemek yetki değildir); mesaj sebebi söyler ve takvimin nerede görüleceğini gösterir; hem muhafız hem okuma ucu **aynı** değerlendirme metodunu çağırır (A-66). Gerekçe: Y-66'nın öğrettiği ders — sebebi söylemeyen bir kapı, kullanıcıyı da yöneticiyi de kör bırakır. İkinci bir `if`, ekranın "açık" derken API'nin "kapalı" demesinin garantili yoludur |
+
 ---
 
 ## 3. V1 kapsamı
@@ -289,13 +300,37 @@ değiştiririz — ama önce belge değişir, sonra kod.
 > **K-14 notu (v5.0):** Hangfire panelinin token köprüsü query string'den çereze taşınır (A-59, Y-65) —
 > panelin kendi CSS/JS istekleri query parametresi taşımadığı için bugün 401 alıyor ve panel stilsiz açılıyor.
 
+### V6'ya alınanlar (Faz 30-34)
+
+Ayrıntılı gerekçe, uçlar ve testler için [docs/PLAN-V6.md](PLAN-V6.md).
+
+| # | Özellik | Ne var | Getirdiği iş |
+|---|---|---|---|
+| **K-35** | **Topluluk kategorisi** | Kategori referans verisi; kulüp ve kuruluş başvurusu kategori taşır, listeler kategoriye göre filtrelenir | `ClubCategory` (Faculty ile aynı sınıf), `Club.ClubCategoryId` + `ClubApplication.ProposedCategoryId` (nullable), cache geçersizleştirme (A-60, Y-45) |
+| **K-36** | **Dinamik topluluk içi roller** | Kulüp kendi unvanlarını tanımlar ("Sayman", "Sekreter"); her unvan üç yetki seviyesinden birine bağlanır | `ClubRoleDefinition` (kulübe özel), `ClubMembership.ClubRoleDefinitionId`. `ClubRole` enum'ı **yetki seviyesi olarak aynen kalır** — 7 `Ensure*Access*` metoduna tek satır eklenmez (A-61, Y-69) |
+| **K-37** | **Topluluk kuruluş evrakları** | Admin evrak tipi kataloğu tanımlar (8 gerçek MTÜ formu seed'li); başvuru evraklarla birlikte tek istekte gider; inceleyici her evrağı açar | `ClubDocumentType` + `ClubApplicationDocument`, multipart başvuru ucu, Core'a PDF imzası, korumalı indirme ucu, 90 günlük saklama (A-62, A-63, A-64, Y-70, Y-71) |
+| **K-38** | **Etkinlik katılım kitlesi** | Etkinlik "herkese açık" ya da "sadece topluluk üyelerine"; ikincisi anonim vitrinde görünmez | `Event.Audience`, `RegisterAsync`'te güncel dönem üyelik kontrolü, vitrin filtresi (A-65, Y-72) |
+| **K-39** | **Topluluk kurma başvuru takvimi** | Başvurular admin'in belirlediği tarihler arasında açık; admin ayrıca elle açıp kapatabilir | `AcademicTerm`'e üç alan, tek değerlendirme metodu, `SubmitAsync` muhafızı, durum okuma ucu (A-66, Y-73) |
+
+> **K-29 notu (v6.0):** topluluk kurma başvurusu V6'da iki yerden birden büyüyor — önüne bir **kapı**
+> (K-39 takvimi), içine **evrak** (K-37) geliyor. Onay akışının kendisi değişmiyor: tek aşamalı admin
+> onayı korunuyor, çok aşamalı (danışman → kurul → admin) onay V6 kapsamına **alınmadı.**
+
+> **K-21 notu (v6.0):** "üye rolleri" K-36 ile ikiye ayrışıyor — görünen **unvan** ve karar veren
+> **yetki seviyesi**. A-39'un başkan tekilliği ve `ClubRole` enum'ı olduğu gibi kalır; unvan katmanı
+> yetki yüzeyine dokunmaz.
+
+> **K-05 notu (v6.0):** dosya yükleme ilk kez görsel dışına çıkıyor (PDF). İzin verilen tip kümesi
+> artık **çağrı yerine göre** belirlenir: logo/afiş görsel, evrak yalnızca PDF (A-64). Tek ortak
+> `StoreFileAsync` yolu bu parametre olmadan logo ucunu da PDF'e açardı.
+
 ### V1 dışında kalanlar — bilinçli kararlar
 
 Bunlar eksik değil, ertelenmiş özellikler. "Kapı" sütunu, bugün ne yapmamız gerektiğini söyler ki
-sonradan eklemek pahalı olmasın. **v2.0 ve v3.0 bu tabloyu hiç değiştirmedi; v4.0 yalnızca K-13'ü
-ikiye böldü** (rate limiting kapsama girdi, API versiyonlama kaldı). Geri kalan her şey — aidat/ödeme
-(K-15), forum/anket/QR (K-16), gerçek zamanlı bildirim (K-04), KVKK silme/anonimleştirme akışının
-kendisi (K-19) — hiçbir fazda yapılmaz.
+sonradan eklemek pahalı olmasın. **Bu tabloyu yalnızca v4.0 değiştirdi ve o da yalnızca K-13'ü ikiye
+böldü** (rate limiting kapsama girdi, API versiyonlama kaldı); v2.0, v3.0, v5.0 ve v6.0 hiç
+dokunmadı. Geri kalan her şey — aidat/ödeme (K-15), forum/anket/QR (K-16), gerçek zamanlı bildirim
+(K-04), KVKK silme/anonimleştirme akışının kendisi (K-19) — hiçbir fazda yapılmaz.
 
 | # | Ertelenen | Kapı |
 |---|---|---|
@@ -395,17 +430,21 @@ Sıra önemlidir: **yetki → validasyon → transaction → cache.** Hepsi asyn
 | `RefreshToken` | Tek kullanımlık, iptal edilebilir, çerezde taşınır | K-01, A-30, Y-38 |
 | `Student` · `AcademicStaff` | 1-1 profil tabloları | A-14 |
 | `Faculty` · `Department` | Referans verisi, hard delete serbest | A-12, A-27 |
-| `AcademicTerm` | Akademik dönem | A-13 |
-| `Club` | Topluluk, danışmanı, logosu, durumu | K-05, A-31 |
-| `ClubMembership` | Dönemsel üyelik + topluluk rolü; `(ClubId, StudentId, TermId)` unique. **Dönem devrinde rolüyle birlikte yeni döneme kopyalanır** | A-13, A-15, K-30, A-51 |
+| `ClubCategory` | Topluluk kategorisi; referans verisi, kullanımdaysa silinemez (409) | K-35, A-60 |
+| `AcademicTerm` | Akademik dönem. **Topluluk kurma başvuru penceresini de taşır** (iki tarih + üç durumlu geçersiz kılma) | A-13, K-39, A-66, Y-73 |
+| `Club` | Topluluk, danışmanı, logosu, durumu, **kategorisi** (nullable) | K-05, A-31, K-35, A-60 |
+| `ClubMembership` | Dönemsel üyelik + topluluk rolü; `(ClubId, StudentId, TermId)` unique. Dönem devrinde rolüyle birlikte yeni döneme kopyalanır. **`ClubRoleDefinitionId` (nullable) görünen unvanı taşır; yetki kararı yine `ClubRole`'den okunur** | A-13, A-15, K-30, A-51, K-36, A-61 |
+| `ClubRoleDefinition` | Kulübe özel rol **unvanı** → bir `ClubRole` yetki seviyesi; `(ClubId, Name)` unique. İzin/claim taşımaz | K-36, A-61, Y-69 |
 | `MembershipApplication` | Başvuru, onay/ret, soft delete, bildirim tetikler | A-12, K-03 |
-| `Event` | Taslak → onay bekliyor → yayında/reddedildi → **iptal edildi** (gerekçesiyle); kontenjan `rowversion` | A-25, A-15, K-05, A-49, Y-61 |
+| `Event` | Taslak → onay bekliyor → yayında/reddedildi → **iptal edildi** (gerekçesiyle); kontenjan `rowversion`; **katılım kitlesi** (herkese açık / üyelere özel) yazma anında zorunlu | A-25, A-15, K-05, A-49, Y-61, K-38, A-65, Y-72 |
 | `EventParticipation` | `(EventId, StudentId)` unique | A-15 |
 | `Announcement` | Topluluk duyurusu; `ClubId` nullable (sistem duyurusu) + **görünürlük** (üye/herkese açık) | K-23, A-43, Y-57 |
 | `AuditLog` | Kim, ne zaman, hangi alan; interceptor yazar; **`CorrelationId`** (nullable) trafik logu satırına bağlar | K-12, A-33, Y-44, K-28 |
 | `StoredFile` | Üretilen ad, tip, boyut, sahibi ve **görünürlük** (açık/korumalı) | K-05, A-31, A-36, Y-52 |
 | `ReportRequest` | Rapor talebi: tür, parametreler, durum (kuyrukta → üretiliyor → hazır/hatalı), üretilen dosya | K-06, A-35, Y-51 |
-| `ClubApplication` | Topluluk kurma başvurusu: ad/açıklama/gerekçe/önerilen danışman, onay/ret, soft delete; onayda `CreatedClubId` yazılır | K-29, A-45 |
+| `ClubApplication` | Topluluk kurma başvurusu: ad/açıklama/gerekçe/önerilen danışman, **önerilen kategori** (nullable), onay/ret, soft delete; onayda `CreatedClubId` yazılır | K-29, A-45, K-35 |
+| `ClubDocumentType` | Kuruluş evrakı tipi: kod (`FR-0230`), ad, **zorunlu mu**, aktif mi, sıra. 8 gerçek MTÜ formu `HasData` ile | K-37, A-62, A-58 |
+| `ClubApplicationDocument` | Başvuruya yüklenen evrak; `(ClubApplicationId, ClubDocumentTypeId)` unique. Dosya daima `Protected` | K-37, A-63, Y-70 |
 | `TrafficLog` | İstek meta verisi: `CorrelationId`, kullanıcı, IP, tarayıcı, method, URL (redakte), durum kodu, süre. `IEntity` değil — generic repository'den erişilmez | K-28, A-44, Y-59 |
 
 ---
@@ -570,6 +609,33 @@ Ad soyad eklenir; kullanıcı oluşturma rol'e göre domain profili de üretir; 
 
 ---
 
+### v6.0 — Faz 30-34
+
+Ayrıntılı gerekçe, uçlar ve testler için [docs/PLAN-V6.md](PLAN-V6.md). Sıra **risk artan** yönde:
+en izole olan önce, yetki yüzeyine en yakın olan en sonda.
+
+### 30 — Etkinlik katılım kitlesi
+`Event.Audience` (herkese açık / üyelere özel); kayıtta güncel dönem üyelik kontrolü, vitrinde filtre (K-38, A-65, Y-72).
+**Bitti sayılır:** üye olmayan öğrenci üyelere özel etkinliğe kaydolamıyor; o etkinlik anonim vitrinde görünmüyor; herkese açık etkinliklerde hiçbir davranış değişmemiş.
+
+### 31 — Topluluk kurma başvuru takvimi
+`AcademicTerm`'e pencere alanları; `SubmitAsync` muhafızı ve durum okuma ucu **aynı** metodu çağırır (K-39, A-66, Y-73).
+**Bitti sayılır:** aralık dışında başvuru 409 alıyor ve mesaj sebebi söylüyor; "zorla aç"/"zorla kapat" takvimi geçersiz kılıyor; arayüzün gösterdiği durum ile API'nin kararı beş senaryoda da aynı.
+
+### 32 — Topluluk kategorisi
+Referans verisi deseninin dördüncü uygulaması; kulüp ve başvuruda seçim, listelerde sunucu taraflı filtre (K-35, A-60).
+**Bitti sayılır:** kategori tanımlanıp seçilebiliyor, liste filtreleniyor, kullanımdaki kategori silinemiyor, ad değişince cache düşüyor (Y-45).
+
+### 33 — Topluluk kuruluş evrakları
+Core'a PDF imzası ve tip kümesi parametresi; evrak tipi kataloğu; multipart başvuru; korumalı indirme; 90 günlük saklama (K-37, A-62, A-63, A-64, Y-70, Y-71).
+**Bitti sayılır:** sekiz zorunlu evrak tek düğmeyle yükleniyor; eksik evrakla başvuru reddediliyor ve eksik olan söyleniyor; inceleyici her evrağı açabiliyor; aynı evrak anonim uçtan indirilemiyor; kulüp logosuna PDF yüklenemiyor.
+
+### 34 — Dinamik topluluk içi roller
+`ClubRoleDefinition` unvan katmanı; `ClubRole` enum'ı yetki seviyesi olarak yerinde kalır (K-36, A-61, Y-69).
+**Bitti sayılır:** başkan kendi kulübüne unvan tanımlayıp atayabiliyor; unvan doğru yetki seviyesini veriyor; kulüpler birbirinin unvanını görmüyor; **V5'ten gelen tüm yetki testleri değişmeden yeşil.**
+
+---
+
 ## 6. Karar kaydı
 
 Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
@@ -635,6 +701,13 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | **A-57** | Kullanıcı silme sözleşmesi | B | Pasife alma = mevcut `lockout` (geri alınabilir). Silme kalıcıdır ama bağlı kayıt (üyelik, etkinlik kaydı, başvuru, danışmanlık) varsa **409** ve sebep mesajda. Kendini silemez/kilitleyemez. Koşulsuz silme seçilmedi: FK'lar `Restrict`, Y-16 soft delete var, K-19 (KVKK) V1 dışı (K-32) |
 | **A-58** | Seed ikiye ayrılır | A | Gerçek referans verisi (19 fakülte / 121 bölüm) migration `HasData` ile kalıcı ve üretime gider; kulüp/etkinlik/duyuru/üyelik demo verisi `DemoDataSeeder` ile yalnızca `Seed:Demo=true` iken ve idempotent üretilir (K-34, Y-68) |
 | **A-59** | Oturum önyüklemesi ve panel köprüsü | B | `AuthProvider` açılışta bir kez `/auth/refresh` dener ve bu sürede **üçüncü bir durum** (`bootstrapping`) yayınlar — `ProtectedRoute` o sırada karar vermez. Hangfire token'ı query yerine `/hangfire` kapsamlı çerezden okunur (K-01, K-14, Y-65) |
+| **A-60** | Topluluk kategorisi referans verisidir | A | `ClubCategory`, `Faculty`/`Department` ile aynı sınıf: `reference.manage`, hard delete serbest ama kullanımdaysa **409** (A-12). `Club.ClubCategoryId` ve `ClubApplication.ProposedCategoryId` **nullable** — mevcut kulüpler kategorisiz, zorunlu kılmak onları geçersiz duruma sokardı (O-15'in ad-soyad gerekçesiyle aynı). Kategori adı kulüp DTO'sunda göründüğü için yazma uçları `CacheRemoveAspect` taşır (K-35, Y-45) |
+| **A-61** | Topluluk içi rolde **unvan yetkiden ayrılır** | A | `ClubRole` enum'ı yetki seviyesi olarak **aynen kalır**; yeni `ClubRoleDefinition` yalnızca unvan taşır ve bir seviyeye bağlanır. `ClubMembership` ikisini birden tutar; yetki daima `ClubRole`'den okunur. **Kazanç:** 7 `Ensure*Access*` metodu, A-39'un filtreli unique index'i ve mevcut yetki testleri hiç değişmez, ek DB okuması olmaz. Enum'ı tümüyle tabloya taşımak seçilmedi: her yetki kontrolüne bir sorgu eklemek ve yetki yüzeyinin tamamını yeniden test etmek pahasına yalnızca "üçten fazla seviye" kazandırırdı (K-36, Y-69). Tanımın seviyesi düzenlenebilir; değişiklik o unvanı taşıyan tüm üyeliklere **aynı transaction'da** yayılır, ikinci başkan üretecekse 409 |
+| **A-62** | Evrak tipi kataloğu ve zorunluluk bayrağı | A | `ClubDocumentType` = kod + ad + `IsRequired` + `IsActive` + sıra; admin yönetir (`reference.manage`). Sekiz gerçek MTÜ formu (FR-0230…FR-0272) migration `HasData` ile gelir — A-58'in "gerçek kurumsal referans verisi kalıcı ve belirleyici" kuralı. `IsActive = false`, geçmiş başvuruları bozmadan bir formu yürürlükten kaldırmanın yoludur. Zorunluluk kontrolü Business'ta, katalog okunarak yapılır — FluentValidation'a konulamaz (K-37, Y-71) |
+| **A-63** | Kuruluş evrakı korumalı veridir | A | Evrak dosyası daima `FileVisibility.Protected`; erişim tek ve yeni bir uçtan (`GET /api/club-applications/{id}/documents/{documentId}`), yetki **indirme anında yeniden** kontrol edilerek. Görebilenler: başvuran öğrenci veya `clubs.write`/`clubs.manage.all`. **Reddedilen** başvurunun evrakları karar tarihinden 90 gün sonra gecelik bakım işiyle silinir; onaylananınki kulübün kuruluş dosyası olarak kalır. 90 gün, `TrafficLog`'un 30 gününün (A-44) aynı gerekçesi: K-19 V1 dışı olduğu sürece kişisel veri yüzeyi süresiz büyümemeli (K-37, Y-70, Y-51) |
+| **A-64** | İzin verilen dosya tipi **çağrı yerine göre** belirlenir | A | Core'a PDF imzası (`%PDF-`) eklenir, ama `StoreFileAsync` izin verilen tip kümesini **parametre alır**: logo/afiş JPEG/PNG/WebP, evrak yalnızca PDF. Parametresiz eklemek, tek ortak yol yüzünden logo ucunu da PDF'e açar ve "logo/afiş yalnızca görsel" sessiz onayını **sessizce** delerdi. Regresyon ayrı bir testle kilitlenir: logo ucuna PDF → 400 (K-37, K-05, Y-40) |
+| **A-65** | Etkinlik kitlesi duyuru görünürlüğünün birebir kardeşidir | A | `EventAudience { Public, ClubMembers }`; **yazma anında zorunlu, okuma anında yorumlanmaz** (A-43'ün aynı cümlesi). `ClubMembers` etkinlik anonim vitrinde **hiç görünmez** — Y-57'nin etkinlik karşılığı; kayıt için güncel dönem üyeliği aranır. "Vitrinde görünsün ama kayıt kapalı" seçilmedi: duyuru ve etkinlik aynı soruya farklı cevap verseydi "hangi içerik anonim yüzeye çıkar" sorusunun tek cümlelik cevabı kaybolurdu (K-38, A-42, Y-72) |
+| **A-66** | Başvuru penceresi dönemin bir özelliğidir | A | `AcademicTerm`'e `ClubApplicationStartUtc`, `ClubApplicationEndUtc` ve üç durumlu `ClubApplicationOverride` (`FollowSchedule`/`ForceOpen`/`ForceClosed`). Yeni varlık, yeni izin, yeni ekran yok — `reference.manage` zaten dönem yönetiminin izni. **Fail-closed:** takvim tanımlı değilse kapalı; başvuru sezonuna kurum karar verir. Dağıtımda kesinti olmasın diye migration mevcut güncel dönemi `ForceOpen` işaretler; dönem devrinde (K-30) yeni dönem kapalı gelir. Karar **tek metotta** hesaplanır; muhafız da okuma ucu da onu çağırır (K-39, Y-73) |
 
 ### Kararların birbirini etkilediği yerler
 
@@ -661,6 +734,13 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | A-53 × A-44 | Kurala bağlandı | `UseRateLimiter`, `RequestLoggingMiddleware`'den **sonra** kaydedilir — aksi hâlde 429'lar erişim izine hiç düşmez (Faz 18'in `UseAuthorization` tuzağının aynısı) |
 | A-53 × K-28 | Ön koşul | IP bazlı bölümleme doğru IP ister: `UseForwardedHeaders` olmadan ters proxy arkasında hem trafik logu hem limiter tek IP görür. Faz 19.0 ikisinin de ön koşulu |
 | A-49 × Y-52 × Y-58 | Uyumlu | İptal edilen etkinlik anonim vitrinden düşer; görünürlük kararı yine yazma anındaki `Status` alanından okunur, okuma anında yorumlanmaz |
+| A-61 × A-39 × A-51 | Kurala bağlandı | Unvan katmanı `ClubRole`'ü yerinde bıraktığı için başkan tekilliği (filtreli unique index) ve dönem devri (1:1 kopya) hiç değişmez. Tanımın seviyesi değişince güncelleme tüm üyeliklere yayılır — kulüp üye sayıları onlarla ifade edildiği için A-51'in audit patlaması uyarısı burada geçerli değil |
+| A-61 × Y-37 | Kurala bağlandı | `ClubRoleDefinition` izin/claim taşımaz; Identity'nin yanına ikinci bir yetki sistemi açılmaz. Mimari test tipin ilkel alanlar + `ClubRole` dışında bir şey taşımadığını doğrular (Y-69) |
+| A-64 × K-05 × Y-40 | **Dikkat** | Tek ortak `StoreFileAsync` yolu var. PDF'i imza listesine parametresiz eklemek logo/afiş ucunu da PDF'e açar. Tip kümesi çağrı yerine göre geçilir; regresyon "logo ucuna PDF → 400" testiyle kilitlenir |
+| A-63 × Y-26 × K-19 | Kabul edilen sınır | Kuruluş evrakları (adli sicil, kurucu üye dilekçesi) kişisel veri yüzeyini büyütür. Karşılık A-44'ün deseni: dar erişim (iki taraf), korumalı görünürlük, indirmede yeniden yetki, reddedilenler için 90 gün saklama. K-19'un KVKK akışının kendisi hâlâ V1 dışı |
+| A-66 × A-51 × K-30 | **Dikkat** | Pencere döneme bağlı olduğu için dönem devri onu **taşımaz** — yeni dönem boş ve `FollowSchedule` ile, yani kapalı gelir. Bu kasıtlı: her sezonu admin açar. Devrin sessizce açık bırakması, "başvurular kapalı olmalıydı" hatasının en pahalı hâli olurdu |
+| A-60 × A-17 × Y-45 | Kurala bağlandı | Kategori adı kulüp listesi DTO'sunda taşınır; kategori yazma uçları `ClubManager.` ve `PublicContentManager.` anahtarlarını düşürmezse liste eski adı servis eder. Y-45'in referans verisi karşılığı |
+| A-62 × A-58 | Uyumlu | Sekiz FR formu **gerçek kurumsal referans verisi** — `HasData` ile kalıcı ve üretime gider. Admin'in sonradan eklediği tipler normal CRUD; demo verisiyle karışmaz (Y-68) |
 
 ---
 
@@ -676,10 +756,11 @@ Ayrı karar beklemeyen, itiraz gelmedikçe geçerli varsayılan kurallar.
 | Sayfalama | `pageSize` varsayılan 20, üst sınır 100 |
 | Enum'lar | DB'de `int`, API'de metin |
 | Token ömürleri | Access 15 dakika, refresh 7 gün, tek kullanımlık |
-| Yükleme sınırları | Logo/afiş 5 MB, yalnızca JPEG/PNG/WebP, içerik imzasıyla doğrulanır |
+| Yükleme sınırları | Logo/afiş 5 MB, yalnızca JPEG/PNG/WebP. **Kuruluş evrakı** 5 MB, yalnızca PDF; bir başvuruda toplam 60 MB. Hepsi içerik imzasıyla doğrulanır, izin verilen tip kümesi çağrı yerine göre geçilir (A-64) |
+| Evrak saklama | Reddedilen başvurunun evrakları karar tarihinden 90 gün sonra silinir; onaylananınki kalır (A-63) |
 | Rapor akışı | Tüm Excel talepleri kuyruğa girer — boyut eşiği yok, çünkü iki yol iki kod yolu demek |
 | Rapor saklama | Üretilen dosyalar 7 gün sonra silinir; kullanıcı raporu yeniden talep edebilir |
-| Gecelik bakım işi | Tek yinelenen iş: süresi geçmiş refresh token'lar + eskimiş rapor dosyaları |
+| Gecelik bakım işi | Tek yinelenen iş: süresi geçmiş refresh token'lar + eskimiş rapor dosyaları + 30 günü geçmiş trafik logu + 90 günü geçmiş reddedilmiş başvuru evrakları + sahipsiz disk dosyaları |
 | Excel kütüphanesi | ClosedXML (MIT). EPPlus lisans koşulları nedeniyle kullanılmaz |
 | Audit kapsamı | Tüm entity'ler; parola, token ve hash alanları audit'e yazılmaz |
 | Migration adlandırma | `YYYYMMDD_AçıklayıcıAd`, her PR'da en fazla bir migration |
@@ -688,4 +769,4 @@ Ayrı karar beklemeyen, itiraz gelmedikçe geçerli varsayılan kurallar.
 
 ---
 
-*Mimari taslak v4.0 · 53 karar, 63 kural, 13 V1 dışı madde (K-13 yarısı kapsama alındı), 23 faz · referans: engindemirog/NetCoreBackend*
+*Mimari taslak v6.0 · 66 karar, 73 kural, 13 V1 dışı madde (K-13 yarısı kapsama alındı), 34 faz · referans: engindemirog/NetCoreBackend*
