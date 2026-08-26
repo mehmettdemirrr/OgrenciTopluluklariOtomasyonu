@@ -31,7 +31,14 @@ public sealed class AcademicTermManager(
             .OrderByDescending(t => t.StartDateUtc)
             .Select(t => new AcademicTermListItemDto
             {
-                Id = t.Id, Name = t.Name, StartDateUtc = t.StartDateUtc, EndDateUtc = t.EndDateUtc, IsCurrent = t.IsCurrent,
+                Id = t.Id,
+                Name = t.Name,
+                StartDateUtc = t.StartDateUtc,
+                EndDateUtc = t.EndDateUtc,
+                IsCurrent = t.IsCurrent,
+                ClubApplicationStartUtc = t.ClubApplicationStartUtc,
+                ClubApplicationEndUtc = t.ClubApplicationEndUtc,
+                ClubApplicationOverride = t.ClubApplicationOverride,
             })
             .ToList();
 
@@ -118,6 +125,26 @@ public sealed class AcademicTermManager(
             carriedOver == 0
                 ? Messages.AcademicTermSetCurrent
                 : string.Format(CultureInfo.InvariantCulture, Messages.AcademicTermSetCurrentWithRollover, carriedOver));
+    }
+
+    public async Task<IResult> SetClubApplicationWindowAsync(
+        int termId, SetClubApplicationWindowRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var term = await academicTermRepository.GetAsync(t => t.Id == termId, cancellationToken).ConfigureAwait(false);
+        if (term is null)
+        {
+            return Result.NotFound(Messages.AcademicTermNotFound);
+        }
+
+        // A-66: üç alan birlikte yazılır — kısmi güncelleme yok, yönetici tam durumu bildirir.
+        term.ClubApplicationStartUtc = request.StartUtc;
+        term.ClubApplicationEndUtc = request.EndUtc;
+        term.ClubApplicationOverride = request.Override;
+
+        academicTermRepository.Update(term);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ClubApplicationWindowUpdated);
     }
 
     /// <summary>

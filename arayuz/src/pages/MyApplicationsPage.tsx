@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Stack, Tab, Tabs, Typography } from '@mui/material'
+import { Alert, Button, Stack, Tab, Tabs, Typography } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useState } from 'react'
 import { apiClient } from '../api/client'
@@ -10,7 +10,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import { ApplicationStatusChip } from '../components/ui/StatusChip'
-import type { ClubApplicationListItemDto, MembershipApplicationListItemDto } from '../api/types'
+import type { ClubApplicationListItemDto, ClubApplicationWindowDto, MembershipApplicationListItemDto } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function MyApplicationsPage() {
@@ -124,20 +124,44 @@ function ClubApplicationsTab() {
     queryFn: async () => (await apiClient.get<ClubApplicationListItemDto[]>('/club-applications/mine')).data,
   })
 
+  // Y-73: kapalıysa SEBEBİ ve ne zaman açılacağı burada söylenir. API'nin 409 mesajı öğrenciyi
+  // buraya yönlendiriyor; sayfa boşken de görünmesi bu yüzden zorunlu.
+  const windowQuery = useQuery({
+    queryKey: ['club-application-window'],
+    queryFn: async () => (await apiClient.get<ClubApplicationWindowDto>('/club-applications/window')).data,
+  })
+
   const items = myApplicationsQuery.data ?? []
+
+  const windowBanner = windowQuery.data ? (
+    <Alert severity={windowQuery.data.isOpen ? 'success' : 'info'} sx={{ mb: 2 }}>
+      {windowQuery.data.isOpen
+        ? windowQuery.data.endUtc
+          ? `Başvurular açık — son gün ${new Date(windowQuery.data.endUtc).toLocaleDateString('tr-TR')}.`
+          : 'Topluluk kurma başvuruları şu anda açık.'
+        : windowQuery.data.startUtc
+          ? `Başvurular kapalı. ${new Date(windowQuery.data.startUtc).toLocaleDateString('tr-TR')} tarihinde açılacak.`
+          : 'Topluluk kurma başvuruları şu anda kapalı.'}
+    </Alert>
+  ) : null
 
   if (!myApplicationsQuery.isLoading && items.length === 0) {
     return (
-      <EmptyState
-        icon={GroupsOutlinedIcon}
-        title="Henüz bir topluluk kurma başvurunuz yok"
-        description="Kulüpler sayfasındaki “Topluluk Kurmak İstiyorum” butonuyla başvurabilirsiniz."
-      />
+      <>
+        {windowBanner}
+        <EmptyState
+          icon={GroupsOutlinedIcon}
+          title="Henüz bir topluluk kurma başvurunuz yok"
+          description="Kulüpler sayfasındaki “Topluluk Kurmak İstiyorum” butonuyla başvurabilirsiniz."
+        />
+      </>
     )
   }
 
   return (
-    <Stack spacing={2}>
+    <>
+      {windowBanner}
+      <Stack spacing={2}>
       {items.map((application) => (
         <SectionCard key={application.id}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
@@ -159,6 +183,7 @@ function ClubApplicationsTab() {
           )}
         </SectionCard>
       ))}
-    </Stack>
+      </Stack>
+    </>
   )
 }

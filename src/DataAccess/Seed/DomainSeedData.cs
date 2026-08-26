@@ -1,4 +1,5 @@
 using Entities;
+using Entities.Enums;
 
 namespace DataAccess.Seed;
 
@@ -34,6 +35,13 @@ public static class DomainSeedData
         StartDateUtc = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
         EndDateUtc = new DateTime(2027, 1, 31, 0, 0, 0, DateTimeKind.Utc),
         IsCurrent = true,
+
+        // docs/MIMARI.md · K-39/A-66: başvuru penceresinin varsayılanı FollowSchedule'dır ve
+        // takvim tanımsızken KAPALI demektir (fail-closed). İlk dönem bunun istisnasıdır:
+        // hem yeni kurulumda hem yükseltmede başvuru akışı çalışır durumda başlamalı, aksi hâlde
+        // özellik "dağıtımda sessizce her şeyi kapatan" bir değişiklik olurdu. Kurum takvimi
+        // tanımlayınca FollowSchedule'a geçer. Dönem devrinde (K-30) doğan dönemler kapalı gelir.
+        ClubApplicationOverride = ClubApplicationWindowOverride.ForceOpen,
     };
 
     public static string[] FacultyNames() =>

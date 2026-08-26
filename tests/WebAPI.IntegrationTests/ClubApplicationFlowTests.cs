@@ -82,6 +82,15 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
             }
         }
 
+        // Faz 31: pencere varsayılanı fail-closed (A-66). Bu sınıftaki AKIŞ testleri pencereyi
+        // sınamıyor, akışı sınıyor — bu yüzden her kurulumda pencere açık başlar. Pencereyi
+        // sınayan testler kendi durumlarını SetWindowAsync ile kurar (Y-34: her test kendi verisini kurar).
+        var currentTerm = await db.AcademicTerms.SingleAsync(t => t.IsCurrent);
+        currentTerm.ClubApplicationOverride = ClubApplicationWindowOverride.ForceOpen;
+        currentTerm.ClubApplicationStartUtc = null;
+        currentTerm.ClubApplicationEndUtc = null;
+        await db.SaveChangesAsync();
+
         _client = _factory.CreateClient();
     }
 
@@ -284,4 +293,153 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
 
         public string CsrfToken { get; init; } = string.Empty;
     }
+
+    /// <summary>docs/MIMARI.md · A-66: güncel dönemin pencere alanlarını testin istediği hâle getirir.</summary>
+    private async Task SetWindowAsync(ClubApplicationWindowOverride windowOverride, DateTime? startUtc, DateTime? endUtc)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var term = await db.AcademicTerms.SingleAsync(t => t.IsCurrent);
+
+        term.ClubApplicationOverride = windowOverride;
+        term.ClubApplicationStartUtc = startUtc;
+        term.ClubApplicationEndUtc = endUtc;
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Y-34: pencere testleri arka arkaya başvuru gönderiyor, ama bir öğrenci dönem başına yalnızca
+    /// BİR bekleyen başvuru yapabilir (DuplicatePendingClubApplication). Temizlik olmadan ikinci
+    /// "açık" senaryosu 409 alır ve test pencereyi değil, çift başvuru kuralını ölçer.
+    /// </summary>
+    private async Task ClearPendingApplicationsAsync(string email)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var user = await userManager.FindByEmailAsync(email);
+        var student = await db.Students.SingleAsync(s => s.ApplicationUserId == user!.Id);
+
+        var pending = await db.ClubApplications
+            .Where(a => a.StudentId == student.Id && a.Status == ApplicationStatus.Pending)
+            .ToListAsync();
+
+        db.ClubApplications.RemoveRange(pending);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task<HttpResponseMessage> SubmitApplicationAsync(string accessToken, string email)
+    {
+        await ClearPendingApplicationsAsync(email);
+
+        return await SendWithBearerAsync(HttpMethod.Post, "/api/club-applications", accessToken, new
+        {
+            ProposedName = $"Pencere Kulübü {Guid.NewGuid():N}"[..30],
+            Description = "Pencere testi",
+            Justification = "Pencere testi gerekçesi",
+            ProposedAdvisorId = _proposedAdvisorId,
+        });
+    }
+
+    [Theory(DisplayName = "Y-73: pencere kapalıyken başvuru 409, açıkken kabul — dört senaryo")]
+    [InlineData(ClubApplicationWindowOverride.ForceOpen, -10, -5, true)]
+    [InlineData(ClubApplicationWindowOverride.ForceClosed, -2, 2, false)]
+    [InlineData(ClubApplicationWindowOverride.FollowSchedule, -2, 2, true)]
+    [InlineData(ClubApplicationWindowOverride.FollowSchedule, 5, 10, false)]
+    public async Task Submit_RespectsApplicationWindow(
+        ClubApplicationWindowOverride windowOverride, int startOffsetDays, int endOffsetDays, bool expectedOpen)
+    {
+        var now = DateTime.UtcNow;
+        await SetWindowAsync(windowOverride, now.AddDays(startOffsetDays), now.AddDays(endOffsetDays));
+
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+        var response = await SubmitApplicationAsync(studentToken, OtherStudentEmail);
+
+        if (expectedOpen)
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+        else
+        {
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        }
+    }
+
+    [Fact(DisplayName = "A-66: FollowSchedule + takvim tanımsız → başvuru 409 (fail-closed)")]
+    public async Task Submit_FollowScheduleWithoutDates_ReturnsConflict()
+    {
+        await SetWindowAsync(ClubApplicationWindowOverride.FollowSchedule, null, null);
+
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+        var response = await SubmitApplicationAsync(studentToken, OtherStudentEmail);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "Y-73: okuma ucu ile muhafız aynı cevabı verir — beş senaryoda da")]
+    public async Task Window_Endpoint_AgreesWithSubmitGuard()
+    {
+        var now = DateTime.UtcNow;
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+
+        var scenarios = new (ClubApplicationWindowOverride Override, DateTime? Start, DateTime? End)[]
+        {
+            (ClubApplicationWindowOverride.ForceOpen, now.AddDays(-10), now.AddDays(-5)),
+            (ClubApplicationWindowOverride.ForceClosed, now.AddDays(-2), now.AddDays(2)),
+            (ClubApplicationWindowOverride.FollowSchedule, now.AddDays(-2), now.AddDays(2)),
+            (ClubApplicationWindowOverride.FollowSchedule, now.AddDays(5), now.AddDays(10)),
+            (ClubApplicationWindowOverride.FollowSchedule, null, null),
+        };
+
+        foreach (var scenario in scenarios)
+        {
+            await SetWindowAsync(scenario.Override, scenario.Start, scenario.End);
+
+            var windowResponse = await SendWithBearerAsync(HttpMethod.Get, "/api/club-applications/window", studentToken);
+            Assert.Equal(HttpStatusCode.OK, windowResponse.StatusCode);
+            var windowBody = await windowResponse.Content.ReadFromJsonAsync<WindowProbe>();
+
+            var submitResponse = await SubmitApplicationAsync(studentToken, OtherStudentEmail);
+            var submitAccepted = submitResponse.StatusCode == HttpStatusCode.OK;
+
+            Assert.True(
+                windowBody!.IsOpen == submitAccepted,
+                $"Okuma ucu IsOpen={windowBody.IsOpen} derken gönderim {submitResponse.StatusCode} döndü ({scenario.Override}).");
+        }
+    }
+
+    [Fact(DisplayName = "K-39: pencere kapalıyken yönetici bekleyen başvuruyu yine de karara bağlayabilir")]
+    public async Task Decide_WorksWhileWindowIsClosed()
+    {
+        var now = DateTime.UtcNow;
+
+        // Önce pencereyi aç ve bir başvuru üret.
+        await SetWindowAsync(ClubApplicationWindowOverride.ForceOpen, null, null);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+        var submitResponse = await SubmitApplicationAsync(studentToken, OtherStudentEmail);
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        int applicationId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            applicationId = (await db.ClubApplications
+                .Where(a => a.Status == ApplicationStatus.Pending)
+                .OrderByDescending(a => a.Id)
+                .FirstAsync()).Id;
+        }
+
+        // Sonra pencereyi kapat.
+        await SetWindowAsync(ClubApplicationWindowOverride.ForceClosed, now.AddDays(-2), now.AddDays(2));
+
+        var adminToken = await LoginAsync(AdminEmail, AdminPassword);
+        var decisionResponse = await SendWithBearerAsync(
+            HttpMethod.Put, $"/api/club-applications/{applicationId}/decision", adminToken,
+            new { Status = "Rejected", ReviewNote = "Pencere kapalıyken karar" });
+
+        Assert.Equal(HttpStatusCode.OK, decisionResponse.StatusCode);
+    }
+
+    private sealed record WindowProbe(bool IsOpen, DateTime? StartUtc, DateTime? EndUtc, string Override, string TermName);
 }

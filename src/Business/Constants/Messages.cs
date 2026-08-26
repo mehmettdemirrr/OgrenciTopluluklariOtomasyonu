@@ -170,4 +170,12 @@ public static class Messages
     public const string ClubApplicationNotFound = "Topluluk kurma başvurusu bulunamadı.";
     public const string ClubApplicationApproved = "Topluluk kurma başvurusu onaylandı, topluluk oluşturuldu.";
     public const string ClubApplicationRejected = "Topluluk kurma başvurusu reddedildi.";
+
+    // Faz 31 — Başvuru takvimi (K-39, Y-73)
+    // Y-73: mesaj sebebi VE takvimin nerede görüleceğini söyler. Kesin tarihler
+    // GET /club-applications/window ucundan gelir — Y-25 gereği mesajın kendisi nötr kalır.
+    public const string ClubApplicationsClosed =
+        "Topluluk kurma başvuruları şu anda kapalı. Başvuru takvimini Başvurularım sayfasından görebilirsiniz.";
+
+    public const string ClubApplicationWindowUpdated = "Başvuru takvimi güncellendi.";
 }

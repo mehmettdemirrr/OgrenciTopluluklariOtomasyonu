@@ -160,6 +160,18 @@ export interface DepartmentListItemDto {
   facultyId: number
 }
 
+// src/Entities/Enums/ClubApplicationWindowOverride.cs (JsonStringEnumConverter ile metin olarak taşınır)
+export type ClubApplicationWindowOverride = 'FollowSchedule' | 'ForceOpen' | 'ForceClosed'
+
+// src/Business/DTOs/ClubApplications/ClubApplicationWindowDto.cs
+export interface ClubApplicationWindowDto {
+  isOpen: boolean
+  startUtc: string | null
+  endUtc: string | null
+  override: ClubApplicationWindowOverride
+  termName: string
+}
+
 // src/Business/DTOs/Reference/AcademicTermListItemDto.cs
 export interface AcademicTermListItemDto {
   id: number
@@ -167,6 +179,9 @@ export interface AcademicTermListItemDto {
   startDateUtc: string
   endDateUtc: string
   isCurrent: boolean
+  clubApplicationStartUtc: string | null
+  clubApplicationEndUtc: string | null
+  clubApplicationOverride: ClubApplicationWindowOverride
 }
 
 // src/Entities/Enums/EventStatus.cs (JsonStringEnumConverter ile metin olarak taşınır)

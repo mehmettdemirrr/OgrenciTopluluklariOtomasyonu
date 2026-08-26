@@ -32,4 +32,14 @@ public interface IAcademicTermService
     [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
     [TransactionAspect]
     Task<IResult> SetCurrentAsync(int termId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · K-39/A-66: dönemin topluluk kurma başvuru penceresi. Yeni izin yok —
+    /// reference.manage zaten dönem yönetiminin izni. Üç alan birlikte yazılır.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [ValidationAspect(typeof(SetClubApplicationWindowRequestValidator))]
+    [TransactionAspect]
+    Task<IResult> SetClubApplicationWindowAsync(
+        int termId, SetClubApplicationWindowRequestDto request, CancellationToken cancellationToken = default);
 }

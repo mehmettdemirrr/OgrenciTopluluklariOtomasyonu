@@ -1,6 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
+import {
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  IconButton,
+  Radio,
+  RadioGroup,
+  Stack,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from '@mui/material'
 import { DataGrid, type GridColDef, type GridRowSelectionModel } from '@mui/x-data-grid'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
@@ -24,6 +44,13 @@ import {
   type NameFormValues,
 } from '../schemas/referenceForm'
 import type { AcademicTermListItemDto, DepartmentListItemDto, FacultyListItemDto, PagedResult } from '../api/types'
+import {
+  clubApplicationWindowFormSchema,
+  emptyClubApplicationWindowFormValues,
+  toWindowFormValues,
+  toWindowPayload,
+  type ClubApplicationWindowFormValues,
+} from '../schemas/clubApplicationWindowForm'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { AcademicStaffTab } from './AcademicStaffTab'
 
@@ -391,6 +418,13 @@ function TermsTab() {
   const createForm = useForm<AcademicTermFormValues>({ resolver: zodResolver(academicTermFormSchema), defaultValues: emptyAcademicTermFormValues })
   const editForm = useForm<AcademicTermFormValues>({ resolver: zodResolver(academicTermFormSchema), defaultValues: emptyAcademicTermFormValues })
 
+  // K-39: başvuru takvimi. Yeni ekran değil, dönem satırının bir diyaloğu (A-66).
+  const [windowTarget, setWindowTarget] = useState<AcademicTermListItemDto | null>(null)
+  const windowForm = useForm<ClubApplicationWindowFormValues>({
+    resolver: zodResolver(clubApplicationWindowFormSchema),
+    defaultValues: emptyClubApplicationWindowFormValues,
+  })
+
   const { paginationModel, setPaginationModel, query: termsQuery } = usePagedQuery({
     queryKey: ['academic-terms'],
     queryFn: async (pageIndex, pageSize) =>
@@ -442,6 +476,22 @@ function TermsTab() {
     onError: (error) => notify({ message: extractErrorMessage(error, 'Dönem güncellenemedi.'), severity: 'error' }),
   })
 
+  const windowMutation = useMutation({
+    mutationFn: async (values: ClubApplicationWindowFormValues) => {
+      if (!windowTarget) return
+      await apiClient.put(`/academic-terms/${windowTarget.id}/club-application-window`, toWindowPayload(values))
+    },
+    onSuccess: () => {
+      notify({ message: 'Başvuru takvimi güncellendi.', severity: 'success' })
+      setWindowTarget(null)
+      windowForm.reset(emptyClubApplicationWindowFormValues)
+      queryClient.invalidateQueries({ queryKey: ['academic-terms'] })
+      // Öğrenci tarafındaki durum rozeti de tazelenmeli.
+      queryClient.invalidateQueries({ queryKey: ['club-application-window'] })
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Başvuru takvimi güncellenemedi.'), severity: 'error' }),
+  })
+
   const openEditDialog = (term: AcademicTermListItemDto) => {
     setEditTarget(term)
     editForm.reset({ name: term.name, startDate: term.startDateUtc.slice(0, 10), endDate: term.endDateUtc.slice(0, 10) })
@@ -468,9 +518,33 @@ function TermsTab() {
       renderCell: (params) => (params.row.isCurrent ? <Chip size="small" color="success" label="Güncel" /> : null),
     },
     {
+      field: 'clubApplicationOverride',
+      headerName: 'Başvuru Takvimi',
+      width: 200,
+      renderCell: (params) => {
+        if (params.row.clubApplicationOverride === 'ForceOpen') {
+          return <Chip size="small" color="success" label="Zorla açık" />
+        }
+        if (params.row.clubApplicationOverride === 'ForceClosed') {
+          return <Chip size="small" color="error" label="Zorla kapalı" />
+        }
+        // A-66 fail-closed: takvim yoksa FollowSchedule KAPALI demektir; rozet bunu söylemeli.
+        if (!params.row.clubApplicationStartUtc || !params.row.clubApplicationEndUtc) {
+          return <Chip size="small" color="default" label="Takvim yok — kapalı" />
+        }
+        return (
+          <Chip
+            size="small"
+            color="info"
+            label={`${new Date(params.row.clubApplicationStartUtc).toLocaleDateString('tr-TR')} – ${new Date(params.row.clubApplicationEndUtc).toLocaleDateString('tr-TR')}`}
+          />
+        )
+      },
+    },
+    {
       field: 'actions',
       headerName: '',
-      width: 210,
+      width: 300,
       sortable: false,
       filterable: false,
       renderCell: (params) => (
@@ -485,6 +559,16 @@ function TermsTab() {
             onClick={() => setCurrentMutation.mutate(params.row.id)}
           >
             Güncel Yap
+          </Button>
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => {
+              setWindowTarget(params.row)
+              windowForm.reset(toWindowFormValues(params.row))
+            }}
+          >
+            Takvim
           </Button>
         </Stack>
       ),
@@ -555,6 +639,86 @@ function TermsTab() {
             variant="contained"
             disabled={editForm.formState.isSubmitting || updateTermMutation.isPending}
             onClick={editForm.handleSubmit((values) => updateTermMutation.mutate(values))}
+          >
+            Kaydet
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={windowTarget !== null}
+        onClose={() => {
+          setWindowTarget(null)
+          windowForm.reset(emptyClubApplicationWindowFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Topluluk Kurma Başvuru Takvimi</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 1 }}>
+            {windowTarget && `"${windowTarget.name}" dönemi için başvuruların ne zaman açık olacağını belirleyin.`}
+          </DialogContentText>
+          <Controller
+            name="override"
+            control={windowForm.control}
+            render={({ field }) => (
+              <FormControl margin="dense">
+                <FormLabel>Durum</FormLabel>
+                <RadioGroup {...field}>
+                  <FormControlLabel value="FollowSchedule" control={<Radio />} label="Takvime uy" />
+                  <FormControlLabel value="ForceOpen" control={<Radio />} label="Zorla açık (tarihe bakma)" />
+                  <FormControlLabel value="ForceClosed" control={<Radio />} label="Zorla kapalı (tarihe bakma)" />
+                </RadioGroup>
+              </FormControl>
+            )}
+          />
+          <Controller
+            name="startDate"
+            control={windowForm.control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                fullWidth
+                margin="dense"
+                label="Başvuru başlangıcı"
+                type="date"
+                slotProps={{ inputLabel: { shrink: true } }}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              />
+            )}
+          />
+          <Controller
+            name="endDate"
+            control={windowForm.control}
+            render={({ field, fieldState }) => (
+              <TextField
+                {...field}
+                fullWidth
+                margin="dense"
+                label="Başvuru bitişi"
+                type="date"
+                slotProps={{ inputLabel: { shrink: true } }}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+              />
+            )}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setWindowTarget(null)
+              windowForm.reset(emptyClubApplicationWindowFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            disabled={windowMutation.isPending}
+            onClick={windowForm.handleSubmit((values) => windowMutation.mutate(values))}
           >
             Kaydet
           </Button>

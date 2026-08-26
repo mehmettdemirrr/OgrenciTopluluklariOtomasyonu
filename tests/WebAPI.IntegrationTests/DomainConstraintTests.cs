@@ -231,4 +231,49 @@ public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFa
         var reloaded = await db.Events.AsNoTracking().SingleAsync(e => e.Id == @event.Id);
         Assert.Equal(EventAudience.ClubMembers, reloaded.Audience);
     }
+
+    [Fact(DisplayName = "K-39: AcademicTerm başvuru penceresini taşır — tarihler nullable, override varsayılanı FollowSchedule")]
+    public async Task AcademicTerm_ClubApplicationWindow_RoundTrips()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var term = new AcademicTerm
+        {
+            Name = $"Pencere Dönemi {Guid.NewGuid():N}"[..30],
+            StartDateUtc = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+            EndDateUtc = new DateTime(2027, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+            IsCurrent = false,
+        };
+        db.AcademicTerms.Add(term);
+        await db.SaveChangesAsync();
+
+        // A-66: pencere tanımsız başlar ve varsayılan FollowSchedule'dır — yani KAPALI (fail-closed).
+        var fresh = await db.AcademicTerms.AsNoTracking().SingleAsync(t => t.Id == term.Id);
+        Assert.Null(fresh.ClubApplicationStartUtc);
+        Assert.Null(fresh.ClubApplicationEndUtc);
+        Assert.Equal(ClubApplicationWindowOverride.FollowSchedule, fresh.ClubApplicationOverride);
+
+        term.ClubApplicationStartUtc = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        term.ClubApplicationEndUtc = new DateTime(2026, 10, 15, 23, 59, 59, DateTimeKind.Utc);
+        term.ClubApplicationOverride = ClubApplicationWindowOverride.ForceClosed;
+        await db.SaveChangesAsync();
+
+        var updated = await db.AcademicTerms.AsNoTracking().SingleAsync(t => t.Id == term.Id);
+        Assert.Equal(new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), updated.ClubApplicationStartUtc);
+        Assert.Equal(ClubApplicationWindowOverride.ForceClosed, updated.ClubApplicationOverride);
+    }
+
+    [Fact(DisplayName = "A-66: migration mevcut GÜNCEL dönemi ForceOpen işaretler — dağıtımda kesinti olmaz")]
+    public async Task Migration_MarksCurrentTermForceOpen()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var current = await db.AcademicTerms.AsNoTracking().SingleOrDefaultAsync(t => t.IsCurrent);
+        Assert.NotNull(current);
+
+        // Bu satır olmadan fail-closed varsayılan, bugüne kadar hep açık olan akışı sessizce durdururdu.
+        Assert.Equal(ClubApplicationWindowOverride.ForceOpen, current!.ClubApplicationOverride);
+    }
 }

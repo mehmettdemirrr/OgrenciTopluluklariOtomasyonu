@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Box,
   Button,
@@ -17,6 +17,7 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
@@ -38,7 +39,7 @@ import { ResultPagination } from '../components/ui/ResultPagination'
 import { SearchField } from '../components/ui/SearchField'
 import { createClubFormSchema, emptyCreateClubFormValues, type CreateClubFormValues } from '../schemas/clubForm'
 import { clubApplicationFormSchema, emptyClubApplicationFormValues, type ClubApplicationFormValues } from '../schemas/clubApplicationForm'
-import type { AcademicStaffListItemDto, ClubListItemDto, PagedResult, SelectableAcademicStaffDto } from '../api/types'
+import type { AcademicStaffListItemDto, ClubApplicationWindowDto, ClubListItemDto, PagedResult, SelectableAcademicStaffDto } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
@@ -87,6 +88,12 @@ export function ClubsPage() {
   const applyForm = useForm<ClubApplicationFormValues>({
     resolver: zodResolver(clubApplicationFormSchema),
     defaultValues: emptyClubApplicationFormValues,
+  })
+
+  // K-39: pencerenin durumu sunucudan gelir. Arayüz tarihlere bakıp kendi kararını VERMEZ (Y-73).
+  const windowQuery = useQuery({
+    queryKey: ['club-application-window'],
+    queryFn: async () => (await apiClient.get<ClubApplicationWindowDto>('/club-applications/window')).data,
   })
 
   const submitClubApplicationMutation = useMutation({
@@ -163,9 +170,24 @@ export function ClubsPage() {
         description="Kampüsteki tüm öğrenci topluluklarını keşfedin ve üyelik başvurusu yapın."
         action={
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={applyDialog.openDialog}>
-              Topluluk Kurmak İstiyorum
-            </Button>
+            {/* Y-35: düğmeyi pasifleştirmek bir KOLAYLIK, yetki değil — API muhafızı her hâlükârda
+                409 döner. isOpen !== true kasıtlı: veri henüz gelmemişken (undefined) düğme pasif
+                kalır, fail-closed'ın arayüz karşılığı (A-66). */}
+            <Tooltip
+              title={
+                windowQuery.data && !windowQuery.data.isOpen
+                  ? windowQuery.data.startUtc
+                    ? `Başvurular ${new Date(windowQuery.data.startUtc).toLocaleDateString('tr-TR')} tarihinde açılıyor.`
+                    : 'Topluluk kurma başvuruları şu anda kapalı.'
+                  : ''
+              }
+            >
+              <span>
+                <Button variant="outlined" disabled={windowQuery.data?.isOpen !== true} onClick={applyDialog.openDialog}>
+                  Topluluk Kurmak İstiyorum
+                </Button>
+              </span>
+            </Tooltip>
             {canManageClubs && (
               <Button variant="contained" onClick={createDialog.openDialog}>
                 Yeni Topluluk

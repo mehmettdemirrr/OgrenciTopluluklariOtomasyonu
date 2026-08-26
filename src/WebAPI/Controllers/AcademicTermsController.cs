@@ -36,4 +36,12 @@ public sealed class AcademicTermsController(IAcademicTermService academicTermSer
         var result = await academicTermService.SetCurrentAsync(id, cancellationToken);
         return result.ToActionResult();
     }
+
+    [HttpPut("{id:int}/club-application-window")]
+    public async Task<IActionResult> SetClubApplicationWindow(
+        int id, SetClubApplicationWindowRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await academicTermService.SetClubApplicationWindowAsync(id, request, cancellationToken);
+        return result.ToActionResult();
+    }
 }

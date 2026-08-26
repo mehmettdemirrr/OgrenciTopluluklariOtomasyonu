@@ -49,6 +49,14 @@ public sealed class ClubApplicationManager(
             return Result.NotFound(Messages.NoCurrentAcademicTerm);
         }
 
+        // Y-73: pencere muhafızı, danışman/ad çakışması/çift başvuru kontrollerinden ÖNCE gelir —
+        // kapalı pencerede öğrenci "bu isim alınmış" değil, sebebi doğru olan cevabı almalı.
+        // A-66: karar EvaluateWindow'da; ikinci bir if yok (GetWindowAsync da aynı metodu çağırır).
+        if (!EvaluateWindow(term, clock.UtcNow))
+        {
+            return Result.Conflict(Messages.ClubApplicationsClosed);
+        }
+
         var advisor = await academicStaffRepository.GetAsync(s => s.Id == request.ProposedAdvisorId, cancellationToken).ConfigureAwait(false);
         if (advisor is null)
         {
@@ -86,6 +94,32 @@ public sealed class ClubApplicationManager(
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return Result.Success(Messages.ClubApplicationSubmitted);
+    }
+
+    public async Task<IDataResult<ClubApplicationWindowDto>> GetWindowAsync(CancellationToken cancellationToken = default)
+    {
+        var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
+
+        // Güncel dönem yoksa pencere kapalıdır — SubmitAsync zaten NoCurrentAcademicTerm ile durur.
+        // Burada hata değil "kapalı" dönüyoruz: arayüz düğmeyi pasif gösterip sebebi yazabilsin.
+        if (term is null)
+        {
+            return DataResult<ClubApplicationWindowDto>.Success(new ClubApplicationWindowDto
+            {
+                IsOpen = false,
+                Override = ClubApplicationWindowOverride.FollowSchedule,
+                TermName = string.Empty,
+            });
+        }
+
+        return DataResult<ClubApplicationWindowDto>.Success(new ClubApplicationWindowDto
+        {
+            IsOpen = EvaluateWindow(term, clock.UtcNow),
+            StartUtc = term.ClubApplicationStartUtc,
+            EndUtc = term.ClubApplicationEndUtc,
+            Override = term.ClubApplicationOverride,
+            TermName = term.Name,
+        });
     }
 
     public async Task<IDataResult<IReadOnlyList<ClubApplicationListItemDto>>> GetMineAsync(CancellationToken cancellationToken = default)
@@ -264,6 +298,22 @@ public sealed class ClubApplicationManager(
             CreatedClubId = a.CreatedClubId,
         }).ToList();
     }
+
+    /// <summary>
+    /// docs/MIMARI.md · A-66/Y-73: pencere kararının TEK yeri. SubmitAsync muhafızı ve
+    /// GetWindowAsync bu metodu çağırır — ikinci bir if yazmak, ekranın "açık" derken API'nin
+    /// "kapalı" demesinin garantili yoludur.
+    /// Fail-closed: FollowSchedule + eksik tarih = kapalı. Aralık kapsayıcıdır.
+    /// </summary>
+    private static bool EvaluateWindow(AcademicTerm term, DateTime nowUtc) => term.ClubApplicationOverride switch
+    {
+        ClubApplicationWindowOverride.ForceOpen => true,
+        ClubApplicationWindowOverride.ForceClosed => false,
+        _ => term.ClubApplicationStartUtc is { } start
+             && term.ClubApplicationEndUtc is { } end
+             && nowUtc >= start
+             && nowUtc <= end,
+    };
 
     private static int ClampPageSize(int pageSize) =>
         pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);

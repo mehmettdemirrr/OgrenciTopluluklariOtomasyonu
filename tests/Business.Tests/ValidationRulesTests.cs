@@ -1,5 +1,6 @@
 using Business.DTOs.Events;
 using Business.DTOs.Memberships;
+using Business.DTOs.Reference;
 using Business.DTOs.Reports;
 using Business.ValidationRules;
 using Entities.Enums;
@@ -73,6 +74,57 @@ public class ValidationRulesTests
         var result = new CreateReportRequestValidator().Validate(new CreateReportRequestDto { ReportType = ReportType.EventParticipants, EventId = null });
 
         Assert.False(result.IsValid);
+    }
+
+    [Fact(DisplayName = "K-39: bitiş tarihi başlangıçtan önceyse pencere isteği geçersizdir")]
+    public void SetClubApplicationWindowRequestValidator_EndBeforeStart_IsInvalid()
+    {
+        var validator = new SetClubApplicationWindowRequestValidator();
+        var request = new SetClubApplicationWindowRequestDto
+        {
+            StartUtc = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+            EndUtc = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+            Override = ClubApplicationWindowOverride.FollowSchedule,
+        };
+
+        Assert.False(validator.Validate(request).IsValid);
+    }
+
+    [Fact(DisplayName = "K-39: geçerli tarih aralığı ve tanımlı override kabul edilir")]
+    public void SetClubApplicationWindowRequestValidator_ValidRange_IsValid()
+    {
+        var validator = new SetClubApplicationWindowRequestValidator();
+        var request = new SetClubApplicationWindowRequestDto
+        {
+            StartUtc = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+            EndUtc = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc),
+            Override = ClubApplicationWindowOverride.FollowSchedule,
+        };
+
+        Assert.True(validator.Validate(request).IsValid);
+    }
+
+    [Fact(DisplayName = "A-66: tarihsiz istek geçerlidir — takvimi temizlemek meşru bir eylem")]
+    public void SetClubApplicationWindowRequestValidator_NullDates_IsValid()
+    {
+        var validator = new SetClubApplicationWindowRequestValidator();
+        var request = new SetClubApplicationWindowRequestDto
+        {
+            StartUtc = null,
+            EndUtc = null,
+            Override = ClubApplicationWindowOverride.ForceClosed,
+        };
+
+        Assert.True(validator.Validate(request).IsValid);
+    }
+
+    [Fact(DisplayName = "Y-73: tanımsız override değeri reddedilir")]
+    public void SetClubApplicationWindowRequestValidator_UndefinedOverride_IsInvalid()
+    {
+        var validator = new SetClubApplicationWindowRequestValidator();
+        var request = new SetClubApplicationWindowRequestDto { Override = (ClubApplicationWindowOverride)42 };
+
+        Assert.False(validator.Validate(request).IsValid);
     }
 
     [Fact(DisplayName = "Y-72: tanımsız EventAudience değeri biçimsel doğrulamada reddedilir")]

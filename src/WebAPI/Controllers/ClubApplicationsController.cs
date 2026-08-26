@@ -17,6 +17,14 @@ public sealed class ClubApplicationsController(IClubApplicationService clubAppli
         return result.ToActionResult();
     }
 
+    /// <summary>docs/MIMARI.md · K-39/A-42: giriş yapmış kullanıcıya açık; anonim vitrine eklenmez.</summary>
+    [HttpGet("club-applications/window")]
+    public async Task<IActionResult> GetWindow(CancellationToken cancellationToken)
+    {
+        var result = await clubApplicationService.GetWindowAsync(cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpGet("club-applications/mine")]
     public async Task<IActionResult> GetMine(CancellationToken cancellationToken)
     {

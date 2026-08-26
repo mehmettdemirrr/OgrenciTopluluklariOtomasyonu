@@ -17,6 +17,13 @@ public interface IClubApplicationService
     [TransactionAspect]
     Task<IResult> SubmitAsync(SubmitClubApplicationRequestDto request, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// docs/MIMARI.md · K-39/Y-73: pencerenin güncel durumu. `[SecuredOperation]` yok — herhangi bir
+    /// kimliği doğrulanmış kullanıcı görebilir (SubmitAsync ile aynı erişim sınıfı). Anonim yüzeye
+    /// eklenmez (A-42). Muhafız ile bu uç AYNI EvaluateWindow metodunu çağırır.
+    /// </summary>
+    Task<IDataResult<ClubApplicationWindowDto>> GetWindowAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Çağıranın kendi başvurularının durumu — küçük ve kişiye özel, sayfalanmaz (`/clubs/mine` precedent'i).</summary>
     Task<IDataResult<IReadOnlyList<ClubApplicationListItemDto>>> GetMineAsync(CancellationToken cancellationToken = default);
 
