@@ -6,6 +6,7 @@ using Core.Utilities.Results;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
 using Entities;
+using DataAccess.Seed;
 using Entities.Enums;
 using Hangfire;
 using Hangfire.Common;
@@ -35,6 +36,11 @@ public class MembershipApplicationManagerTests
     public MembershipApplicationManagerTests()
     {
         _clock.Setup(c => c.UtcNow).Returns(FixedNow);
+
+        // Y-74/A-67: ReviewAsync ve GetPendingForAdvisorAsync artık ilk satırda
+        // currentUser.Permissions okuyor — varsayılan boş. Yönetici yolunu sınayan test bunu ezer.
+        // (EventManagerTests ve ClubMemberManagerTests'te aynı kurulum var.)
+        _currentUser.Setup(c => c.Permissions).Returns([]);
 
         var transaction = new Mock<ITransaction>();
         transaction.Setup(t => t.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -138,6 +144,31 @@ public class MembershipApplicationManagerTests
         Assert.True(result.IsSuccess);
         _membershipRepository.Verify(r => r.AddAsync(It.IsAny<ClubMembership>(), It.IsAny<CancellationToken>()), Times.Once);
         _backgroundJobClient.Verify(c => c.Create(It.IsAny<Job>(), It.IsAny<IState>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "A-67: danışmanı olmadığı kulüpte bile clubs.manage.all taşıyan yönetici onaylayabilir")]
+    public async Task ReviewAsync_AdminWithClubsManageAll_Approves()
+    {
+        // Danışman BAŞKA biri (ApplicationUserId = 200); çağıran 999. Eski kural bunu Forbidden
+        // yapardı — yöneticinin danışmanı ulaşılamayan bir kulübü açması imkânsızdı (A-67).
+        _currentUser.Setup(c => c.UserId).Returns(999);
+        _currentUser.Setup(c => c.Permissions).Returns([IdentitySeedData.Permissions.ClubsManageAll]);
+
+        var application = new MembershipApplication
+        {
+            Id = 1, ClubId = 1, StudentId = 1, AcademicTermId = 1, Status = ApplicationStatus.Pending, AppliedAtUtc = FixedNow,
+        };
+        var club = CreateClub(id: 1, advisorId: 10);
+        var advisor = new AcademicStaff { Id = 10, ApplicationUserId = 200, Title = "Dr.", DepartmentId = 1 };
+
+        _applicationRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<MembershipApplication, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(application);
+        _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(club);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(advisor);
+
+        var result = await _sut.ReviewAsync(1, new ReviewMembershipApplicationRequestDto { Status = ApplicationStatus.Approved });
+
+        Assert.True(result.IsSuccess);
+        _membershipRepository.Verify(r => r.AddAsync(It.IsAny<ClubMembership>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "Review: danışman olmayan kullanıcının onay denemesi Forbidden döner, bildirim kuyruğa eklenmez")]

@@ -18,6 +18,14 @@ public class ScopeGuardTests
 {
     private const string RequiredPermission = "clubs.manage.all";
 
+    /// <summary>
+    /// docs/MIMARI.md · A-55/A-67: yöneticinin kapsamdan çıkabildiği izinler. İkisi bilinçli olarak
+    /// ayrıdır — <c>clubs.manage.all</c> kulüp kapsamını, <c>reports.read.all</c> ise YALNIZCA rapor
+    /// kapsamını (<c>ReportScopeResolver</c>) yönetir. A-55 bu ayrımı kurarken "reports.read.all'ın
+    /// fiilen admin bayrağı olarak kullanılması sona erer" demişti; bu liste o ayrımı korur.
+    /// </summary>
+    private static readonly string[] AdminEscapePermissions = [RequiredPermission, "reports.read.all"];
+
     /// <summary>Kapsam metotlarının adlandırma sözleşmesi; yeni bir tanesi eklenince test onu da kapsar.</summary>
     private const string ScopeMethodPrefix = "Ensure";
 
@@ -55,6 +63,71 @@ public class ScopeGuardTests
         && ScopeMethodSuffixes.Any(suffix => name.EndsWith(suffix, StringComparison.Ordinal));
 
     /// <summary>
+    /// docs/MIMARI.md · Y-74 / A-67: adlandırmadan bağımsız tarama.
+    ///
+    /// Yukarıdaki test kapsam metotlarını <b>ada göre</b> (<c>Ensure*Access</c>) buluyor. Kapsamı bir
+    /// sorgunun içine gömen metotlar bu yüzden görünmez kalıyordu: Faz 30'un elle doğrulamasında
+    /// yöneticinin hem etkinlik hem üyelik onay kuyruğunu <b>sessizce boş</b> gördüğü ortaya çıktı —
+    /// dört metot testin kör noktasındaydı.
+    ///
+    /// Kapsam daraltmanın gerçek imzası adı değil, <b>"ben kimim"</b> sorusudur:
+    /// <c>AcademicStaff.ApplicationUserId == currentUser.UserId</c>. Buna karşılık
+    /// <c>s.Id == request.AdvisorId</c> ("verilen danışman var mı") zararsız bir doğrulamadır ve
+    /// <c>AcademicStaff::get_ApplicationUserId</c>'ye hiç dokunmadığı için bu taramaya takılmaz.
+    /// </summary>
+    [Fact(DisplayName = "Y-74: çağıranı danışmana çözen her metot clubs.manage.all yolunu taşır (ada bakılmaz)")]
+    public void Caginani_Danismana_Cozen_Metotlar_Yonetici_Iznini_Kontrol_Eder()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Business.dll");
+        using var assembly = AssemblyDefinition.ReadAssembly(path);
+
+        var advisorScopedMethods = assembly.MainModule.Types
+            .Where(t => t.Namespace == "Business.Concrete")
+            .SelectMany(t => t.Methods
+                .Where(m => m.HasBody && !IsCompilerGenerated(m.DeclaringType) && ResolvesCallerToAdvisor(m))
+                .Select(m => (Type: t, Method: m)))
+            .ToList();
+
+        // Testin kendisi anlamsızlaşmasın: hiç metot bulunamıyorsa tarama bozulmuştur.
+        Assert.True(
+            advisorScopedMethods.Count >= 5,
+            $"Çağıranı danışmana çözen en az 5 metot bekleniyordu, bulunan {advisorScopedMethods.Count}. "
+                + "IL taraması mı bozuldu?");
+
+        var violations = advisorScopedMethods
+            .Where(entry => !AdminEscapePermissions.Any(permission => LoadsPermission(entry.Method, permission)))
+            .Select(entry => $"{entry.Type.Name}.{entry.Method.Name}")
+            .ToList();
+
+        Assert.True(
+            violations.Count == 0,
+            "Çağıranı danışmana çözen metot hiçbir yönetici çıkışı taşımıyor — yönetici bu uçta "
+                + $"sessizce kilitli kalır (Y-74/A-67):\n{string.Join("\n", violations)}");
+    }
+
+    /// <summary>
+    /// Metot çağıranın KENDİSİNİ danışmana çözüyor mu: hem <c>AcademicStaff.ApplicationUserId</c>
+    /// okunmalı hem de <c>ICurrentUser.UserId</c>'ye dokunulmalı.
+    ///
+    /// İki koşul birlikte aranır, çünkü tek başına <c>ApplicationUserId</c> yetmiyor:
+    /// <c>ReferenceDataManager.CreateAcademicStaffAsync</c> onu <c>request.ApplicationUserId</c> ile
+    /// (A-14 tekillik kontrolü), <c>RoleAdminManager.FindDeletionBlockerAsync</c> ise SİLİNECEK
+    /// kullanıcının kimliğiyle karşılaştırır. İkisi de kapsam daraltmaz; yönetici çıkışı beklemek yanlış olur.
+    /// </summary>
+    private static bool ResolvesCallerToAdvisor(MethodDefinition method) =>
+        ReferencesMember(method, "Entities.AcademicStaff", "get_ApplicationUserId")
+        && ReferencesMember(method, "Core.Utilities.Security.ICurrentUser", "get_UserId");
+
+    private static bool ReferencesMember(MethodDefinition method, string declaringTypeFullName, string memberName) =>
+        EffectiveBodies(method).Any(body => body.Body.Instructions.Any(instruction =>
+            instruction.Operand is MethodReference reference
+            && reference.Name == memberName
+            && reference.DeclaringType?.FullName == declaringTypeFullName));
+
+    private static bool IsCompilerGenerated(TypeDefinition type) =>
+        type.CustomAttributes.Any(a => a.AttributeType.Name == "CompilerGeneratedAttribute");
+
+    /// <summary>
     /// İzin kodu sabiti (<c>ldstr</c>) metodun GERÇEK gövdesinde geçiyor mu.
     ///
     /// Kapsam metotlarının hepsi <c>async</c>: derleyici gövdeyi bir state machine tipine taşır ve
@@ -62,22 +135,70 @@ public class ScopeGuardTests
     /// tarama bu yüzden 7 metodun 7'sini de "ihlal" olarak işaretler (AsyncHygieneTests'in ters
     /// yönde tarif ettiği aynı tuzak).
     /// </summary>
-    private static bool LoadsPermission(MethodDefinition method, string permission)
+    private static bool LoadsPermission(MethodDefinition method, string permission) =>
+        EffectiveBodies(method).Any(body =>
+            body.Body.Instructions.Any(instruction => instruction.Operand as string == permission));
+
+    /// <summary>
+    /// Metodun GERÇEK gövdesi: kendisi + async state machine'inin MoveNext'i + derleyicinin ürettiği
+    /// closure metotları. Yalnızca <c>method.Body</c>'ye bakmak yanıltır — async metotlarda gövde
+    /// state machine'e taşınır, lambda'lar ise ayrı closure tiplerine.
+    /// </summary>
+    private static IEnumerable<MethodDefinition> EffectiveBodies(MethodDefinition method)
     {
-        if (ContainsString(method, permission))
-        {
-            return true;
-        }
+        var seen = new HashSet<MethodDefinition>();
+        var pending = new Stack<MethodDefinition>();
+        pending.Push(method);
 
         var stateMachine = method.CustomAttributes
             .FirstOrDefault(a => a.AttributeType.Name == "AsyncStateMachineAttribute")
             ?.ConstructorArguments.FirstOrDefault().Value as TypeReference;
 
-        var moveNext = stateMachine?.Resolve()?.Methods.FirstOrDefault(m => m.Name == "MoveNext");
+        if (stateMachine?.Resolve()?.Methods.FirstOrDefault(m => m.Name == "MoveNext") is { } moveNext)
+        {
+            pending.Push(moveNext);
+        }
 
-        return moveNext is not null && ContainsString(moveNext, permission);
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            if (!current.HasBody || !seen.Add(current))
+            {
+                continue;
+            }
+
+            yield return current;
+
+            foreach (var instruction in current.Body.Instructions)
+            {
+                if (instruction.Operand is not MethodReference reference)
+                {
+                    continue;
+                }
+
+                var declaring = TryResolve(reference.DeclaringType);
+                if (declaring is null || !declaring.IsNested || !IsCompilerGenerated(declaring))
+                {
+                    continue;
+                }
+
+                if (reference.Resolve() is { } target)
+                {
+                    pending.Push(target);
+                }
+            }
+        }
     }
 
-    private static bool ContainsString(MethodDefinition method, string value) =>
-        method.HasBody && method.Body.Instructions.Any(instruction => instruction.Operand as string == value);
+    private static TypeDefinition? TryResolve(TypeReference? type)
+    {
+        try
+        {
+            return type?.Resolve();
+        }
+        catch (AssemblyResolutionException)
+        {
+            return null;
+        }
+    }
 }

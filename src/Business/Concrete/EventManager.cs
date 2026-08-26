@@ -119,12 +119,17 @@ public sealed class EventManager(
             return Result.NotFound(Messages.ClubNotFound);
         }
 
-        // Y-23: events.approve izni yeterli değil — yalnızca kulübün danışmanı karar verebilir
-        // (MembershipApplicationManager.ReviewAsync ile aynı precedent: Admin'in blanket izni bile bunu bypass etmez).
-        var advisor = await academicStaffRepository.GetAsync(s => s.Id == club.AdvisorId, cancellationToken).ConfigureAwait(false);
-        if (advisor is null || advisor.ApplicationUserId != userId)
+        // Y-74/A-67: yönetici kontrolü İLK sırada. A-67 bu metodun eski "yalnızca danışman"
+        // kuralını yönetici için açıkça gevşetir — danışmanı ulaşılamayan bir kulübün onay kuyruğu
+        // aksi hâlde kimse tarafından açılamıyordu. Danışmanın kendi yetkisi aynen duruyor.
+        if (!currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
         {
-            return Result.Forbidden(Messages.NotClubAdvisor);
+            // Y-23: events.approve izni tek başına yeterli değil — kulübün danışmanı olmak gerekir.
+            var advisor = await academicStaffRepository.GetAsync(s => s.Id == club.AdvisorId, cancellationToken).ConfigureAwait(false);
+            if (advisor is null || advisor.ApplicationUserId != userId)
+            {
+                return Result.Forbidden(Messages.NotClubAdvisor);
+            }
         }
 
         // Y-46/Y-06: [TransactionAspect] kasıtlı olarak kullanılmaz — commit'ten SONRA Hangfire'a
@@ -214,24 +219,41 @@ public sealed class EventManager(
     {
         var clampedPageSize = ClampPageSize(pageSize);
 
-        var advisor = currentUser.UserId is { } userId
-            ? await academicStaffRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false)
-            : null;
+        // Y-74/A-67: yönetici kontrolü kapsam daraltmasının İLK satırıdır. v6.0'a kadar burada
+        // yönetici yolu yoktu: admin'in AcademicStaff kaydı olmadığı için kuyruk SESSİZCE boş
+        // dönüyordu ve sekme hiç dolmuyordu. Y-66 aynı şeyi söylüyordu ama ScopeGuardTests
+        // metotları ada göre tarıyordu; bu metot adı Ensure* olmadığı için kör noktada kaldı.
+        var isAdmin = currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll);
 
-        if (advisor is null)
+        List<int> advisedClubIds = [];
+        if (!isAdmin)
         {
-            return DataResult<PagedResult<EventListItemDto>>.Success(new PagedResult<EventListItemDto>([], 0, pageIndex, clampedPageSize));
+            var advisor = currentUser.UserId is { } userId
+                ? await academicStaffRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false)
+                : null;
+
+            if (advisor is null)
+            {
+                return DataResult<PagedResult<EventListItemDto>>.Success(new PagedResult<EventListItemDto>([], 0, pageIndex, clampedPageSize));
+            }
+
+            advisedClubIds = (await clubRepository.GetListAsync(c => c.AdvisorId == advisor.Id, cancellationToken).ConfigureAwait(false))
+                .Select(c => c.Id)
+                .ToList();
         }
 
-        var clubIds = (await clubRepository.GetListAsync(c => c.AdvisorId == advisor.Id, cancellationToken).ConfigureAwait(false))
-            .Select(c => c.Id)
-            .ToList();
-
         var paged = await eventRepository
-            .GetListPagedAsync(pageIndex, clampedPageSize, e => clubIds.Contains(e.ClubId) && e.Status == EventStatus.PendingApproval, cancellationToken)
+            .GetListPagedAsync(
+                pageIndex,
+                clampedPageSize,
+                e => (isAdmin || advisedClubIds.Contains(e.ClubId)) && e.Status == EventStatus.PendingApproval,
+                cancellationToken)
             .ConfigureAwait(false);
 
-        var items = await MapWithClubNamesAsync(paged, clubIds, cancellationToken).ConfigureAwait(false);
+        // Kulüp adları sayfanın KENDİ kulüplerinden çözülür: yöneticide advisedClubIds boştur,
+        // eski kod o listeyi kullandığı için ad sütunu boş kalırdı.
+        var pageClubIds = paged.Items.Select(e => e.ClubId).Distinct().ToList();
+        var items = await MapWithClubNamesAsync(paged, pageClubIds, cancellationToken).ConfigureAwait(false);
         return DataResult<PagedResult<EventListItemDto>>.Success(new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
     }
 

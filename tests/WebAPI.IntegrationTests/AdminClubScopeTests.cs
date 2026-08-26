@@ -198,6 +198,115 @@ public sealed class AdminClubScopeTests : IClassFixture<CustomWebApplicationFact
         Capacity = 25,
     };
 
+    /// <summary>
+    /// docs/MIMARI.md · A-67/Y-74: yöneticinin ONAY KUYRUKLARI. Faz 30'un elle doğrulamasında çıktı:
+    /// admin'in AcademicStaff kaydı olmadığı için iki kuyruk da SESSİZCE boş dönüyordu ve sekme
+    /// hiç dolmuyordu. Mimari test (Y-74) izin dizesinin yüklendiğini kanıtlar; bu testler
+    /// DAVRANIŞIN gerçekten çalıştığını kanıtlar.
+    /// </summary>
+    [Fact(DisplayName = "A-67: yönetici danışmanı olmadığı kulübün ETKİNLİK onay kuyruğunu görüyor ve karara bağlayabiliyor")]
+    public async Task Admin_SeesAndDecides_EventApprovalQueue()
+    {
+        var title = $"acs-onay-etkinlik-{Guid.NewGuid():N}"[..30];
+        int eventId;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var pending = new Event
+            {
+                ClubId = _clubId,
+                Title = title,
+                StartDateUtc = DateTime.UtcNow.AddDays(20),
+                EndDateUtc = DateTime.UtcNow.AddDays(20).AddHours(2),
+                Status = EventStatus.PendingApproval,
+                CreatedAtUtc = DateTime.UtcNow,
+            };
+            db.Events.Add(pending);
+            await db.SaveChangesAsync();
+            eventId = pending.Id;
+        }
+
+        var adminToken = await LoginAsync(AdminEmail, AdminPassword);
+
+        var queueResponse = await SendAsync(HttpMethod.Get, "/api/events/approval-queue?pageIndex=0&pageSize=100", adminToken);
+        Assert.Equal(HttpStatusCode.OK, queueResponse.StatusCode);
+        // Kulüp adı da gelmeli: eski kod adları danışmanın kulüplerinden çözüyordu, yöneticide o liste boştur.
+        var queueBody = await queueResponse.Content.ReadAsStringAsync();
+        Assert.Contains(title, queueBody, StringComparison.Ordinal);
+
+        var decisionResponse = await SendAsync(
+            HttpMethod.Put, $"/api/events/{eventId}/decision", adminToken, new { Status = "Published" });
+        Assert.Equal(HttpStatusCode.OK, decisionResponse.StatusCode);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var reloaded = await db.Events.AsNoTracking().SingleAsync(e => e.Id == eventId);
+            Assert.Equal(EventStatus.Published, reloaded.Status);
+        }
+    }
+
+    [Fact(DisplayName = "A-67: yönetici danışmanı olmadığı kulübün ÜYELİK başvuru kuyruğunu görüyor ve karara bağlayabiliyor")]
+    public async Task Admin_SeesAndDecides_MembershipApplicationQueue()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        int applicationId;
+        string studentNumber;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+            var applicantUser = await EnsureUserAsync(
+                userManager, $"acs-applicant-{suffix}@test.local", "Applicant!Test123456", IdentitySeedData.MemberRoleName);
+
+            var departmentId = await db.Departments.Select(d => d.Id).FirstAsync();
+            var termId = await db.AcademicTerms.Where(t => t.IsCurrent).Select(t => t.Id).FirstAsync();
+
+            studentNumber = $"AP{suffix}"[..10];
+            var applicant = new Student
+            {
+                ApplicationUserId = applicantUser.Id,
+                StudentNumber = studentNumber,
+                DepartmentId = departmentId,
+                EnrollmentYear = 2026,
+            };
+            db.Students.Add(applicant);
+            await db.SaveChangesAsync();
+
+            var application = new MembershipApplication
+            {
+                ClubId = _clubId,
+                StudentId = applicant.Id,
+                AcademicTermId = termId,
+                Status = ApplicationStatus.Pending,
+                AppliedAtUtc = DateTime.UtcNow,
+            };
+            db.MembershipApplications.Add(application);
+            await db.SaveChangesAsync();
+            applicationId = application.Id;
+        }
+
+        var adminToken = await LoginAsync(AdminEmail, AdminPassword);
+
+        var queueResponse = await SendAsync(HttpMethod.Get, "/api/membership-applications?pageIndex=0&pageSize=100", adminToken);
+        Assert.Equal(HttpStatusCode.OK, queueResponse.StatusCode);
+        Assert.Contains(studentNumber, await queueResponse.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        var decisionResponse = await SendAsync(
+            HttpMethod.Put, $"/api/membership-applications/{applicationId}/decision", adminToken, new { Status = "Approved" });
+        Assert.Equal(HttpStatusCode.OK, decisionResponse.StatusCode);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var reloaded = await db.MembershipApplications.AsNoTracking().SingleAsync(a => a.Id == applicationId);
+            Assert.Equal(ApplicationStatus.Approved, reloaded.Status);
+        }
+    }
+
     private async Task<string> LoginAsync(string email, string password)
     {
         var response = await _client.PostAsJsonAsync("/api/auth/login", new { Email = email, Password = password });

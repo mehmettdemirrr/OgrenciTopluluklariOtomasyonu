@@ -6,6 +6,7 @@ using Core.DataAccess;
 using Core.Utilities.Results;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
+using DataAccess.Seed;
 using Entities;
 using Entities.Enums;
 using Hangfire;
@@ -95,26 +96,40 @@ public sealed class MembershipApplicationManager(
     {
         var clampedPageSize = ClampPageSize(pageSize);
 
-        var advisor = currentUser.UserId is { } userId
-            ? await academicStaffRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false)
-            : null;
+        // Y-74/A-67: yönetici kontrolü kapsam daraltmasının İLK satırıdır. v6.0'a kadar burada
+        // yönetici yolu yoktu: admin'in AcademicStaff kaydı olmadığı için kuyruk SESSİZCE boş
+        // dönüyordu. EventManager.GetApprovalQueueAsync ile birebir aynı kusur, aynı kör nokta.
+        var isAdmin = currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll);
 
-        if (advisor is null)
+        List<int> advisedClubIds = [];
+        if (!isAdmin)
         {
-            return DataResult<PagedResult<MembershipApplicationListItemDto>>.Success(
-                new PagedResult<MembershipApplicationListItemDto>([], 0, pageIndex, clampedPageSize));
-        }
+            var advisor = currentUser.UserId is { } userId
+                ? await academicStaffRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false)
+                : null;
 
-        var clubIds = (await clubRepository.GetListAsync(c => c.AdvisorId == advisor.Id, cancellationToken).ConfigureAwait(false))
-            .Select(c => c.Id)
-            .ToList();
+            if (advisor is null)
+            {
+                return DataResult<PagedResult<MembershipApplicationListItemDto>>.Success(
+                    new PagedResult<MembershipApplicationListItemDto>([], 0, pageIndex, clampedPageSize));
+            }
+
+            advisedClubIds = (await clubRepository.GetListAsync(c => c.AdvisorId == advisor.Id, cancellationToken).ConfigureAwait(false))
+                .Select(c => c.Id)
+                .ToList();
+        }
 
         var paged = await membershipApplicationRepository
             .GetListPagedAsync(
-                pageIndex, clampedPageSize, a => clubIds.Contains(a.ClubId) && a.Status == ApplicationStatus.Pending, cancellationToken)
+                pageIndex,
+                clampedPageSize,
+                a => (isAdmin || advisedClubIds.Contains(a.ClubId)) && a.Status == ApplicationStatus.Pending,
+                cancellationToken)
             .ConfigureAwait(false);
 
-        var clubNames = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+        // Kulüp adları sayfanın KENDİ kulüplerinden çözülür: yöneticide advisedClubIds boştur.
+        var pageClubIds = paged.Items.Select(a => a.ClubId).Distinct().ToList();
+        var clubNames = (await clubRepository.GetListAsync(c => pageClubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
             .ToDictionary(c => c.Id, c => c.Name);
 
         var studentIds = paged.Items.Select(a => a.StudentId).Distinct().ToList();
@@ -237,11 +252,15 @@ public sealed class MembershipApplicationManager(
             return Result.NotFound(Messages.ClubNotFound);
         }
 
-        // Y-23: izin claim'i (memberships.write) yeterli değil — yalnızca bu kulübün danışmanı onaylayabilir.
-        var advisor = await academicStaffRepository.GetAsync(s => s.Id == club.AdvisorId, cancellationToken).ConfigureAwait(false);
-        if (advisor is null || advisor.ApplicationUserId != userId)
+        // Y-74/A-67: yönetici kontrolü İLK sırada — EventManager.DecideAsync ile aynı gerekçe.
+        if (!currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
         {
-            return Result.Forbidden(Messages.NotClubAdvisor);
+            // Y-23: izin claim'i (memberships.write) yeterli değil — bu kulübün danışmanı olmak gerekir.
+            var advisor = await academicStaffRepository.GetAsync(s => s.Id == club.AdvisorId, cancellationToken).ConfigureAwait(false);
+            if (advisor is null || advisor.ApplicationUserId != userId)
+            {
+                return Result.Forbidden(Messages.NotClubAdvisor);
+            }
         }
 
         var now = clock.UtcNow;
