@@ -522,7 +522,7 @@ public sealed class ClubApplicationDocumentConfiguration : IEntityTypeConfigurat
 - [ ] **Step 6: Migration üret ve doğrula**
 
 ```bash
-dotnet ef migrations add 20260826_Faz33_KurulusEvraklari --project src/DataAccess --startup-project src/WebAPI
+dotnet ef migrations add 20260826_Faz33_KurulusEvraklari --project src/DataAccess --startup-project src/DataAccess
 ```
 
 `Up()` içinde iki `CreateTable`, üç `CreateIndex` ve **sekiz `InsertData`** satırı olmalı. `InsertData` yoksa `HasData` yanlış yazılmıştır. Fazladan tablo/kolon varsa **dur.**

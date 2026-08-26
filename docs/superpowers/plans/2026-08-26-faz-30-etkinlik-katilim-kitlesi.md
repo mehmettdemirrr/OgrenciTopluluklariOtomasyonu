@@ -206,7 +206,7 @@ using Entities.Enums;
 - [ ] **Step 6: Migration üret**
 
 ```bash
-dotnet ef migrations add 20260826_Faz30_EtkinlikKatilimKitlesi --project src/DataAccess --startup-project src/WebAPI
+dotnet ef migrations add 20260826_Faz30_EtkinlikKatilimKitlesi --project src/DataAccess --startup-project src/DataAccess
 ```
 
 Üretilen dosyayı **aç ve doğrula**: `Up()` içinde tek bir `AddColumn<int>` olmalı, `defaultValue: 0` taşımalı ve başka hiçbir tabloya dokunmamalı. Beklenen gövde:
@@ -605,7 +605,11 @@ git commit -m "Faz 30 adim 2: kitle alani API yuzeyine baglandi (K-38)"
 dotnet test tests/Business.Tests/Business.Tests.csproj --filter "FullyQualifiedName~RegisterAsync_MembersOnlyEvent|FullyQualifiedName~RegisterAsync_PublicEvent_DoesNotQueryMembership"
 ```
 
-Beklenen: **4 failed, 1 passed.** Dört `MembersOnly` testi kırmızı (muhafız yok, `Forbidden` yerine `Success` dönüyor); `RegisterAsync_PublicEvent_DoesNotQueryMembership` zaten yeşil — o bir regresyon muhafızı, kural yazıldıktan sonra da yeşil kalmalı.
+Beklenen: **3 failed, 2 passed.** Üç "reddedilmeli" testi kırmızı (muhafız yok, `Forbidden` yerine `Success` dönüyor).
+
+İki testin baştan yeşil olması doğrudur ve kasıtlıdır:
+- `RegisterAsync_MembersOnlyEvent_CurrentTermMember_ReturnsSuccess` — muhafız yokken herkes kaydolabildiği için üye de kaydolur. Kural yazıldıktan sonra **doğru sebepten** yeşil kalır.
+- `RegisterAsync_PublicEvent_DoesNotQueryMembership` — regresyon muhafızı; hiçbir zaman kırmızı olmamalı.
 
 - [ ] **Step 3: Mesajı ekle**
 
@@ -717,65 +721,58 @@ git commit -m "Faz 30 adim 3: uyelere ozel etkinlik kayit muhafizi (K-38, Y-72)"
 
 `tests/WebAPI.IntegrationTests/PublicSurfaceLeakTests.cs` dosyasının sonundaki kapanış süslü parantezinden önce ekle.
 
-> **Dikkat:** Bu sınıfta `HttpClient` bir **alan**dır (`_client`, `InitializeAsync` içinde kurulur) — testin içinde `_factory.CreateClient()` çağırma. `_factory` yalnızca `Services.CreateScope()` için kullanılır. `AppDbContext` üzerindeki koleksiyon adları: `db.Clubs`, `db.Events`, `db.AcademicStaff`.
+Bu testin üç kuralı var; üçü de **uygulama sırasında yaşanmış hatalardan** geliyor:
+
+| Kural | Neden |
+|---|---|
+| Veriyi `SeedScenarioAsync(suffix)` üretir, elle danışman aranmaz | `db.AcademicStaff.…FirstAsync()` demek "başka bir test danışman yaratmıştır" varsaymaktır. Tam takımda geçer, **tek başına çalıştırıldığında** `Sequence contains no elements` ile patlar (Y-34) |
+| Sorguya `search={suffix}` eklenir | Sunucu `pageSize`'ı **100'e kırpıyor** (Y-11) ve liste `StartDateUtc` artan sıralı. `search` olmadan bu testin etkinlikleri birikmiş kayıtların arkasında kalır |
+| `Assert.Contains` ile birlikte yazılır | Yukarıdaki iki hata da `DoesNotContain`'i **yanlış sebepten** geçirir. `Contains` muhafızı olmasa test yeşil görünüp hiçbir şey kanıtlamazdı |
+
+`Scenario` record'unun alan adı `PublishedEventTitle`'dır (`PublishedTitle` değil).
 
 ```csharp
     [Fact(DisplayName = "Y-72: /api/public/events ucundan ClubMembers kitleli etkinlik donmez, Public doner")]
     public async Task GetPublicEvents_Anonymous_ExcludesClubMembersAudience()
     {
-        var suffix = Guid.NewGuid().ToString("N")[..8];
-        var membersOnlyTitle = $"Uyelere Ozel {suffix}";
-        var publicTitle = $"Herkese Acik {suffix}";
+        // Y-34: test kendi verisini kurar. Danismani "baska bir test yaratmistir" diye varsaymak
+        // testi calistirma sirasina bagimli kilardi; SeedScenarioAsync fakulte/bolum/danisman/
+        // ogrenci/kulup/etkinlik zincirinin tamamini kendisi uretir.
+        var suffix = $"aud{Guid.NewGuid():N}"[..11];
+        var scenario = await SeedScenarioAsync(suffix);
+        var membersOnlyTitle = $"pub-leak-members-event-{suffix}";
 
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var club = await db.Clubs.SingleAsync(c => c.Name == scenario.ActiveClubName);
 
-            var advisorId = await db.AcademicStaff.Select(s => s.Id).FirstAsync();
-            var club = new Club
+            db.Events.Add(new Event
             {
-                Name = $"Kitle Kulubu {suffix}",
-                AdvisorId = advisorId,
-                IsActive = true,
+                ClubId = club.Id,
+                Title = membersOnlyTitle,
+                StartDateUtc = DateTime.UtcNow.AddDays(3),
+                EndDateUtc = DateTime.UtcNow.AddDays(3).AddHours(2),
+                Status = EventStatus.Published,
+                Audience = EventAudience.ClubMembers,
                 CreatedAtUtc = DateTime.UtcNow,
-            };
-            db.Clubs.Add(club);
-            await db.SaveChangesAsync();
-
-            db.Events.AddRange(
-                new Event
-                {
-                    ClubId = club.Id,
-                    Title = membersOnlyTitle,
-                    StartDateUtc = DateTime.UtcNow.AddDays(3),
-                    EndDateUtc = DateTime.UtcNow.AddDays(3).AddHours(2),
-                    Status = EventStatus.Published,
-                    Audience = EventAudience.ClubMembers,
-                    CreatedAtUtc = DateTime.UtcNow,
-                },
-                new Event
-                {
-                    ClubId = club.Id,
-                    Title = publicTitle,
-                    StartDateUtc = DateTime.UtcNow.AddDays(4),
-                    EndDateUtc = DateTime.UtcNow.AddDays(4).AddHours(2),
-                    Status = EventStatus.Published,
-                    Audience = EventAudience.Public,
-                    CreatedAtUtc = DateTime.UtcNow,
-                });
+            });
             await db.SaveChangesAsync();
         }
 
-        var response = await _client.GetAsync("/api/public/events?pageIndex=0&pageSize=100");
+        // A-50: arama sunucuda. `search` olmadan pageSize=200 istemek ise yaramaz — sunucu 100'e
+        // kirpiyor (Y-11) ve liste StartDateUtc'ye gore artan sirali oldugu icin bu testin
+        // etkinlikleri birikmis kayitlarin arkasinda kalirdi.
+        var response = await _client.GetAsync($"/api/public/events?pageIndex=0&pageSize=100&search={suffix}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains(publicTitle, body, StringComparison.Ordinal);
+
+        // Seed'in yayindaki etkinligi Audience varsayilani (Public) ile gelir ve GORUNMELI.
+        Assert.Contains(scenario.PublishedEventTitle, body, StringComparison.Ordinal);
         Assert.DoesNotContain(membersOnlyTitle, body, StringComparison.Ordinal);
     }
 ```
-
-`Assert.Contains(publicTitle, …)` kasıtlı: filtre "her şeyi ele" hâline gelirse bu satır kırmızıya döner ve testin yalnızca boş liste gördüğü için geçmesini engeller.
 
 - [ ] **Step 3: Test'leri çalıştır, kırmızı olduğunu gör**
 

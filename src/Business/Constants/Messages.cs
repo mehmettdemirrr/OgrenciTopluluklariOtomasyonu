@@ -97,6 +97,9 @@ public static class Messages
     public const string EventNotOpenForRegistration = "Bu etkinlik şu anda kayıt için uygun değil.";
     public const string AlreadyRegisteredForEvent = "Bu etkinliğe zaten kayıtlısınız.";
     public const string EventCapacityFull = "Bu etkinliğin kontenjanı dolu.";
+
+    // Faz 30 — Etkinlik katılım kitlesi (K-38, Y-72)
+    public const string EventForClubMembersOnly = "Bu etkinliğe yalnızca topluluğun üyeleri katılabilir.";
     public const string EventRegistered = "Etkinliğe kaydınız alındı.";
     public const string NotRegisteredForEvent = "Bu etkinliğe kaydınız bulunmuyor.";
     public const string EventRegistrationCancelled = "Etkinlik kaydınız iptal edildi.";

@@ -52,6 +52,7 @@ public sealed class EventManager(
             StartDateUtc = request.StartDateUtc,
             EndDateUtc = request.EndDateUtc,
             Capacity = request.Capacity,
+            Audience = request.Audience,
             Status = EventStatus.Draft,
             CreatedAtUtc = clock.UtcNow,
         };
@@ -364,6 +365,7 @@ public sealed class EventManager(
         @event.StartDateUtc = request.StartDateUtc;
         @event.EndDateUtc = request.EndDateUtc;
         @event.Capacity = request.Capacity;
+        @event.Audience = request.Audience;
         eventRepository.Update(@event);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -416,6 +418,7 @@ public sealed class EventManager(
         EndDateUtc = e.EndDateUtc,
         Capacity = e.Capacity,
         Status = e.Status,
+        Audience = e.Audience,
         CancellationReason = e.CancellationReason,
     };
 

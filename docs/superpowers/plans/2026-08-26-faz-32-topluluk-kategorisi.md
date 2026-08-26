@@ -271,7 +271,7 @@ public sealed class ClubCategoryConfiguration : IEntityTypeConfiguration<ClubCat
 - [ ] **Step 8: Migration üret**
 
 ```bash
-dotnet ef migrations add 20260826_Faz32_ToplulukKategorisi --project src/DataAccess --startup-project src/WebAPI
+dotnet ef migrations add 20260826_Faz32_ToplulukKategorisi --project src/DataAccess --startup-project src/DataAccess
 ```
 
 `Up()` içinde şunlar olmalı ve başka **hiçbir şey** olmamalı: `CreateTable("ClubCategories")`, `AddColumn<int>("ClubCategoryId", "Clubs", nullable: true)`, `AddColumn<int>("ProposedCategoryId", "ClubApplications", nullable: true)`, üç `CreateIndex` ve iki `AddForeignKey`. Fazlası varsa **dur.**

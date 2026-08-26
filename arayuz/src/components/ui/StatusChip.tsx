@@ -1,5 +1,5 @@
 import { Chip, type ChipProps } from '@mui/material'
-import type { AnnouncementVisibility, ApplicationStatus, EventStatus, ReportStatus } from '../../api/types'
+import type { AnnouncementVisibility, ApplicationStatus, EventAudience, EventStatus, ReportStatus } from '../../api/types'
 
 type ClubRole = 'Member' | 'Officer' | 'President'
 
@@ -37,6 +37,12 @@ const announcementVisibilityMap: Record<AnnouncementVisibility, { label: string;
   Public: { label: 'Herkese Açık', color: 'info' },
 }
 
+// K-38/A-65: duyuru görünürlüğünün etkinlik karşılığı — aynı biçim, aynı kural.
+const eventAudienceMap: Record<EventAudience, { label: string; color: ChipColor }> = {
+  Public: { label: 'Herkese Açık', color: 'info' },
+  ClubMembers: { label: 'Üyelere Özel', color: 'default' },
+}
+
 function buildChip(entry: { label: string; color: ChipColor }, size: ChipProps['size']) {
   return <Chip label={entry.label} color={entry.color} size={size} variant={entry.color === 'default' ? 'outlined' : 'filled'} />
 }
@@ -59,4 +65,8 @@ export function ClubRoleChip({ role, size = 'small' }: { role: ClubRole; size?: 
 
 export function AnnouncementVisibilityChip({ visibility, size = 'small' }: { visibility: AnnouncementVisibility; size?: ChipProps['size'] }) {
   return buildChip(announcementVisibilityMap[visibility], size)
+}
+
+export function EventAudienceChip({ audience, size = 'small' }: { audience: EventAudience; size?: ChipProps['size'] }) {
+  return buildChip(eventAudienceMap[audience], size)
 }

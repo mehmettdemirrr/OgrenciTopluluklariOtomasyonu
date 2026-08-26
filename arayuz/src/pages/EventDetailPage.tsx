@@ -1,6 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Skeleton, Stack, TextField, Typography } from '@mui/material'
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Radio,
+  RadioGroup,
+  Skeleton,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
 import { z } from 'zod'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -18,7 +34,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
-import { EventStatusChip } from '../components/ui/StatusChip'
+import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
 import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { EventListItemDto, EventParticipantListItemDto, PagedResult } from '../api/types'
 
@@ -179,6 +195,7 @@ export function EventDetailPage() {
       startDateTime: toLocalInput(eventQuery.data.startDateUtc),
       endDateTime: toLocalInput(eventQuery.data.endDateUtc),
       capacity: eventQuery.data.capacity?.toString() ?? '',
+      audience: eventQuery.data.audience,
     })
     editDialog.openDialog()
   }
@@ -260,6 +277,7 @@ export function EventDetailPage() {
         <Stack spacing={1.5}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <EventStatusChip status={event.status} />
+            <EventAudienceChip audience={event.audience} />
             <Typography variant="caption" color="text.secondary">
               {new Date(event.startDateUtc).toLocaleString('tr-TR')} — {new Date(event.endDateUtc).toLocaleString('tr-TR')}
             </Typography>
@@ -372,6 +390,19 @@ export function EventDetailPage() {
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
               />
+            )}
+          />
+          <Controller
+            name="audience"
+            control={control}
+            render={({ field }) => (
+              <FormControl margin="dense">
+                <FormLabel>Kimler katılabilir?</FormLabel>
+                <RadioGroup {...field} row>
+                  <FormControlLabel value="Public" control={<Radio />} label="Herkese açık" />
+                  <FormControlLabel value="ClubMembers" control={<Radio />} label="Sadece topluluk üyeleri" />
+                </RadioGroup>
+              </FormControl>
             )}
           />
         </DialogContent>

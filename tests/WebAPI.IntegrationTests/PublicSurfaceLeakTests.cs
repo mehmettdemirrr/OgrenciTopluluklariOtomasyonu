@@ -169,4 +169,48 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
             activeClubName, inactiveClubName, publishedTitle, draftTitle, pendingTitle,
             publicAnnouncementTitle, membersOnlyTitle, advisorEmail, studentEmail, studentNumber);
     }
+
+    [Fact(DisplayName = "Y-72: /api/public/events ucundan ClubMembers kitleli etkinlik donmez, Public doner")]
+    public async Task GetPublicEvents_Anonymous_ExcludesClubMembersAudience()
+    {
+        // Y-34: test kendi verisini kurar. Danışmanı "başka bir test yaratmıştır" diye varsaymak
+        // testi calistirma sirasina bagimli kilardi; SeedScenarioAsync fakulte/bolum/danisman/
+        // ogrenci/kulup/etkinlik zincirinin tamamini kendisi uretir.
+        var suffix = $"aud{Guid.NewGuid():N}"[..11];
+        var scenario = await SeedScenarioAsync(suffix);
+        var membersOnlyTitle = $"pub-leak-members-event-{suffix}";
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var club = await db.Clubs.SingleAsync(c => c.Name == scenario.ActiveClubName);
+
+            db.Events.Add(new Event
+            {
+                ClubId = club.Id,
+                Title = membersOnlyTitle,
+                StartDateUtc = DateTime.UtcNow.AddDays(3),
+                EndDateUtc = DateTime.UtcNow.AddDays(3).AddHours(2),
+                Status = EventStatus.Published,
+                Audience = EventAudience.ClubMembers,
+                CreatedAtUtc = DateTime.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        // A-50: arama sunucuda. `search` olmadan pageSize=200 istemek ise yaramaz — sunucu 100'e
+        // kirpiyor (Y-11) ve liste StartDateUtc'ye gore artan sirali oldugu icin bu testin
+        // etkinlikleri birikmis kayitlarin arkasinda kalirdi. O halde DoesNotContain YANLIS
+        // SEBEPTEN gecerdi; asagidaki Contains muhafizi bunu yakalar.
+        var response = await _client.GetAsync($"/api/public/events?pageIndex=0&pageSize=100&search={suffix}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadAsStringAsync();
+
+        // Seed'in yayindaki etkinligi Audience varsayilani (Public) ile gelir ve GORUNMELI.
+        // Bu satir kasitli: filtre "her seyi ele" haline gelirse kirmiziya doner ve testin
+        // yalnizca bos liste gordugu icin gecmesini engeller.
+        Assert.Contains(scenario.PublishedEventTitle, body, StringComparison.Ordinal);
+        Assert.DoesNotContain(membersOnlyTitle, body, StringComparison.Ordinal);
+    }
 }

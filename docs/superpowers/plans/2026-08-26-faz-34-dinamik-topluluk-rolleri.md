@@ -287,7 +287,7 @@ public static class DefaultClubRoles
 - [ ] **Step 7: Migration üret ve geri doldurma adımını ekle**
 
 ```bash
-dotnet ef migrations add 20260826_Faz34_DinamikToplulukRolleri --project src/DataAccess --startup-project src/WebAPI
+dotnet ef migrations add 20260826_Faz34_DinamikToplulukRolleri --project src/DataAccess --startup-project src/DataAccess
 ```
 
 `Up()` içinde bir `CreateTable("ClubRoleDefinitions")`, bir `AddColumn<int>("ClubRoleDefinitionId", "ClubMemberships", nullable: true)`, iki `CreateIndex` ve bir `AddForeignKey` olmalı. Fazlası varsa **dur.**

@@ -1,4 +1,5 @@
 using Entities;
+using Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -18,6 +19,11 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
         // A-49: iptal gerekçesi — serbest metin, yalnızca Cancelled durumunda dolu.
         builder.Property(e => e.CancellationReason)
             .HasMaxLength(500);
+
+        // K-38/A-65: mevcut satırlar ve varsayılanı olmayan insert'ler Public olur — bugünkü
+        // davranış korunur. Y-72: kolon nullable DEĞİL, "kitle belirsiz" diye bir durum yok.
+        builder.Property(e => e.Audience)
+            .HasDefaultValue(EventAudience.Public);
 
         builder.HasOne<Club>()
             .WithMany()

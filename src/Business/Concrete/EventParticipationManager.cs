@@ -46,6 +46,27 @@ public sealed class EventParticipationManager(
             return Result.Conflict(Messages.EventNotOpenForRegistration);
         }
 
+        // Y-72: kitle ClubMembers ise güncel dönem üyeliği şart. Kayıt/kontenjan kontrollerinden
+        // ÖNCE gelir — üye olmayan biri "kontenjan doldu" değil, sebebi doğru olan cevabı almalı.
+        // Dönem seçimi EnsureClubWriteAccessAsync ile aynı: daima IsCurrent (PLAN-V4 §22.3).
+        if (@event.Audience == EventAudience.ClubMembers)
+        {
+            var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
+            if (term is null)
+            {
+                return Result.Forbidden(Messages.EventForClubMembersOnly);
+            }
+
+            var membership = await clubMembershipRepository
+                .GetAsync(m => m.ClubId == @event.ClubId && m.StudentId == student.Id && m.AcademicTermId == term.Id, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (membership is null)
+            {
+                return Result.Forbidden(Messages.EventForClubMembersOnly);
+            }
+        }
+
         var existing = await participationRepository
             .GetAsync(p => p.EventId == eventId && p.StudentId == student.Id, cancellationToken)
             .ConfigureAwait(false);
@@ -189,6 +210,7 @@ public sealed class EventParticipationManager(
             EndDateUtc = e.EndDateUtc,
             Capacity = e.Capacity,
             Status = e.Status,
+            Audience = e.Audience,
             CancellationReason = e.CancellationReason,
         }).ToList();
 

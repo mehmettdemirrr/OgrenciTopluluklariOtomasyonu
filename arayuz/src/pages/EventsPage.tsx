@@ -1,6 +1,27 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Card, CardActions, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
+import {
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Grid,
+  Radio,
+  RadioGroup,
+  Stack,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -22,7 +43,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { ResultPagination } from '../components/ui/ResultPagination'
 import { SearchField } from '../components/ui/SearchField'
-import { EventStatusChip } from '../components/ui/StatusChip'
+import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
 import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { ClubListItemDto, EventListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -118,9 +139,13 @@ function UpcomingTab() {
                     </Typography>
                     <Chip size="small" label={event.capacity ? `Kontenjan: ${event.capacity}` : 'Sınırsız'} variant="outlined" />
                   </Stack>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                    {event.clubName}
-                  </Typography>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {event.clubName}
+                    </Typography>
+                    {/* K-38: "Katıl" düğmesine basmadan önce üyelik şartını görsün. */}
+                    {event.audience === 'ClubMembers' && <EventAudienceChip audience={event.audience} />}
+                  </Stack>
                   <Typography variant="body2" sx={{ mb: 0.5 }}>
                     {new Date(event.startDateUtc).toLocaleString('tr-TR')}
                   </Typography>
@@ -215,6 +240,7 @@ function EventsTab() {
       valueFormatter: (value: string) => new Date(value).toLocaleString('tr-TR'),
     },
     { field: 'status', headerName: 'Durum', width: 150, renderCell: (params) => <EventStatusChip status={params.row.status} /> },
+    { field: 'audience', headerName: 'Kitle', width: 130, renderCell: (params) => <EventAudienceChip audience={params.row.audience} /> },
     {
       field: 'actions',
       headerName: '',
@@ -282,7 +308,7 @@ function EventsTab() {
         />
       ) : (
         <DataTable
-          mobileHiddenFields={['startDateUtc']}
+          mobileHiddenFields={['startDateUtc', 'audience']}
           rows={eventsQuery.data?.items ?? []}
           columns={columns}
           loading={eventsQuery.isFetching}
@@ -366,6 +392,19 @@ function EventsTab() {
               />
             )}
           />
+          <Controller
+            name="audience"
+            control={control}
+            render={({ field }) => (
+              <FormControl margin="dense">
+                <FormLabel>Kimler katılabilir?</FormLabel>
+                <RadioGroup {...field} row>
+                  <FormControlLabel value="Public" control={<Radio />} label="Herkese açık" />
+                  <FormControlLabel value="ClubMembers" control={<Radio />} label="Sadece topluluk üyeleri" />
+                </RadioGroup>
+              </FormControl>
+            )}
+          />
         </DialogContent>
         <DialogActions>
           <Button
@@ -413,6 +452,8 @@ function ApprovalQueueTab() {
   const columns: GridColDef<EventListItemDto>[] = [
     { field: 'clubName', headerName: 'Topluluk', flex: 1, minWidth: 160 },
     { field: 'title', headerName: 'Başlık', flex: 1, minWidth: 200 },
+    // K-38: onaylayan danışman etkinliğin kime açık olduğunu KARAR VERMEDEN ÖNCE görmeli.
+    { field: 'audience', headerName: 'Kitle', width: 130, renderCell: (params) => <EventAudienceChip audience={params.row.audience} /> },
     {
       field: 'startDateUtc',
       headerName: 'Başlangıç',
@@ -452,7 +493,7 @@ function ApprovalQueueTab() {
 
   return (
     <DataTable
-      mobileHiddenFields={['clubName', 'startDateUtc']}
+      mobileHiddenFields={['clubName', 'startDateUtc', 'audience']}
       rows={queueQuery.data?.items ?? []}
       columns={columns}
       loading={queueQuery.isFetching}

@@ -320,4 +320,52 @@ public class EventManagerTests
     {
         Title = "Yılsonu Etkinliği", StartDateUtc = FixedNow.AddDays(10), EndDateUtc = FixedNow.AddDays(10).AddHours(3),
     };
+
+    [Fact(DisplayName = "K-38: CreateAsync istekteki kitleyi entity'ye yazar")]
+    public async Task CreateAsync_ClubMembersAudience_PersistsAudience()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+
+        Event? captured = null;
+        _eventRepository
+            .Setup(r => r.AddAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .Callback((Event e, CancellationToken _) => captured = e)
+            .Returns(Task.CompletedTask);
+
+        var request = new CreateEventRequestDto
+        {
+            Title = "Üyelere Özel Atölye",
+            StartDateUtc = FixedNow.AddDays(10),
+            EndDateUtc = FixedNow.AddDays(10).AddHours(3),
+            Audience = EventAudience.ClubMembers,
+        };
+
+        var result = await _sut.CreateAsync(1, request);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(captured);
+        Assert.Equal(EventAudience.ClubMembers, captured!.Audience);
+    }
+
+    [Fact(DisplayName = "K-38: CreateAsync kitle verilmezse Public yazar (varsayılan davranış)")]
+    public async Task CreateAsync_AudienceNotSet_PersistsPublic()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+
+        Event? captured = null;
+        _eventRepository
+            .Setup(r => r.AddAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .Callback((Event e, CancellationToken _) => captured = e)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.CreateAsync(1, ValidCreateRequest());
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(captured);
+        Assert.Equal(EventAudience.Public, captured!.Audience);
+    }
 }

@@ -17,5 +17,9 @@ public sealed class CreateEventRequestValidator : AbstractValidator<CreateEventR
         RuleFor(x => x.Capacity)
             .GreaterThan(0)
             .When(x => x.Capacity is not null);
+
+        // Y-72: kitle alanı zorunlu ve tanımlı bir enum değeri olmalı. Y-35: bu YALNIZCA biçim
+        // kontrolü — "bu öğrenci üye mi" kararı EventParticipationManager'da kalır.
+        RuleFor(x => x.Audience).IsInEnum();
     }
 }

@@ -153,7 +153,7 @@ using Entities.Enums;
 - [ ] **Step 3: Migration üret**
 
 ```bash
-dotnet ef migrations add 20260826_Faz31_BasvuruTakvimi --project src/DataAccess --startup-project src/WebAPI
+dotnet ef migrations add 20260826_Faz31_BasvuruTakvimi --project src/DataAccess --startup-project src/DataAccess
 ```
 
 Üretilen dosyayı aç ve `Up()` içinde **tam olarak üç `AddColumn`** olduğunu doğrula:

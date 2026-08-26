@@ -1,6 +1,19 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from '@mui/material'
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  FormLabel,
+  Radio,
+  RadioGroup,
+  Stack,
+  TextField,
+} from '@mui/material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { Controller, useForm } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router-dom'
@@ -12,7 +25,7 @@ import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { DataTable } from '../components/ui/DataTable'
-import { EventStatusChip } from '../components/ui/StatusChip'
+import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
 import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { EventListItemDto, PagedResult } from '../api/types'
 
@@ -61,6 +74,7 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
       valueFormatter: (value: string) => new Date(value).toLocaleString('tr-TR'),
     },
     { field: 'status', headerName: 'Durum', width: 150, renderCell: (params) => <EventStatusChip status={params.row.status} /> },
+    { field: 'audience', headerName: 'Kitle', width: 130, renderCell: (params) => <EventAudienceChip audience={params.row.audience} /> },
     {
       field: 'actions',
       headerName: '',
@@ -86,7 +100,7 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
       )}
 
       <DataTable
-        mobileHiddenFields={['startDateUtc']}
+        mobileHiddenFields={['startDateUtc', 'audience']}
         rows={eventsQuery.data?.items ?? []}
         columns={columns}
         loading={eventsQuery.isFetching}
@@ -167,6 +181,19 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
               />
+            )}
+          />
+          <Controller
+            name="audience"
+            control={control}
+            render={({ field }) => (
+              <FormControl margin="dense">
+                <FormLabel>Kimler katılabilir?</FormLabel>
+                <RadioGroup {...field} row>
+                  <FormControlLabel value="Public" control={<Radio />} label="Herkese açık" />
+                  <FormControlLabel value="ClubMembers" control={<Radio />} label="Sadece topluluk üyeleri" />
+                </RadioGroup>
+              </FormControl>
             )}
           />
         </DialogContent>

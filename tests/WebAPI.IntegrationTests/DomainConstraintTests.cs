@@ -182,4 +182,53 @@ public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFa
 
         return (club, student, term);
     }
+
+    [Fact(DisplayName = "K-38: Event.Audience varsayılan olarak Public kaydedilir (mevcut davranış korunur)")]
+    public async Task Event_AudienceNotSet_DefaultsToPublic()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var (club, _, _) = await SeedClubStudentTermAsync(db, "aud1");
+
+        var @event = new Event
+        {
+            ClubId = club.Id,
+            Title = "Varsayılan Kitle",
+            StartDateUtc = new DateTime(2026, 10, 1, 10, 0, 0, DateTimeKind.Utc),
+            EndDateUtc = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc),
+            Status = EventStatus.Draft,
+            CreatedAtUtc = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+        db.Events.Add(@event);
+        await db.SaveChangesAsync();
+
+        var reloaded = await db.Events.AsNoTracking().SingleAsync(e => e.Id == @event.Id);
+        Assert.Equal(EventAudience.Public, reloaded.Audience);
+    }
+
+    [Fact(DisplayName = "K-38: Event.Audience = ClubMembers kaydedilip aynı değerle okunur")]
+    public async Task Event_AudienceClubMembers_RoundTrips()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var (club, _, _) = await SeedClubStudentTermAsync(db, "aud2");
+
+        var @event = new Event
+        {
+            ClubId = club.Id,
+            Title = "Üyelere Özel",
+            StartDateUtc = new DateTime(2026, 10, 2, 10, 0, 0, DateTimeKind.Utc),
+            EndDateUtc = new DateTime(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc),
+            Status = EventStatus.Draft,
+            Audience = EventAudience.ClubMembers,
+            CreatedAtUtc = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+        db.Events.Add(@event);
+        await db.SaveChangesAsync();
+
+        var reloaded = await db.Events.AsNoTracking().SingleAsync(e => e.Id == @event.Id);
+        Assert.Equal(EventAudience.ClubMembers, reloaded.Audience);
+    }
 }

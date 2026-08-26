@@ -172,6 +172,9 @@ export interface AcademicTermListItemDto {
 // src/Entities/Enums/EventStatus.cs (JsonStringEnumConverter ile metin olarak taşınır)
 export type EventStatus = 'Draft' | 'PendingApproval' | 'Published' | 'Rejected' | 'Cancelled'
 
+// src/Entities/Enums/EventAudience.cs (JsonStringEnumConverter ile metin olarak taşınır)
+export type EventAudience = 'Public' | 'ClubMembers'
+
 // src/Business/DTOs/Events/EventListItemDto.cs
 export interface EventListItemDto {
   id: number
@@ -184,6 +187,7 @@ export interface EventListItemDto {
   endDateUtc: string
   capacity: number | null
   status: EventStatus
+  audience: EventAudience
   cancellationReason: string | null
   /** null = bu listede hesaplanmadı; yalnızca /events/upcoming doldurur (PLAN-V4 §21.5). */
   isRegistered: boolean | null

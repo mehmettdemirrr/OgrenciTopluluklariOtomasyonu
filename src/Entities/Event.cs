@@ -28,6 +28,12 @@ public sealed class Event : IEntity, ISoftDeletable
 
     public EventStatus Status { get; set; }
 
+    /// <summary>
+    /// docs/MIMARI.md · K-38/A-65/Y-72: katılım kitlesi. Nullable değil — yazma anında zorunlu.
+    /// Varsayılan Public: migration mevcut satırlara bu değeri yazar, bugünkü davranış korunur.
+    /// </summary>
+    public EventAudience Audience { get; set; }
+
     /// <summary>docs/MIMARI.md · A-49: iptal gerekçesi — katılımcılara gönderilen e-postada ve etkinlik sayfasında görünür.</summary>
     public string? CancellationReason { get; set; }
 

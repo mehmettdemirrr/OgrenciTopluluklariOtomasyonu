@@ -24,6 +24,9 @@ public sealed class EventListItemDto
 
     public EventStatus Status { get; set; }
 
+    /// <summary>docs/MIMARI.md · K-38/A-65: arayüz "Üyelere Özel" rozetini bu alandan çizer.</summary>
+    public EventAudience Audience { get; set; }
+
     /// <summary>docs/MIMARI.md · A-49: yalnızca `Cancelled` durumunda dolu.</summary>
     public string? CancellationReason { get; set; }
 

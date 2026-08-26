@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // Y-35: yalnızca biçim doğrulanır — zorunlu alan, tarih sırası, pozitif sayı.
-// "Etkinlik yayınlanabilir mi", kontenjan doldu mu gibi kararlar API'de kalır.
+// "Etkinlik yayınlanabilir mi", kontenjan doldu mu, bu öğrenci üye mi gibi kararlar API'de kalır.
 export const eventFormSchema = z
   .object({
     title: z.string().min(1, 'Başlık gerekli.'),
@@ -10,6 +10,8 @@ export const eventFormSchema = z
     startDateTime: z.string().min(1, 'Başlangıç tarihi gerekli.'),
     endDateTime: z.string().min(1, 'Bitiş tarihi gerekli.'),
     capacity: z.string(),
+    // K-38: kitle seçimi zorunlu; varsayılan "herkese açık".
+    audience: z.enum(['Public', 'ClubMembers']),
   })
   .refine((values) => new Date(values.endDateTime) > new Date(values.startDateTime), {
     message: 'Bitiş tarihi başlangıçtan sonra olmalı.',
@@ -29,6 +31,7 @@ export const emptyEventFormValues: EventFormValues = {
   startDateTime: '',
   endDateTime: '',
   capacity: '',
+  audience: 'Public',
 }
 
 export function toEventPayload(values: EventFormValues) {
@@ -39,5 +42,6 @@ export function toEventPayload(values: EventFormValues) {
     startDateUtc: new Date(values.startDateTime).toISOString(),
     endDateUtc: new Date(values.endDateTime).toISOString(),
     capacity: values.capacity.trim() === '' ? null : Number(values.capacity),
+    audience: values.audience,
   }
 }

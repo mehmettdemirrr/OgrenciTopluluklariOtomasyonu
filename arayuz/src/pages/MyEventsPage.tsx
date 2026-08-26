@@ -10,7 +10,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
-import { EventStatusChip } from '../components/ui/StatusChip'
+import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
 import type { EventListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
@@ -59,9 +59,12 @@ export function MyEventsPage() {
                     </Typography>
                     <EventStatusChip status={event.status} />
                   </Stack>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                    {event.clubName}
-                  </Typography>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {event.clubName}
+                    </Typography>
+                    {event.audience === 'ClubMembers' && <EventAudienceChip audience={event.audience} />}
+                  </Stack>
                   <Typography variant="body2" sx={{ mb: 0.5 }}>
                     {new Date(event.startDateUtc).toLocaleString('tr-TR')}
                   </Typography>

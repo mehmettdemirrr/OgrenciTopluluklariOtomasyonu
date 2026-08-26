@@ -106,6 +106,31 @@ public class PublicContentManagerTests
         Assert.Equal("A Etkinliği", item.Title);
     }
 
+    [Fact(DisplayName = "Y-72: ClubMembers kitleli etkinlik anonim vitrinde görünmez, Public görünür")]
+    public async Task GetEventsAsync_MembersOnlyAudience_IsExcluded()
+    {
+        var publicEvent = new Event
+        {
+            Id = 1, ClubId = 1, Title = "Herkese Açık",
+            StartDateUtc = FixedNow.AddDays(1), EndDateUtc = FixedNow.AddDays(1).AddHours(2),
+            Status = EventStatus.Published, Audience = EventAudience.Public, CreatedAtUtc = FixedNow,
+        };
+        var membersOnly = new Event
+        {
+            Id = 2, ClubId = 1, Title = "Üyelere Özel",
+            StartDateUtc = FixedNow.AddDays(1), EndDateUtc = FixedNow.AddDays(1).AddHours(2),
+            Status = EventStatus.Published, Audience = EventAudience.ClubMembers, CreatedAtUtc = FixedNow,
+        };
+        SetupPagedFilter<Event, DateTime>(_eventRepository, [publicEvent, membersOnly]);
+        _clubRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+        var result = await _sut.GetEventsAsync(null, 0, 20);
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal("Herkese Açık", item.Title);
+    }
+
     [Fact(DisplayName = "GetAnnouncementsAsync: yalnızca Visibility=Public duyurular döner, Members görünürlüklü sızmaz")]
     public async Task GetAnnouncementsAsync_FiltersOutMembersOnly_OnlyPublicReturned()
     {

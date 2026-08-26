@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Business.Concrete;
 using Core.DataAccess;
+using Core.Utilities.Results;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
 using DataAccess.Seed;
@@ -163,5 +164,103 @@ public class EventParticipationManagerTests
         var result = await _sut.GetParticipantsAsync(1, 0, 20);
 
         Assert.False(result.IsSuccess);
+    }
+
+    private static Event MembersOnlyEvent() => new()
+    {
+        Id = 1, ClubId = 1, Title = "Üyelere Özel Atölye",
+        StartDateUtc = FixedNow.AddDays(1), EndDateUtc = FixedNow.AddDays(1).AddHours(2),
+        Status = EventStatus.Published, Audience = EventAudience.ClubMembers, CreatedAtUtc = FixedNow,
+    };
+
+    private static AcademicTerm CurrentTerm() => new()
+    {
+        Id = 3, Name = "2026-2027 Güz",
+        StartDateUtc = FixedNow.AddMonths(-1), EndDateUtc = FixedNow.AddMonths(4), IsCurrent = true,
+    };
+
+    [Fact(DisplayName = "Y-72: üye olmayan öğrenci üyelere özel etkinliğe kaydolamaz")]
+    public async Task RegisterAsync_MembersOnlyEvent_NonMember_ReturnsForbidden()
+    {
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(MembersOnlyEvent());
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(CurrentTerm());
+        _clubMembershipRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync((ClubMembership?)null);
+
+        var result = await _sut.RegisterAsync(1);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+        _participationRepository.Verify(r => r.AddAsync(It.IsAny<EventParticipation>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "Y-72: güncel dönem üyesi üyelere özel etkinliğe kaydolabilir")]
+    public async Task RegisterAsync_MembersOnlyEvent_CurrentTermMember_ReturnsSuccess()
+    {
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(MembersOnlyEvent());
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(CurrentTerm());
+        _clubMembershipRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubMembership { Id = 9, ClubId = 1, StudentId = 5, AcademicTermId = 3, ClubRole = ClubRole.Member, JoinedAtUtc = FixedNow });
+        _participationRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<EventParticipation, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync((EventParticipation?)null);
+        _participationRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<EventParticipation, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+        var result = await _sut.RegisterAsync(1);
+
+        Assert.True(result.IsSuccess);
+        _participationRepository.Verify(r => r.AddAsync(It.IsAny<EventParticipation>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "Y-72: güncel dönem yoksa üyelere özel etkinliğe kaydolunamaz (fail-closed)")]
+    public async Task RegisterAsync_MembersOnlyEvent_NoCurrentTerm_ReturnsForbidden()
+    {
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(MembersOnlyEvent());
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync((AcademicTerm?)null);
+
+        var result = await _sut.RegisterAsync(1);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+        _participationRepository.Verify(r => r.AddAsync(It.IsAny<EventParticipation>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "Y-72: geçen dönemin üyesi üyelere özel etkinliğe kaydolamaz (dönem filtresi gerçekten uygulanır)")]
+    public async Task RegisterAsync_MembersOnlyEvent_PreviousTermMemberOnly_ReturnsForbidden()
+    {
+        var currentTerm = CurrentTerm();
+        // Geçen dönemin üyeliği: AcademicTermId = 2, güncel dönem 3.
+        var previousTermMembership = new ClubMembership
+        {
+            Id = 8, ClubId = 1, StudentId = 5, AcademicTermId = 2, ClubRole = ClubRole.Member, JoinedAtUtc = FixedNow.AddMonths(-8),
+        };
+
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(MembersOnlyEvent());
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(currentTerm);
+
+        // Predicate GERÇEKTEN çalıştırılır (PublicContentManagerTests'in SetupPagedFilter deseni) —
+        // Moq salt-geçiş olsaydı bu test dönem filtresinin varlığını kanıtlamazdı.
+        _clubMembershipRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<ClubMembership, bool>> filter, CancellationToken _) =>
+                new[] { previousTermMembership }.AsQueryable().Where(filter).FirstOrDefault());
+
+        var result = await _sut.RegisterAsync(1);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+        _participationRepository.Verify(r => r.AddAsync(It.IsAny<EventParticipation>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "K-38: herkese açık etkinlikte üyelik hiç sorgulanmaz (mevcut davranış bozulmadı)")]
+    public async Task RegisterAsync_PublicEvent_DoesNotQueryMembership()
+    {
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(PublishedEvent(capacity: 10));
+        _participationRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<EventParticipation, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync((EventParticipation?)null);
+        _participationRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<EventParticipation, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+        var result = await _sut.RegisterAsync(1);
+
+        Assert.True(result.IsSuccess);
+        _clubMembershipRepository.Verify(
+            r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

@@ -67,11 +67,13 @@ public sealed class PublicContentManager(
         var term = SearchTerm.Normalize(search);
 
         // Yaklaşan etkinlik listesi tarihe göre artan sıralanır — vitrinde en yakın etkinlik başta (Y-64).
+        // Y-72: Audience filtresi de Status gibi KODDA SABİT — search/clubId parametreleri onu gevşetemez.
         var paged = await eventRepository
             .GetListPagedAsync(
                 pageIndex,
                 ClampPageSize(pageSize),
-                e => e.Status == EventStatus.Published && e.StartDateUtc >= now && (clubId == null || e.ClubId == clubId)
+                e => e.Status == EventStatus.Published && e.Audience == EventAudience.Public
+                    && e.StartDateUtc >= now && (clubId == null || e.ClubId == clubId)
                     && (term.Length == 0 || e.Title.Contains(term)),
                 e => e.StartDateUtc,
                 descending: false,

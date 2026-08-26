@@ -1,3 +1,4 @@
+using Business.DTOs.Events;
 using Business.DTOs.Memberships;
 using Business.DTOs.Reports;
 using Business.ValidationRules;
@@ -72,5 +73,40 @@ public class ValidationRulesTests
         var result = new CreateReportRequestValidator().Validate(new CreateReportRequestDto { ReportType = ReportType.EventParticipants, EventId = null });
 
         Assert.False(result.IsValid);
+    }
+
+    [Fact(DisplayName = "Y-72: tanımsız EventAudience değeri biçimsel doğrulamada reddedilir")]
+    public void CreateEventRequestValidator_UndefinedAudience_IsInvalid()
+    {
+        var validator = new CreateEventRequestValidator();
+        var request = new CreateEventRequestDto
+        {
+            Title = "Etkinlik",
+            StartDateUtc = new DateTime(2026, 10, 1, 10, 0, 0, DateTimeKind.Utc),
+            EndDateUtc = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc),
+            Audience = (EventAudience)99,
+        };
+
+        var result = validator.Validate(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateEventRequestDto.Audience));
+    }
+
+    [Fact(DisplayName = "Y-72: tanımlı EventAudience değeri biçimsel doğrulamadan geçer")]
+    public void CreateEventRequestValidator_DefinedAudience_IsValid()
+    {
+        var validator = new CreateEventRequestValidator();
+        var request = new CreateEventRequestDto
+        {
+            Title = "Etkinlik",
+            StartDateUtc = new DateTime(2026, 10, 1, 10, 0, 0, DateTimeKind.Utc),
+            EndDateUtc = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc),
+            Audience = EventAudience.ClubMembers,
+        };
+
+        var result = validator.Validate(request);
+
+        Assert.True(result.IsValid);
     }
 }
