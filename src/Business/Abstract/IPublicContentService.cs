@@ -17,7 +17,7 @@ public interface IPublicContentService
     // anahtar sayısını A-54'ün SizeLimit'i, metin uzunluğunu SearchTerm.MaxLength sınırlar.
     [CacheAspect(durationMinutes: 10)]
     Task<IDataResult<PagedResult<PublicClubListItemDto>>> GetClubsAsync(
-        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
+        int pageIndex, int pageSize, string? search = null, int? categoryId = null, CancellationToken cancellationToken = default);
 
     Task<IDataResult<PublicClubDetailDto>> GetClubByIdAsync(int id, CancellationToken cancellationToken = default);
 

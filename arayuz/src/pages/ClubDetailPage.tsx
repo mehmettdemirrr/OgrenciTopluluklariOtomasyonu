@@ -35,8 +35,8 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { SectionCard } from '../components/ui/SectionCard'
 import { ClubRoleChip } from '../components/ui/StatusChip'
-import { clubFormSchema, emptyClubFormValues, type ClubFormValues } from '../schemas/clubForm'
-import type { AcademicStaffListItemDto, ClubDetailDto, ClubMemberListItemDto, ClubRole, PagedResult } from '../api/types'
+import { clubFormSchema, emptyClubFormValues, toCategoryPayload, type ClubFormValues } from '../schemas/clubForm'
+import type { AcademicStaffListItemDto, ClubCategoryListItemDto, ClubDetailDto, ClubMemberListItemDto, ClubRole, PagedResult } from '../api/types'
 import { ClubAnnouncementsTab } from './ClubDetailAnnouncementsTab'
 import { ClubEventsTab } from './ClubDetailEventsTab'
 
@@ -104,6 +104,12 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
     defaultValues: emptyClubFormValues,
   })
 
+  const categoriesQuery = useQuery({
+    queryKey: ['club-categories'],
+    queryFn: async () =>
+      (await apiClient.get<PagedResult<ClubCategoryListItemDto>>('/club-categories', { params: { pageIndex: 0, pageSize: 100 } })).data,
+  })
+
   const updateMutation = useMutation({
     mutationFn: async (values: ClubFormValues) => {
       await apiClient.put(`/clubs/${clubId}`, {
@@ -111,6 +117,8 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
         description: values.description.trim() || null,
         // K-33: 0 seçilmediyse null gider ve mevcut danışman korunur.
         advisorId: values.advisorId || null,
+        // A-60: burada null "kategorisiz yap" demek — AdvisorId'den farklı semantik.
+        clubCategoryId: toCategoryPayload(values.clubCategoryId),
       })
     },
     onSuccess: () => {
@@ -133,7 +141,12 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
   })
 
   const openEditDialog = () => {
-    reset({ name: club?.name ?? '', description: club?.description ?? '', advisorId: club?.advisorId ?? 0 })
+    reset({
+      name: club?.name ?? '',
+      description: club?.description ?? '',
+      advisorId: club?.advisorId ?? 0,
+      clubCategoryId: club?.clubCategoryId ?? 0,
+    })
     editDialog.openDialog()
   }
 
@@ -165,6 +178,7 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
       <Stack spacing={1.5}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Chip size="small" label={club.isActive ? 'Aktif' : 'Pasif'} color={club.isActive ? 'success' : 'default'} />
+          {club.clubCategoryName && <Chip size="small" variant="outlined" label={club.clubCategoryName} />}
           <Typography variant="caption" color="text.secondary">
             Oluşturulma: {new Date(club.createdAtUtc).toLocaleDateString('tr-TR')}
           </Typography>
@@ -211,6 +225,28 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message ?? 'Boş bırakılırsa mevcut danışman korunur.'}
               />
+            )}
+          />
+
+          <Controller
+            name="clubCategoryId"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                select
+                fullWidth
+                margin="dense"
+                label="Kategori (isteğe bağlı)"
+                onChange={(event) => field.onChange(Number(event.target.value))}
+              >
+                <MenuItem value={0}>— Kategorisiz —</MenuItem>
+                {(categoriesQuery.data?.items ?? []).map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </TextField>
             )}
           />
         </DialogContent>

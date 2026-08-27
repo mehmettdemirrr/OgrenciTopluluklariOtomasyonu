@@ -18,6 +18,7 @@ public class ClubManagerTests
 {
     private readonly Mock<IEntityRepository<Club>> _clubRepository = new();
     private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
+    private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
     private readonly Mock<IEntityRepository<MembershipApplication>> _membershipApplicationRepository = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<IClock> _clock = new();
@@ -31,6 +32,7 @@ public class ClubManagerTests
         _sut = new ClubManager(
             _clubRepository.Object,
             _academicStaffRepository.Object,
+            _clubCategoryRepository.Object,
             _membershipApplicationRepository.Object,
             _unitOfWork.Object,
             _clock.Object,

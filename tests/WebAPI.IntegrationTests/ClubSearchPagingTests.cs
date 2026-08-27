@@ -196,6 +196,92 @@ public sealed class ClubSearchPagingTests : IClassFixture<CustomWebApplicationFa
         public string Name { get; init; } = string.Empty;
 
         public bool IsActive { get; init; }
+
+        public int? ClubCategoryId { get; init; }
+
+        public string? ClubCategoryName { get; init; }
+    }
+
+    [Fact(DisplayName = "A-50/Y-62: kulüp listesi categoryId ile sunucu tarafında filtrelenir ve kategori adını taşır")]
+    public async Task GetClubs_CategoryFilter_ReturnsOnlyMatchingClubsWithCategoryName()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var categoryName = $"Kategori {suffix}";
+        // Ad, Prefix ile BAŞLAMAMALI: sınıfın sayfalama testleri Prefix ile arayıp TotalCount == 120
+        // iddia ediyor; bu kulüpler o sayıya karışırsa onları kırar (Y-34).
+        var inCategoryName = $"CAT-Kategorili-{suffix}";
+        var outOfCategoryName = $"CAT-Kategorisiz-{suffix}";
+        int categoryId;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var advisorId = await db.AcademicStaff.Select(s => s.Id).FirstAsync();
+
+            var category = new ClubCategory { Name = categoryName };
+            db.ClubCategories.Add(category);
+            await db.SaveChangesAsync();
+            categoryId = category.Id;
+
+            db.Clubs.AddRange(
+                new Club { Name = inCategoryName, AdvisorId = advisorId, IsActive = true, CreatedAtUtc = DateTime.UtcNow, ClubCategoryId = categoryId },
+                new Club { Name = outOfCategoryName, AdvisorId = advisorId, IsActive = true, CreatedAtUtc = DateTime.UtcNow });
+            await db.SaveChangesAsync();
+        }
+
+        var filtered = await GetClubsAsync($"pageIndex=0&pageSize=100&categoryId={categoryId}");
+
+        Assert.Contains(filtered.Items, c => c.Name == inCategoryName);
+        Assert.DoesNotContain(filtered.Items, c => c.Name == outOfCategoryName);
+        Assert.Equal(categoryName, filtered.Items.Single(c => c.Name == inCategoryName).ClubCategoryName);
+
+        // Filtre verilmezse ikisi de gelir — filtre "gevşemez", sadece uygulanmaz.
+        var unfiltered = await GetClubsAsync($"pageIndex=0&pageSize=100&search={Uri.EscapeDataString(suffix)}");
+        Assert.Contains(unfiltered.Items, c => c.Name == inCategoryName);
+        Assert.Contains(unfiltered.Items, c => c.Name == outOfCategoryName);
+    }
+
+    [Fact(DisplayName = "Y-45: kategori adı değişince kulüp listesi ANINDA yeni adı gösterir (cache düştü)")]
+    public async Task RenameCategory_ClubListShowsNewNameImmediately()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var clubName = $"CAT-CacheKulup-{suffix}";
+        int categoryId;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var advisorId = await db.AcademicStaff.Select(s => s.Id).FirstAsync();
+
+            var category = new ClubCategory { Name = $"Eski Ad {suffix}" };
+            db.ClubCategories.Add(category);
+            await db.SaveChangesAsync();
+            categoryId = category.Id;
+
+            db.Clubs.Add(new Club
+            {
+                Name = clubName, AdvisorId = advisorId, IsActive = true,
+                CreatedAtUtc = DateTime.UtcNow, ClubCategoryId = categoryId,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        // 1. Liste eski adla ISINDIRILIR — cache bu çağrıda dolar.
+        var before = await GetClubsAsync($"pageIndex=0&pageSize=100&categoryId={categoryId}");
+        Assert.Equal($"Eski Ad {suffix}", before.Items.Single(c => c.Name == clubName).ClubCategoryName);
+
+        // 2. Kategori adı değiştirilir.
+        var newName = $"Yeni Ad {suffix}";
+        using var renameRequest = new HttpRequestMessage(HttpMethod.Put, $"/api/club-categories/{categoryId}")
+        {
+            Content = JsonContent.Create(new { Name = newName }),
+        };
+        renameRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _adminToken);
+        Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(renameRequest)).StatusCode);
+
+        // 3. CacheRemoveAspect "ClubManager." önekini düşürmezse burada ESKİ ad gelir.
+        var after = await GetClubsAsync($"pageIndex=0&pageSize=100&categoryId={categoryId}");
+        Assert.Equal(newName, after.Items.Single(c => c.Name == clubName).ClubCategoryName);
     }
 
     private sealed class AuthResponseDto

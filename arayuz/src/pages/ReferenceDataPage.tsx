@@ -43,7 +43,7 @@ import {
   type AcademicTermFormValues,
   type NameFormValues,
 } from '../schemas/referenceForm'
-import type { AcademicTermListItemDto, DepartmentListItemDto, FacultyListItemDto, PagedResult } from '../api/types'
+import type { AcademicTermListItemDto, ClubCategoryListItemDto, DepartmentListItemDto, FacultyListItemDto, PagedResult } from '../api/types'
 import {
   clubApplicationWindowFormSchema,
   emptyClubApplicationWindowFormValues,
@@ -73,18 +73,24 @@ export function ReferenceDataPage() {
 
   return (
     <>
-      <PageHeader title="Referans Verisi" description="Fakülte, bölüm, akademik dönem ve akademik personel verilerini yönetin." />
+      <PageHeader
+        title="Referans Verisi"
+        description="Fakülte, bölüm, akademik dönem, topluluk kategorisi ve akademik personel verilerini yönetin."
+      />
 
       <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
         <Tab label="Fakülte / Bölüm" />
         <Tab label="Akademik Dönemler" />
+        {/* K-35: topluluk kategorisi — Faculty/Department ile aynı sınıf referans verisi (A-60). */}
+        <Tab label="Topluluk Kategorileri" />
         {/* K-33: akademik personel artık salt-okunur değil — kulüplere danışman buradan doğar. */}
         <Tab label="Akademik Personel" />
       </Tabs>
 
       {tab === 0 && <FacultiesTab />}
       {tab === 1 && <TermsTab />}
-      {tab === 2 && <AcademicStaffTab />}
+      {tab === 2 && <ClubCategoriesTab />}
+      {tab === 3 && <AcademicStaffTab />}
     </>
   )
 }
@@ -769,6 +775,184 @@ function AcademicTermFormFields({ control }: { control: Control<AcademicTermForm
             helperText={fieldState.error?.message}
           />
         )}
+      />
+    </>
+  )
+}
+
+function ClubCategoriesTab() {
+  const queryClient = useQueryClient()
+  const notify = useNotifier()
+  const dialog = useFormDialog()
+  const [editTarget, setEditTarget] = useState<ClubCategoryListItemDto | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ClubCategoryListItemDto | null>(null)
+
+  const createForm = useForm<NameFormValues>({ resolver: zodResolver(nameFormSchema), defaultValues: emptyNameFormValues })
+  const editForm = useForm<NameFormValues>({ resolver: zodResolver(nameFormSchema), defaultValues: emptyNameFormValues })
+
+  const { paginationModel, setPaginationModel, query: categoriesQuery } = usePagedQuery({
+    queryKey: ['club-categories'],
+    queryFn: async (pageIndex, pageSize) =>
+      (await apiClient.get<PagedResult<ClubCategoryListItemDto>>('/club-categories', { params: { pageIndex, pageSize } })).data,
+  })
+
+  // Y-45'in arayüz karşılığı: kategori adı kulüp listelerinde de görünüyor.
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['club-categories'] })
+    queryClient.invalidateQueries({ queryKey: ['clubs'] })
+  }
+
+  const createMutation = useMutation({
+    mutationFn: async (values: NameFormValues) =>
+      (await apiClient.post<ClubCategoryListItemDto>('/club-categories', { name: values.name })).data,
+    onSuccess: (_data, values) => {
+      notify({ message: `"${values.name}" kaydedildi (zaten varsa mevcut satır kullanıldı).`, severity: 'success' })
+      dialog.closeDialog()
+      createForm.reset(emptyNameFormValues)
+      invalidate()
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Kategori eklenemedi.'), severity: 'error' }),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async (values: NameFormValues) => {
+      if (!editTarget) return
+      await apiClient.put(`/club-categories/${editTarget.id}`, { name: values.name })
+    },
+    onSuccess: () => {
+      notify({ message: 'Kategori güncellendi.', severity: 'success' })
+      setEditTarget(null)
+      invalidate()
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Kategori güncellenemedi.'), severity: 'error' }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.delete(`/club-categories/${id}`)
+    },
+    onSuccess: () => {
+      notify({ message: 'Kategori silindi.', severity: 'success' })
+      setDeleteTarget(null)
+      invalidate()
+    },
+    onError: (error) => {
+      // A-60: kullanımdaki kategori 409 döner; mesajı API veriyor (Y-35).
+      notify({ message: extractErrorMessage(error, 'Kategori silinemedi.'), severity: 'error' })
+      setDeleteTarget(null)
+    },
+  })
+
+  const columns: GridColDef<ClubCategoryListItemDto>[] = [
+    { field: 'name', headerName: 'Kategori', flex: 1, minWidth: 200 },
+    {
+      field: 'actions',
+      headerName: '',
+      width: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <IconButton
+            size="small"
+            onClick={() => {
+              setEditTarget(params.row)
+              editForm.reset({ name: params.row.name })
+            }}
+          >
+            <EditOutlinedIcon fontSize="small" />
+          </IconButton>
+          <IconButton size="small" color="error" onClick={() => setDeleteTarget(params.row)}>
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      ),
+    },
+  ]
+
+  return (
+    <>
+      <Box sx={{ mb: 2 }}>
+        <Button variant="contained" onClick={dialog.openDialog}>
+          Yeni Kategori
+        </Button>
+      </Box>
+
+      <DataTable
+        rows={categoriesQuery.data?.items ?? []}
+        columns={columns}
+        loading={categoriesQuery.isFetching}
+        paginationMode="server"
+        rowCount={categoriesQuery.data?.totalCount ?? 0}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        pageSizeOptions={[10, 20, 50]}
+        emptyTitle="Henüz kategori yok"
+        emptyDescription="Toplulukları sınıflandırmak için bir kategori ekleyin."
+      />
+
+      <Dialog
+        open={dialog.open}
+        onClose={() => {
+          dialog.closeDialog()
+          createForm.reset(emptyNameFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Yeni Kategori</DialogTitle>
+        <DialogContent>
+          <NameFormField control={createForm.control} label="Kategori adı" />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              dialog.closeDialog()
+              createForm.reset(emptyNameFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            disabled={createMutation.isPending}
+            onClick={createForm.handleSubmit((values) => createMutation.mutate(values))}
+          >
+            Kaydet
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={editTarget !== null} onClose={() => setEditTarget(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Kategoriyi Düzenle</DialogTitle>
+        <DialogContent>
+          <NameFormField control={editForm.control} label="Kategori adı" />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditTarget(null)}>Vazgeç</Button>
+          <Button
+            variant="contained"
+            disabled={updateMutation.isPending}
+            onClick={editForm.handleSubmit((values) => updateMutation.mutate(values))}
+          >
+            Kaydet
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Kategoriyi sil"
+        description={
+          deleteTarget
+            ? `"${deleteTarget.name}" kategorisini silmek istediğinize emin misiniz? Kullanımdaysa silinemez.`
+            : undefined
+        }
+        confirmLabel="Sil"
+        destructive
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
       />
     </>
   )

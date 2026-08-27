@@ -10,4 +10,10 @@ public sealed class PublicClubDetailDto
     public string? Description { get; set; }
 
     public int? LogoFileId { get; set; }
+
+    /// <summary>
+    /// docs/MIMARI.md · K-35: kategori adı. Y-58 kontrolü: kurumsal sınıflandırma, kişisel veri değil.
+    /// Kimlik (ClubCategoryId) taşınmaz — vitrinin ihtiyacı yalnızca görünen ad.
+    /// </summary>
+    public string? ClubCategoryName { get; set; }
 }

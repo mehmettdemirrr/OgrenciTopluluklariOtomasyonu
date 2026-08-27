@@ -178,4 +178,11 @@ public static class Messages
         "Topluluk kurma başvuruları şu anda kapalı. Başvuru takvimini Başvurularım sayfasından görebilirsiniz.";
 
     public const string ClubApplicationWindowUpdated = "Başvuru takvimi güncellendi.";
+
+    // Faz 32 — Topluluk kategorisi (K-35, A-60)
+    public const string ClubCategoryNotFound = "Topluluk kategorisi bulunamadı.";
+    public const string ClubCategoryAlreadyExists = "Bu isimde bir topluluk kategorisi zaten var.";
+    public const string ClubCategoryUpdated = "Topluluk kategorisi güncellendi.";
+    public const string ClubCategoryDeleted = "Topluluk kategorisi silindi.";
+    public const string ClubCategoryInUse = "Bu kategori kullanımda olduğu için silinemez.";
 }

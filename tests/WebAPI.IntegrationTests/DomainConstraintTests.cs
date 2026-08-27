@@ -276,4 +276,62 @@ public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFa
         // Bu satır olmadan fail-closed varsayılan, bugüne kadar hep açık olan akışı sessizce durdururdu.
         Assert.Equal(ClubApplicationWindowOverride.ForceOpen, current!.ClubApplicationOverride);
     }
+
+    [Fact(DisplayName = "A-60: aynı adla ikinci kategori DB seviyesinde reddedilir (unique index)")]
+    public async Task ClubCategory_DuplicateName_IsRejectedByDatabase()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var name = $"Kategori {Guid.NewGuid():N}"[..20];
+        db.ClubCategories.Add(new ClubCategory { Name = name });
+        await db.SaveChangesAsync();
+
+        db.ClubCategories.Add(new ClubCategory { Name = name });
+
+        await Assert.ThrowsAnyAsync<Exception>(() => db.SaveChangesAsync());
+    }
+
+    [Fact(DisplayName = "A-60: kullanımdaki kategori silinemez (FK Restrict)")]
+    public async Task ClubCategory_InUse_CannotBeDeleted()
+    {
+        int categoryId;
+
+        using (var seedScope = _factory.Services.CreateScope())
+        {
+            var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var (club, _, _) = await SeedClubStudentTermAsync(seedDb, "kat1");
+
+            var category = new ClubCategory { Name = $"Kullanımda {Guid.NewGuid():N}"[..20] };
+            seedDb.ClubCategories.Add(category);
+            await seedDb.SaveChangesAsync();
+            categoryId = category.Id;
+
+            club.ClubCategoryId = categoryId;
+            await seedDb.SaveChangesAsync();
+        }
+
+        // Silme AYRI bir context'te: kulüp izlenmiyor, tıpkı üretimdeki
+        // ReferenceDataManager.DeleteClubCategoryAsync gibi (o da yalnızca kategoriyi yükler).
+        // Aynı context'te silinseydi EF, DELETE'i göndermeden önce izlediği kulübün FK'sını
+        // null'a çeker ve kısıt hiç sınanmazdı — test kuralı değil, EF'in fixup'ını ölçerdi.
+        using var deleteScope = _factory.Services.CreateScope();
+        var db = deleteScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        db.ClubCategories.Remove(await db.ClubCategories.SingleAsync(c => c.Id == categoryId));
+
+        await Assert.ThrowsAnyAsync<Exception>(() => db.SaveChangesAsync());
+    }
+
+    [Fact(DisplayName = "A-60: kategori nullable — kategorisiz kulüp kaydedilebilir")]
+    public async Task Club_WithoutCategory_IsAccepted()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var (club, _, _) = await SeedClubStudentTermAsync(db, "kat2");
+
+        var reloaded = await db.Clubs.AsNoTracking().SingleAsync(c => c.Id == club.Id);
+        Assert.Null(reloaded.ClubCategoryId);
+    }
 }

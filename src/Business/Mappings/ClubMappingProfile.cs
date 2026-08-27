@@ -9,7 +9,12 @@ public sealed class ClubMappingProfile : Profile
 {
     public ClubMappingProfile()
     {
-        CreateMap<Club, ClubListItemDto>();
-        CreateMap<Club, ClubDetailDto>();
+        // Y-32: ClubCategoryName'in Club üzerinde kaynağı yok (join gerekir, AutoMapper'da DB
+        // çağrısı yasak). Açıkça Ignore ediliyor; adı ClubManager dolduruyor.
+        CreateMap<Club, ClubListItemDto>()
+            .ForMember(d => d.ClubCategoryName, o => o.Ignore());
+
+        CreateMap<Club, ClubDetailDto>()
+            .ForMember(d => d.ClubCategoryName, o => o.Ignore());
     }
 }

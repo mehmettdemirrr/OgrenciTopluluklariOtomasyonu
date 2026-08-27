@@ -20,6 +20,7 @@ public sealed class ClubApplicationManager(
     IEntityRepository<ClubMembership> clubMembershipRepository,
     IEntityRepository<Student> studentRepository,
     IEntityRepository<AcademicStaff> academicStaffRepository,
+    IEntityRepository<ClubCategory> clubCategoryRepository,
     IEntityRepository<AcademicTerm> academicTermRepository,
     IAcademicStaffDal academicStaffDal,
     IUnitOfWork unitOfWork,
@@ -63,6 +64,19 @@ public sealed class ClubApplicationManager(
             return Result.NotFound(Messages.AdvisorNotFound);
         }
 
+        // A-60: kategori opsiyonel, ama verilmişse var olmalı — yoksa yetim FK ile başvuru yazılır
+        // ve onayda kulüp oluşturma patlar (Restrict). Hata öğrenciye başvuru anında söylenmeli.
+        if (request.ProposedCategoryId is { } proposedCategoryId)
+        {
+            var category = await clubCategoryRepository
+                .GetAsync(c => c.Id == proposedCategoryId, cancellationToken)
+                .ConfigureAwait(false);
+            if (category is null)
+            {
+                return Result.NotFound(Messages.ClubCategoryNotFound);
+            }
+        }
+
         var proposedName = request.ProposedName.Trim();
         var existingClub = await clubRepository.GetAsync(c => c.Name == proposedName, cancellationToken).ConfigureAwait(false);
         if (existingClub is not null)
@@ -86,6 +100,7 @@ public sealed class ClubApplicationManager(
             Description = request.Description?.Trim(),
             Justification = request.Justification.Trim(),
             ProposedAdvisorId = advisor.Id,
+            ProposedCategoryId = request.ProposedCategoryId,
             Status = ApplicationStatus.Pending,
             AppliedAtUtc = clock.UtcNow,
         };
@@ -159,6 +174,7 @@ public sealed class ClubApplicationManager(
         // A-56: ad soyad Identity'de yaşadığı için generic repository ile kurulamaz — DAL join'ler.
         var advisorIds = paged.Items.Select(a => a.ProposedAdvisorId).Distinct().ToList();
         var advisorNames = await academicStaffDal.GetDisplayNamesAsync(advisorIds, cancellationToken).ConfigureAwait(false);
+        var categoryNames = await GetCategoryNamesAsync(paged.Items.Where(a => a.ProposedCategoryId is not null).Select(a => a.ProposedCategoryId!.Value), cancellationToken).ConfigureAwait(false);
 
         var items = paged.Items.Select(a => new ClubApplicationListItemDto
         {
@@ -170,6 +186,8 @@ public sealed class ClubApplicationManager(
             Justification = a.Justification,
             ProposedAdvisorId = a.ProposedAdvisorId,
             ProposedAdvisorDisplayName = advisorNames.GetValueOrDefault(a.ProposedAdvisorId, string.Empty),
+            ProposedCategoryId = a.ProposedCategoryId,
+            ProposedCategoryName = a.ProposedCategoryId is { } cid ? categoryNames.GetValueOrDefault(cid) : null,
             Status = a.Status,
             AppliedAtUtc = a.AppliedAtUtc,
             ReviewedAtUtc = a.ReviewedAtUtc,
@@ -230,6 +248,7 @@ public sealed class ClubApplicationManager(
                         Name = application.ProposedName,
                         Description = application.Description,
                         AdvisorId = application.ProposedAdvisorId,
+                        ClubCategoryId = application.ProposedCategoryId,
                         IsActive = true,
                         CreatedAtUtc = now,
                     };
@@ -280,6 +299,7 @@ public sealed class ClubApplicationManager(
     {
         var advisorIds = applications.Select(a => a.ProposedAdvisorId).Distinct().ToList();
         var advisorNames = await academicStaffDal.GetDisplayNamesAsync(advisorIds, cancellationToken).ConfigureAwait(false);
+        var categoryNames = await GetCategoryNamesAsync(applications.Where(a => a.ProposedCategoryId is not null).Select(a => a.ProposedCategoryId!.Value), cancellationToken).ConfigureAwait(false);
 
         return applications.Select(a => new ClubApplicationListItemDto
         {
@@ -291,6 +311,8 @@ public sealed class ClubApplicationManager(
             Justification = a.Justification,
             ProposedAdvisorId = a.ProposedAdvisorId,
             ProposedAdvisorDisplayName = advisorNames.GetValueOrDefault(a.ProposedAdvisorId, string.Empty),
+            ProposedCategoryId = a.ProposedCategoryId,
+            ProposedCategoryName = a.ProposedCategoryId is { } cid ? categoryNames.GetValueOrDefault(cid) : null,
             Status = a.Status,
             AppliedAtUtc = a.AppliedAtUtc,
             ReviewedAtUtc = a.ReviewedAtUtc,
@@ -314,6 +336,20 @@ public sealed class ClubApplicationManager(
              && nowUtc >= start
              && nowUtc <= end,
     };
+
+    /// <summary>Y-10: tek toplu sorgu — satır başına sorgu N+1 üretirdi.</summary>
+    private async Task<Dictionary<int, string>> GetCategoryNamesAsync(
+        IEnumerable<int> categoryIds, CancellationToken cancellationToken)
+    {
+        var ids = categoryIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return (await clubCategoryRepository.GetListAsync(c => ids.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(c => c.Id, c => c.Name);
+    }
 
     private static int ClampPageSize(int pageSize) =>
         pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);

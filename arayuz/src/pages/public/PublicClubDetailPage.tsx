@@ -60,7 +60,14 @@ export function PublicClubDetailPage() {
             <GroupsOutlinedIcon sx={{ fontSize: 40, color: 'grey.400' }} />
           </Box>
         )}
-        <PageHeader title={club.name} description={club.description ?? undefined} />
+        <Stack spacing={1} sx={{ flex: 1 }}>
+          <PageHeader title={club.name} description={club.description ?? undefined} />
+          {club.clubCategoryName && (
+            <Box>
+              <Chip size="small" variant="outlined" label={club.clubCategoryName} />
+            </Box>
+          )}
+        </Stack>
       </Stack>
 
       <SectionCard title="Etkinlikler">

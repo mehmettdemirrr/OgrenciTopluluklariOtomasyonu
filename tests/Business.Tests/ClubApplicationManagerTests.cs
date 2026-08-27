@@ -25,6 +25,7 @@ public class ClubApplicationManagerTests
     private readonly Mock<IEntityRepository<ClubMembership>> _clubMembershipRepository = new();
     private readonly Mock<IEntityRepository<Student>> _studentRepository = new();
     private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
+    private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
     private readonly Mock<IEntityRepository<AcademicTerm>> _academicTermRepository = new();
     private readonly Mock<IAcademicStaffDal> _academicStaffDal = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
@@ -45,6 +46,7 @@ public class ClubApplicationManagerTests
             _clubMembershipRepository.Object,
             _studentRepository.Object,
             _academicStaffRepository.Object,
+            _clubCategoryRepository.Object,
             _academicTermRepository.Object,
             _academicStaffDal.Object,
             _unitOfWork.Object,

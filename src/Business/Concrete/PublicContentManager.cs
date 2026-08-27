@@ -14,29 +14,44 @@ public sealed class PublicContentManager(
     IEntityRepository<Club> clubRepository,
     IEntityRepository<Event> eventRepository,
     IEntityRepository<Announcement> announcementRepository,
+    IEntityRepository<ClubCategory> clubCategoryRepository,
     IClock clock) : IPublicContentService
 {
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
 
     public async Task<IDataResult<PagedResult<PublicClubListItemDto>>> GetClubsAsync(
-        int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default)
+        int pageIndex, int pageSize, string? search = null, int? categoryId = null, CancellationToken cancellationToken = default)
     {
         var term = SearchTerm.Normalize(search);
 
-        // A-50: arama SQL'de. IsActive filtresi kodda sabit kalır (Y-58) — search onu gevşetmez.
+        // A-50: arama ve kategori filtresi SQL'de. IsActive filtresi kodda sabit kalır (Y-58) —
+        // ne search ne categoryId onu gevşetebilir.
         var paged = await clubRepository
             .GetListPagedAsync(
                 pageIndex,
                 ClampPageSize(pageSize),
-                c => c.IsActive && (term.Length == 0 || c.Name.Contains(term)),
+                c => c.IsActive
+                    && (categoryId == null || c.ClubCategoryId == categoryId)
+                    && (term.Length == 0 || c.Name.Contains(term)),
                 c => c.Name,
                 descending: false,
                 cancellationToken)
             .ConfigureAwait(false);
 
+        var categoryNames = await GetCategoryNamesAsync(
+            paged.Items.Where(c => c.ClubCategoryId is not null).Select(c => c.ClubCategoryId!.Value),
+            cancellationToken).ConfigureAwait(false);
+
         var items = paged.Items
-            .Select(c => new PublicClubListItemDto { Id = c.Id, Name = c.Name, Description = c.Description, LogoFileId = c.LogoFileId })
+            .Select(c => new PublicClubListItemDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                LogoFileId = c.LogoFileId,
+                ClubCategoryName = c.ClubCategoryId is { } id ? categoryNames.GetValueOrDefault(id) : null,
+            })
             .ToList();
 
         return DataResult<PagedResult<PublicClubListItemDto>>.Success(
@@ -51,13 +66,31 @@ public sealed class PublicContentManager(
             return DataResult<PublicClubDetailDto>.NotFound(Messages.ClubNotFound);
         }
 
+        var categoryNames = await GetCategoryNamesAsync(
+            club.ClubCategoryId is { } cid ? [cid] : [],
+            cancellationToken).ConfigureAwait(false);
+
         return DataResult<PublicClubDetailDto>.Success(new PublicClubDetailDto
         {
             Id = club.Id,
             Name = club.Name,
             Description = club.Description,
             LogoFileId = club.LogoFileId,
+            ClubCategoryName = club.ClubCategoryId is { } detailCategoryId ? categoryNames.GetValueOrDefault(detailCategoryId) : null,
         });
+    }
+
+    /// <summary>Y-10: tek toplu sorgu — satır başına sorgu N+1 üretirdi.</summary>
+    private async Task<Dictionary<int, string>> GetCategoryNamesAsync(IEnumerable<int> categoryIds, CancellationToken cancellationToken)
+    {
+        var ids = categoryIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return (await clubCategoryRepository.GetListAsync(c => ids.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(c => c.Id, c => c.Name);
     }
 
     public async Task<IDataResult<PagedResult<PublicEventListItemDto>>> GetEventsAsync(

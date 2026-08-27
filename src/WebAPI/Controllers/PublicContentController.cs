@@ -20,9 +20,10 @@ public sealed class PublicContentController(IPublicContentService publicContentS
         [FromQuery] int pageIndex = 0,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
+        [FromQuery] int? categoryId = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await publicContentService.GetClubsAsync(pageIndex, pageSize, search, cancellationToken);
+        var result = await publicContentService.GetClubsAsync(pageIndex, pageSize, search, categoryId, cancellationToken);
         return result.ToActionResult();
     }
 

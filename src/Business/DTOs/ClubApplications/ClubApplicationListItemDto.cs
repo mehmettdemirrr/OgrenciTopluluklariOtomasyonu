@@ -25,6 +25,11 @@ public sealed class ClubApplicationListItemDto
     /// </summary>
     public required string ProposedAdvisorDisplayName { get; set; }
 
+    public int? ProposedCategoryId { get; set; }
+
+    /// <summary>İnceleme ekranı adı gösterir; kategori seçilmemişse null.</summary>
+    public string? ProposedCategoryName { get; set; }
+
     public ApplicationStatus Status { get; set; }
 
     public DateTime AppliedAtUtc { get; set; }

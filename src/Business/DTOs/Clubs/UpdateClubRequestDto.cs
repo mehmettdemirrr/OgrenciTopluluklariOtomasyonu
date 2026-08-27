@@ -18,4 +18,11 @@ public sealed class UpdateClubRequestDto
     /// <c>null</c> gönderilirse mevcut danışman korunur (kısmi güncelleme).
     /// </summary>
     public int? AdvisorId { get; set; }
+
+    /// <summary>
+    /// docs/MIMARI.md · A-60: kategori. <b>AdvisorId'den FARKLI semantik</b> — orada <c>null</c>
+    /// "değiştirme" demek (K-33 kısmi güncelleme), burada "kategorisiz yap" demektir. Kategori
+    /// zorunlu olmadığı için temizlenebilmeli.
+    /// </summary>
+    public int? ClubCategoryId { get; set; }
 }

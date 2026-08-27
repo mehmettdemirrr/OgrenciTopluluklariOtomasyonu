@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, CardMedia, Grid, Typography } from '@mui/material'
+import { Box, Card, CardContent, CardMedia, Chip, Grid, Typography } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../../api/client'
@@ -58,6 +58,12 @@ export function PublicClubsPage() {
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }} noWrap>
                   {club.name}
                 </Typography>
+                {/* A-42: anonim vitrinde kategori FİLTRESİ yok, yalnızca rozet — filtre için
+                    /api/public/club-categories açmak gerekirdi ve anonim yüzey dar kalıyor.
+                    Backend categoryId parametresini destekliyor; uç sonradan eklenebilir. */}
+                {club.clubCategoryName && (
+                  <Chip size="small" variant="outlined" label={club.clubCategoryName} sx={{ mb: 0.5 }} />
+                )}
                 <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {club.description || 'Açıklama eklenmemiş.'}
                 </Typography>

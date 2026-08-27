@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Business.Concrete;
 using Business.DTOs.Reference;
 using Core.DataAccess;
+using Core.Utilities.Results;
 using DataAccess.Repositories;
 using Entities;
 using Moq;
@@ -20,6 +21,9 @@ public class ReferenceDataManagerTests
     private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
     private readonly Mock<IEntityRepository<Club>> _clubRepository = new();
 
+    // Faz 32 (K-35): topluluk kategorisi — Faculty ile aynı sınıf referans verisi.
+    private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
+
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly ReferenceDataManager _sut;
 
@@ -29,6 +33,7 @@ public class ReferenceDataManagerTests
             _departmentRepository.Object,
             _academicStaffRepository.Object,
             _clubRepository.Object,
+            _clubCategoryRepository.Object,
             _academicStaffDal.Object,
             _unitOfWork.Object);
 
@@ -214,5 +219,82 @@ public class ReferenceDataManagerTests
         var result = await _sut.DeleteDepartmentAsync(1, 10);
 
         Assert.False(result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "A-60: aynı adla ikinci kategori üretilmez, mevcut satır döner")]
+    public async Task CreateClubCategoryAsync_DuplicateName_ReturnsExisting()
+    {
+        var existing = new ClubCategory { Id = 7, Name = "Bilim ve Teknoloji" };
+        _clubCategoryRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubCategory, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existing);
+
+        var result = await _sut.CreateClubCategoryAsync(new CreateClubCategoryRequestDto { Name = "  Bilim ve Teknoloji  " });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(7, result.Data!.Id);
+        _clubCategoryRepository.Verify(r => r.AddAsync(It.IsAny<ClubCategory>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "A-60: yeni ad ile kategori oluşturulur ve adı kırpılır")]
+    public async Task CreateClubCategoryAsync_NewName_AddsTrimmed()
+    {
+        ClubCategory? captured = null;
+        _clubCategoryRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubCategory, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ClubCategory?)null);
+        _clubCategoryRepository
+            .Setup(r => r.AddAsync(It.IsAny<ClubCategory>(), It.IsAny<CancellationToken>()))
+            .Callback((ClubCategory c, CancellationToken _) => captured = c)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.CreateClubCategoryAsync(new CreateClubCategoryRequestDto { Name = "  Sanat  " });
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(captured);
+        Assert.Equal("Sanat", captured!.Name);
+    }
+
+    [Fact(DisplayName = "A-60: kullanımdaki kategori silinemez — 409")]
+    public async Task DeleteClubCategoryAsync_InUse_ReturnsConflict()
+    {
+        _clubCategoryRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubCategory, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubCategory { Id = 3, Name = "Spor" });
+        _unitOfWork
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ReferentialIntegrityConflictException("FK ihlali", new InvalidOperationException("inner")));
+
+        var result = await _sut.DeleteClubCategoryAsync(3);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Conflict, result.Status);
+    }
+
+    [Fact(DisplayName = "A-60: kullanılmayan kategori silinir")]
+    public async Task DeleteClubCategoryAsync_NotInUse_ReturnsSuccess()
+    {
+        _clubCategoryRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubCategory, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubCategory { Id = 3, Name = "Spor" });
+        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var result = await _sut.DeleteClubCategoryAsync(3);
+
+        Assert.True(result.IsSuccess);
+        _clubCategoryRepository.Verify(r => r.Delete(It.IsAny<ClubCategory>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "A-60: olmayan kategori silinmek istenirse 404")]
+    public async Task DeleteClubCategoryAsync_NotFound_ReturnsNotFound()
+    {
+        _clubCategoryRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubCategory, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ClubCategory?)null);
+
+        var result = await _sut.DeleteClubCategoryAsync(99);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
     }
 }

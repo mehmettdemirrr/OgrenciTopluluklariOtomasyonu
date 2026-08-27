@@ -15,9 +15,10 @@ public sealed class ClubsController(IClubService clubService, IClubMemberService
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
         [FromQuery] bool? isActive = null,
+        [FromQuery] int? categoryId = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await clubService.GetListPagedAsync(pageIndex, pageSize, search, isActive, cancellationToken);
+        var result = await clubService.GetListPagedAsync(pageIndex, pageSize, search, isActive, categoryId, cancellationToken);
         return result.ToActionResult();
     }
 

@@ -18,6 +18,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
+  MenuItem,
   Typography,
 } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
@@ -37,9 +38,16 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { ResultPagination } from '../components/ui/ResultPagination'
 import { SearchField } from '../components/ui/SearchField'
-import { createClubFormSchema, emptyCreateClubFormValues, type CreateClubFormValues } from '../schemas/clubForm'
+import { createClubFormSchema, emptyCreateClubFormValues, toCategoryPayload, type CreateClubFormValues } from '../schemas/clubForm'
 import { clubApplicationFormSchema, emptyClubApplicationFormValues, type ClubApplicationFormValues } from '../schemas/clubApplicationForm'
-import type { AcademicStaffListItemDto, ClubApplicationWindowDto, ClubListItemDto, PagedResult, SelectableAcademicStaffDto } from '../api/types'
+import type {
+  AcademicStaffListItemDto,
+  ClubApplicationWindowDto,
+  ClubCategoryListItemDto,
+  ClubListItemDto,
+  PagedResult,
+  SelectableAcademicStaffDto,
+} from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
@@ -54,6 +62,8 @@ export function ClubsPage() {
   const canManageClubs = hasPermission(Permissions.ClubsWrite)
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  // K-35: 0 = tüm kategoriler.
+  const [categoryFilter, setCategoryFilter] = useState<number>(0)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [logoTargetClubId, setLogoTargetClubId] = useState<number | null>(null)
   const createDialog = useFormDialog()
@@ -72,7 +82,9 @@ export function ClubsPage() {
   // sonuç vermiyordu — /api/clubs pasif kulüpleri hiç dönmüyordu (bkz. PLAN-V4 §21.1b).
   const { search, setSearch, items: clubs, pageIndex, setPageIndex, pageCount, totalCount, query: clubsQuery } =
     useSearchPagedQuery<ClubListItemDto>({
-      queryKey: ['clubs', statusFilter],
+      // categoryFilter queryKey'de OLMAK ZORUNDA — olmasaydı TanStack Query eski sonucu
+      // önbellekten servis eder ve filtre çalışmıyormuş gibi görünürdü.
+      queryKey: ['clubs', statusFilter, categoryFilter],
       queryFn: async ({ pageIndex: page, pageSize, search: term }) =>
         (await apiClient.get<PagedResult<ClubListItemDto>>('/clubs', {
           params: {
@@ -80,9 +92,16 @@ export function ClubsPage() {
             pageSize,
             search: term || undefined,
             isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
+            categoryId: categoryFilter > 0 ? categoryFilter : undefined,
           },
         })).data,
     })
+
+  const categoriesQuery = useQuery({
+    queryKey: ['club-categories'],
+    queryFn: async () =>
+      (await apiClient.get<PagedResult<ClubCategoryListItemDto>>('/club-categories', { params: { pageIndex: 0, pageSize: 100 } })).data,
+  })
 
   const applyDialog = useFormDialog()
   const applyForm = useForm<ClubApplicationFormValues>({
@@ -103,6 +122,7 @@ export function ClubsPage() {
         description: values.description.trim() || null,
         justification: values.justification,
         proposedAdvisorId: values.proposedAdvisorId,
+        proposedCategoryId: toCategoryPayload(values.proposedCategoryId),
       })
     },
     onSuccess: () => {
@@ -139,7 +159,12 @@ export function ClubsPage() {
 
   const createClubMutation = useMutation({
     mutationFn: async (values: CreateClubFormValues) => {
-      await apiClient.post('/clubs', { name: values.name.trim(), description: values.description.trim() || null, advisorId: values.advisorId })
+      await apiClient.post('/clubs', {
+        name: values.name.trim(),
+        description: values.description.trim() || null,
+        advisorId: values.advisorId,
+        clubCategoryId: toCategoryPayload(values.clubCategoryId),
+      })
     },
     onSuccess: () => {
       notify({ message: 'Topluluk oluşturuldu.', severity: 'success' })
@@ -216,6 +241,25 @@ export function ClubsPage() {
           <ToggleButton value="active">Aktif</ToggleButton>
           <ToggleButton value="inactive">Pasif</ToggleButton>
         </ToggleButtonGroup>
+        {/* A-50/Y-62: filtre SUNUCUDA — categoryId sorguya gider, istemcide ayıklama yok. */}
+        <TextField
+          select
+          size="small"
+          label="Kategori"
+          value={categoryFilter}
+          onChange={(event) => {
+            setCategoryFilter(Number(event.target.value))
+            setPageIndex(0)
+          }}
+          sx={{ minWidth: 200 }}
+        >
+          <MenuItem value={0}>Tüm kategoriler</MenuItem>
+          {(categoriesQuery.data?.items ?? []).map((category) => (
+            <MenuItem key={category.id} value={category.id}>
+              {category.name}
+            </MenuItem>
+          ))}
+        </TextField>
       </Stack>
 
       {clubsQuery.isLoading && <CardGridSkeleton withMedia />}
@@ -243,6 +287,9 @@ export function ClubsPage() {
                   </Typography>
                   <Chip size="small" label={club.isActive ? 'Aktif' : 'Pasif'} color={club.isActive ? 'success' : 'default'} variant={club.isActive ? 'filled' : 'outlined'} />
                 </Stack>
+                {club.clubCategoryName && (
+                  <Chip size="small" variant="outlined" label={club.clubCategoryName} sx={{ mb: 1 }} />
+                )}
                 <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {club.description || 'Açıklama eklenmemiş.'}
                 </Typography>
@@ -315,6 +362,27 @@ export function ClubsPage() {
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
               />
+            )}
+          />
+          <Controller
+            name="clubCategoryId"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                select
+                fullWidth
+                margin="dense"
+                label="Kategori (isteğe bağlı)"
+                onChange={(event) => field.onChange(Number(event.target.value))}
+              >
+                <MenuItem value={0}>— Kategorisiz —</MenuItem>
+                {(categoriesQuery.data?.items ?? []).map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </TextField>
             )}
           />
         </DialogContent>
@@ -397,6 +465,27 @@ export function ClubsPage() {
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message}
               />
+            )}
+          />
+          <Controller
+            name="proposedCategoryId"
+            control={applyForm.control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                select
+                fullWidth
+                margin="dense"
+                label="Kategori (isteğe bağlı)"
+                onChange={(event) => field.onChange(Number(event.target.value))}
+              >
+                <MenuItem value={0}>— Kategorisiz —</MenuItem>
+                {(categoriesQuery.data?.items ?? []).map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </TextField>
             )}
           />
         </DialogContent>

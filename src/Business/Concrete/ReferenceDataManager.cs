@@ -13,6 +13,7 @@ public sealed class ReferenceDataManager(
     IEntityRepository<Department> departmentRepository,
     IEntityRepository<AcademicStaff> academicStaffRepository,
     IEntityRepository<Club> clubRepository,
+    IEntityRepository<ClubCategory> clubCategoryRepository,
     IAcademicStaffDal academicStaffDal,
     IUnitOfWork unitOfWork) : IReferenceDataService
 {
@@ -156,6 +157,87 @@ public sealed class ReferenceDataManager(
         }
 
         return Result.Success(Messages.DepartmentDeleted);
+    }
+
+    public async Task<IDataResult<PagedResult<ClubCategoryListItemDto>>> GetClubCategoriesPagedAsync(
+        int pageIndex, int pageSize, CancellationToken cancellationToken = default)
+    {
+        // Y-64: ada göre artan, Id son kırıcı — repository sözleşmesi ThenBy(Id) uygular.
+        var paged = await clubCategoryRepository
+            .GetListPagedAsync(pageIndex, ClampPageSize(pageSize), c => true, c => c.Name, descending: false, cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = paged.Items.Select(c => new ClubCategoryListItemDto { Id = c.Id, Name = c.Name }).ToList();
+        return DataResult<PagedResult<ClubCategoryListItemDto>>.Success(
+            new PagedResult<ClubCategoryListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<ClubCategoryListItemDto>> CreateClubCategoryAsync(
+        CreateClubCategoryRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var name = request.Name.Trim();
+
+        // CreateFacultyAsync precedent'i: çakışma hata değil, mevcut satırı döndürmek.
+        var existing = await clubCategoryRepository.GetAsync(c => c.Name == name, cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return DataResult<ClubCategoryListItemDto>.Success(
+                new ClubCategoryListItemDto { Id = existing.Id, Name = existing.Name }, Messages.ClubCategoryAlreadyExists);
+        }
+
+        var category = new ClubCategory { Name = name };
+        await clubCategoryRepository.AddAsync(category, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return DataResult<ClubCategoryListItemDto>.Success(
+            new ClubCategoryListItemDto { Id = category.Id, Name = category.Name });
+    }
+
+    public async Task<IResult> UpdateClubCategoryAsync(
+        int categoryId, UpdateClubCategoryRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var category = await clubCategoryRepository.GetAsync(c => c.Id == categoryId, cancellationToken).ConfigureAwait(false);
+        if (category is null)
+        {
+            return Result.NotFound(Messages.ClubCategoryNotFound);
+        }
+
+        var name = request.Name.Trim();
+        var duplicate = await clubCategoryRepository
+            .GetAsync(c => c.Id != categoryId && c.Name == name, cancellationToken)
+            .ConfigureAwait(false);
+        if (duplicate is not null)
+        {
+            return Result.Conflict(Messages.ClubCategoryAlreadyExists);
+        }
+
+        category.Name = name;
+        clubCategoryRepository.Update(category);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ClubCategoryUpdated);
+    }
+
+    public async Task<IResult> DeleteClubCategoryAsync(int categoryId, CancellationToken cancellationToken = default)
+    {
+        var category = await clubCategoryRepository.GetAsync(c => c.Id == categoryId, cancellationToken).ConfigureAwait(false);
+        if (category is null)
+        {
+            return Result.NotFound(Messages.ClubCategoryNotFound);
+        }
+
+        clubCategoryRepository.Delete(category);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (ReferentialIntegrityConflictException)
+        {
+            // A-60: kulüp veya başvuru bu kategoriye bağlıysa FK Restrict devreye girer.
+            return Result.Conflict(Messages.ClubCategoryInUse);
+        }
+
+        return Result.Success(Messages.ClubCategoryDeleted);
     }
 
     public async Task<IDataResult<PagedResult<AcademicStaffListItemDto>>> GetAcademicStaffPagedAsync(

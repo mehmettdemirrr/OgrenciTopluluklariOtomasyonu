@@ -442,4 +442,80 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
     }
 
     private sealed record WindowProbe(bool IsOpen, DateTime? StartUtc, DateTime? EndUtc, string Override, string TermName);
+
+    [Fact(DisplayName = "K-35: başvurudaki kategori onayda doğan kulübe taşınır")]
+    public async Task Approve_CarriesProposedCategoryToCreatedClub()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var proposedName = $"Kategorili Kulüp {suffix}";
+        int categoryId;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var category = new ClubCategory { Name = $"Başvuru Kategorisi {suffix}" };
+            db.ClubCategories.Add(category);
+            await db.SaveChangesAsync();
+            categoryId = category.Id;
+        }
+
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+
+        var submitResponse = await SendWithBearerAsync(HttpMethod.Post, "/api/club-applications", studentToken, new
+        {
+            ProposedName = proposedName,
+            Description = "Kategori testi",
+            Justification = "Kategori testi gerekçesi",
+            ProposedAdvisorId = _proposedAdvisorId,
+            ProposedCategoryId = categoryId,
+        });
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+
+        int applicationId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var application = await db.ClubApplications.SingleAsync(a => a.ProposedName == proposedName);
+            Assert.Equal(categoryId, application.ProposedCategoryId);
+            applicationId = application.Id;
+        }
+
+        var adminToken = await LoginAsync(AdminEmail, AdminPassword);
+        var decisionResponse = await SendWithBearerAsync(
+            HttpMethod.Put, $"/api/club-applications/{applicationId}/decision", adminToken,
+            new { Status = "Approved", ReviewNote = (string?)null });
+        Assert.Equal(HttpStatusCode.OK, decisionResponse.StatusCode);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var createdClub = await db.Clubs.SingleAsync(c => c.Name == proposedName);
+            Assert.Equal(categoryId, createdClub.ClubCategoryId);
+        }
+    }
+
+    [Fact(DisplayName = "K-35: var olmayan kategori ile başvuru 404 alır ve kayıt yazılmaz")]
+    public async Task Submit_UnknownCategory_ReturnsNotFound()
+    {
+        var proposedName = $"Hayalet Kategori {Guid.NewGuid():N}"[..30];
+
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+
+        var response = await SendWithBearerAsync(HttpMethod.Post, "/api/club-applications", studentToken, new
+        {
+            ProposedName = proposedName,
+            Description = "Test",
+            Justification = "Test gerekçesi",
+            ProposedAdvisorId = _proposedAdvisorId,
+            ProposedCategoryId = 999_999,
+        });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False(await verifyDb.ClubApplications.AnyAsync(a => a.ProposedName == proposedName));
+    }
 }

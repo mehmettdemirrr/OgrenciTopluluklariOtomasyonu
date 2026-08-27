@@ -44,6 +44,12 @@ public sealed class ClubApplicationConfiguration : IEntityTypeConfiguration<Club
             .HasForeignKey(a => a.CreatedClubId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // A-60: başvurudaki kategori de kullanım sayılır; silme 409 verir.
+        builder.HasOne<ClubCategory>()
+            .WithMany()
+            .HasForeignKey(a => a.ProposedCategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // A-39'un başkan tekilliği index'iyle aynı teknik: bir öğrenci aynı dönemde tek bekleyen
         // başvuru tutabilir (kulüp henüz yok, bu yüzden ClubId üzerinden değil StudentId üzerinden).
         builder.HasIndex(a => new { a.StudentId, a.AcademicTermId })

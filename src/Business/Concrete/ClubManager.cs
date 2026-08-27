@@ -13,6 +13,7 @@ namespace Business.Concrete;
 public sealed class ClubManager(
     IEntityRepository<Club> clubRepository,
     IEntityRepository<AcademicStaff> academicStaffRepository,
+    IEntityRepository<ClubCategory> clubCategoryRepository,
     IEntityRepository<MembershipApplication> membershipApplicationRepository,
     IUnitOfWork unitOfWork,
     IClock clock,
@@ -22,7 +23,8 @@ public sealed class ClubManager(
     private const int MaxPageSize = 100;
 
     public async Task<IDataResult<PagedResult<ClubListItemDto>>> GetListPagedAsync(
-        int pageIndex, int pageSize, string? search = null, bool? isActive = null, CancellationToken cancellationToken = default)
+        int pageIndex, int pageSize, string? search = null, bool? isActive = null, int? categoryId = null,
+        CancellationToken cancellationToken = default)
     {
         var clampedPageSize = ClampPageSize(pageSize);
         var term = SearchTerm.Normalize(search);
@@ -36,6 +38,7 @@ public sealed class ClubManager(
                 pageIndex,
                 clampedPageSize,
                 c => (isActive == null || c.IsActive == isActive)
+                    && (categoryId == null || c.ClubCategoryId == categoryId)
                     && (term.Length == 0 || c.Name.Contains(term)),
                 c => c.Name,
                 descending: false,
@@ -43,6 +46,8 @@ public sealed class ClubManager(
             .ConfigureAwait(false);
 
         var items = mapper.Map<IReadOnlyList<ClubListItemDto>>(paged.Items);
+        await FillCategoryNamesAsync(items, cancellationToken).ConfigureAwait(false);
+
         var result = new PagedResult<ClubListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize);
 
         return DataResult<PagedResult<ClubListItemDto>>.Success(result);
@@ -56,7 +61,45 @@ public sealed class ClubManager(
             return DataResult<ClubDetailDto>.NotFound(Messages.ClubNotFound);
         }
 
-        return DataResult<ClubDetailDto>.Success(mapper.Map<ClubDetailDto>(club));
+        var dto = mapper.Map<ClubDetailDto>(club);
+        if (club.ClubCategoryId is { } detailCategoryId)
+        {
+            var category = await clubCategoryRepository
+                .GetAsync(c => c.Id == detailCategoryId, cancellationToken)
+                .ConfigureAwait(false);
+            dto.ClubCategoryName = category?.Name;
+        }
+
+        return DataResult<ClubDetailDto>.Success(dto);
+    }
+
+    /// <summary>
+    /// Y-10/Y-32: kategori adı AutoMapper ile taşınamaz (join gerekir). Tek toplu sorguyla
+    /// doldurulur — satır başına sorgu N+1 üretirdi (EventManager.MapWithClubNamesAsync deseni).
+    /// </summary>
+    private async Task FillCategoryNamesAsync(IReadOnlyList<ClubListItemDto> items, CancellationToken cancellationToken)
+    {
+        var categoryIds = items
+            .Where(i => i.ClubCategoryId is not null)
+            .Select(i => i.ClubCategoryId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (categoryIds.Count == 0)
+        {
+            return;
+        }
+
+        var namesById = (await clubCategoryRepository.GetListAsync(c => categoryIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(c => c.Id, c => c.Name);
+
+        foreach (var item in items)
+        {
+            if (item.ClubCategoryId is { } id)
+            {
+                item.ClubCategoryName = namesById.GetValueOrDefault(id);
+            }
+        }
     }
 
     public async Task<IDataResult<int>> CreateAsync(CreateClubRequestDto request, CancellationToken cancellationToken = default)
@@ -80,6 +123,7 @@ public sealed class ClubManager(
             Name = name,
             Description = request.Description?.Trim(),
             AdvisorId = advisor.Id,
+            ClubCategoryId = request.ClubCategoryId,
             IsActive = true,
             CreatedAtUtc = clock.UtcNow,
         };
@@ -121,6 +165,9 @@ public sealed class ClubManager(
 
         club.Name = name;
         club.Description = request.Description?.Trim();
+        // A-60: AdvisorId'den FARKLI semantik — orada null "değiştirme" demek (K-33 kısmi
+        // güncelleme), burada null "kategorisiz yap" demektir. Kategori zorunlu olmadığı için temizlenebilmeli.
+        club.ClubCategoryId = request.ClubCategoryId;
         clubRepository.Update(club);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

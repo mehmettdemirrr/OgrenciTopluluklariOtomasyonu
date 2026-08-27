@@ -14,6 +14,8 @@ export interface ClubListItemDto {
   description: string | null
   isActive: boolean
   logoFileId: number | null
+  clubCategoryId: number | null
+  clubCategoryName: string | null
 }
 
 // src/Business/DTOs/Clubs/ClubDetailDto.cs
@@ -25,6 +27,14 @@ export interface ClubDetailDto {
   createdAtUtc: string
   advisorId: number
   logoFileId: number | null
+  clubCategoryId: number | null
+  clubCategoryName: string | null
+}
+
+// src/Business/DTOs/Reference/ClubCategoryListItemDto.cs
+export interface ClubCategoryListItemDto {
+  id: number
+  name: string
 }
 
 // src/Entities/Enums/ClubRole.cs (JsonStringEnumConverter ile metin olarak taşınır)
@@ -86,6 +96,8 @@ export interface ClubApplicationListItemDto {
   reviewedAtUtc: string | null
   reviewNote: string | null
   createdClubId: number | null
+  proposedCategoryId: number | null
+  proposedCategoryName: string | null
 }
 
 // WebAPI/Extensions/ResultExtensions.cs · ToProblemResult
@@ -292,6 +304,8 @@ export interface PublicClubListItemDto {
   name: string
   description: string | null
   logoFileId: number | null
+  /** K-35: kurumsal sınıflandırma; kimlik taşınmaz (Y-58). */
+  clubCategoryName: string | null
 }
 
 // src/Business/DTOs/Public/PublicClubDetailDto.cs
@@ -300,6 +314,7 @@ export interface PublicClubDetailDto {
   name: string
   description: string | null
   logoFileId: number | null
+  clubCategoryName: string | null
 }
 
 // src/Business/DTOs/Public/PublicEventListItemDto.cs
