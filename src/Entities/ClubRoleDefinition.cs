@@ -22,8 +22,17 @@ public sealed class ClubRoleDefinition : IEntity
     /// <summary>Görünen unvan: "Sayman", "Sekreter", "Sosyal Medya Sorumlusu". <c>(ClubId, Name)</c> unique.</summary>
     public required string Name { get; set; }
 
-    /// <summary>Bu unvanın verdiği yetki seviyesi. Değişirse üyeliklere yayılır (O-27).</summary>
+    /// <summary>
+    /// docs/MIMARI.md · A-68: bu unvanın <b>makamı</b>. A-39 başkan tekilliği ve dönem devri bunu
+    /// kullanır; yetki kararı vermez. Değişirse üyeliklere yayılır (O-27).
+    /// </summary>
     public ClubRole ClubRole { get; set; }
+
+    /// <summary>
+    /// docs/MIMARI.md · A-68: bu unvanın kulüp içinde yapabileceği işlemler. Yetkinin KAYNAĞI budur;
+    /// atamada <c>ClubMembership.Capabilities</c>'e kopyalanır ve değişince O-27 ile yayılır.
+    /// </summary>
+    public ClubCapability Capabilities { get; set; }
 
     public int DisplayOrder { get; set; }
 }

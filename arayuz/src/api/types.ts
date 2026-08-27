@@ -40,11 +40,36 @@ export interface ClubCategoryListItemDto {
 // src/Entities/Enums/ClubRole.cs (JsonStringEnumConverter ile metin olarak taşınır)
 export type ClubRole = 'Member' | 'Officer' | 'President'
 
+// src/Entities/Enums/ClubCapability.cs — [Flags] enum SAYI olarak taşınır (metin değil):
+// JsonStringEnumConverter bileşik bayrak değerlerini metne çeviremez.
+export const ClubCapability = {
+  None: 0,
+  MembersView: 1,
+  MembersManage: 2,
+  EventsManage: 4,
+  EventParticipantsView: 8,
+  AnnouncementsManage: 16,
+  ReportsView: 32,
+} as const
+
+/** Kutucuk listesi — sıra ekranda göründüğü sıradır. */
+export const CLUB_CAPABILITIES: { value: number; label: string; description: string }[] = [
+  { value: ClubCapability.EventsManage, label: 'Etkinlik yönetimi', description: 'Etkinlik oluşturabilir, düzenleyebilir ve silebilir.' },
+  { value: ClubCapability.EventParticipantsView, label: 'Katılımcı listesi', description: 'Etkinliklere kimlerin kaydolduğunu görebilir.' },
+  { value: ClubCapability.AnnouncementsManage, label: 'Duyuru yönetimi', description: 'Topluluk duyurusu yazabilir.' },
+  { value: ClubCapability.MembersView, label: 'Üye listesi', description: 'Topluluk üyelerini görebilir.' },
+  { value: ClubCapability.MembersManage, label: 'Üye ve rol yönetimi', description: 'Üye çıkarabilir, rol atayabilir, unvan tanımlayabilir.' },
+  { value: ClubCapability.ReportsView, label: 'Raporlar', description: 'Topluluğun raporlarını alabilir.' },
+]
+
 // src/Business/DTOs/Clubs/ClubRoleDefinitionDto.cs
 export interface ClubRoleDefinitionDto {
   id: number
   name: string
+  /** A-68: makam — A-39 ve dönem devri için; yetki vermez. */
   clubRole: ClubRole
+  /** A-68: yetki matrisi, bit maskesi. */
+  capabilities: number
   displayOrder: number
 }
 

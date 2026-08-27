@@ -17,14 +17,24 @@ public sealed class ClubMembership : IEntity, ISoftDeletable
 
     public int AcademicTermId { get; set; }
 
+    /// <summary>
+    /// docs/MIMARI.md · A-68: <b>makam.</b> A-39 başkan tekilliği, dönem devri ve bildirim hedefi
+    /// bunu kullanır. <b>Yetki kararı vermez</b> — o <see cref="Capabilities"/>'ten okunur.
+    /// </summary>
     public ClubRole ClubRole { get; set; }
 
     /// <summary>
-    /// docs/MIMARI.md · K-36/A-61: görünen unvan. Null = unvansız (yalnızca yetki seviyesi).
-    /// <b>Yetki kararı bu alandan OKUNMAZ</b> — <see cref="ClubRole"/> yetkinin tek kaynağı olarak kalır.
-    /// İkisi asla ayrışmaz: atama ve seviye değişikliği ikisini birlikte yazar (O-27).
+    /// docs/MIMARI.md · K-36/A-61: görünen unvan. Null = unvansız.
+    /// Atama ve tanım değişikliği unvanı, makamı ve kapasiteyi birlikte yazar (O-27).
     /// </summary>
     public int? ClubRoleDefinitionId { get; set; }
+
+    /// <summary>
+    /// docs/MIMARI.md · A-61/A-68: yetki matrisinin denormalize kopyası. <b>Yetki kararı BURADAN okunur</b> —
+    /// bu sayede kontroller tek satır okur, tanım tablosuna ikinci bir sorgu gitmez.
+    /// Unvansız üyede <c>ClubCapabilityDefaults.ForRole(ClubRole)</c> ile doldurulur.
+    /// </summary>
+    public ClubCapability Capabilities { get; set; }
 
     public DateTime JoinedAtUtc { get; set; }
 

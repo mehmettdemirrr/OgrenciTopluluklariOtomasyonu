@@ -9,6 +9,11 @@ import {
   DialogContent,
   DialogTitle,
   Alert,
+  Checkbox,
+  FormControl,
+  FormControlLabel,
+  FormGroup,
+  FormLabel,
   IconButton,
   MenuItem,
   Skeleton,
@@ -44,6 +49,7 @@ import {
   emptyClubRoleDefinitionFormValues,
   type ClubRoleDefinitionFormValues,
 } from '../schemas/clubRoleDefinitionForm'
+import { CLUB_CAPABILITIES } from '../api/types'
 import type {
   AcademicStaffListItemDto,
   ClubCategoryListItemDto,
@@ -556,9 +562,30 @@ function RoleDefinitionsTab({ clubId }: { clubId: number }) {
     { field: 'name', headerName: 'Unvan', flex: 1, minWidth: 200 },
     {
       field: 'clubRole',
-      headerName: 'Yetki Seviyesi',
-      width: 160,
+      headerName: 'Makam',
+      width: 130,
       renderCell: (params) => <ClubRoleChip role={params.row.clubRole} />,
+    },
+    {
+      field: 'capabilities',
+      headerName: 'Yetkiler',
+      flex: 1,
+      minWidth: 240,
+      sortable: false,
+      renderCell: (params) => {
+        const granted = CLUB_CAPABILITIES.filter((c) => (params.row.capabilities & c.value) === c.value)
+        return granted.length === 0 ? (
+          <Typography variant="caption" color="text.secondary">
+            Yetki yok
+          </Typography>
+        ) : (
+          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5, py: 0.5 }}>
+            {granted.map((c) => (
+              <Chip key={c.value} size="small" variant="outlined" label={c.label} />
+            ))}
+          </Stack>
+        )
+      },
     },
     ...(canManage
       ? [
@@ -577,6 +604,7 @@ function RoleDefinitionsTab({ clubId }: { clubId: number }) {
                     editForm.reset({
                       name: params.row.name,
                       clubRole: params.row.clubRole,
+                      capabilities: params.row.capabilities,
                       displayOrder: params.row.displayOrder,
                     })
                   }}
@@ -606,6 +634,7 @@ function RoleDefinitionsTab({ clubId }: { clubId: number }) {
       <DataTable
         rows={definitionsQuery.data ?? []}
         columns={columns}
+        getRowHeight={() => 'auto'}
         loading={definitionsQuery.isFetching}
         emptyTitle="Bu toplulukta henüz rol tanımı yok"
         emptyDescription="Sayman, Sekreter gibi unvanları tanımlayıp üyelere atayabilirsiniz."
@@ -701,7 +730,14 @@ function ClubRoleDefinitionFormFields({ control }: { control: Control<ClubRoleDe
         name="clubRole"
         control={control}
         render={({ field }) => (
-          <TextField {...field} select fullWidth margin="dense" label="Yetki seviyesi">
+          <TextField
+            {...field}
+            select
+            fullWidth
+            margin="dense"
+            label="Makam"
+            helperText="Yalnızca başkan tekilliği ve dönem devri için kullanılır; yetki aşağıdan seçilir."
+          >
             {CLUB_ROLES.map((role) => (
               <MenuItem key={role} value={role}>
                 {clubRoleLabel(role)}
@@ -710,10 +746,52 @@ function ClubRoleDefinitionFormFields({ control }: { control: Control<ClubRoleDe
           </TextField>
         )}
       />
-      {/* A-61: bu metin kasıtlı — unvanı veren kişi hangi yetkiyi verdiğini görmeden vermemeli. */}
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-        Bu unvanı alan üye, seçtiğiniz yetki seviyesinin tüm haklarını kazanır.
-      </Typography>
+
+      {/* A-68: yetki artık makamdan gelmiyor — her kutucuk bir kulüp içi işlem. */}
+      <Controller
+        name="capabilities"
+        control={control}
+        render={({ field }) => (
+          <FormControl component="fieldset" sx={{ mt: 2, display: 'block' }}>
+            <FormLabel component="legend">Bu unvan neler yapabilir?</FormLabel>
+            <FormGroup>
+              {CLUB_CAPABILITIES.map((capability) => (
+                <FormControlLabel
+                  key={capability.value}
+                  sx={{ alignItems: 'flex-start', mt: 1 }}
+                  control={
+                    <Checkbox
+                      sx={{ pt: 0 }}
+                      checked={(field.value & capability.value) === capability.value}
+                      onChange={(event) =>
+                        field.onChange(
+                          event.target.checked
+                            ? field.value | capability.value
+                            : field.value & ~capability.value,
+                        )
+                      }
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body2">{capability.label}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {capability.description}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              ))}
+            </FormGroup>
+            {/* Y-75: kullanıcıya sınırı söyle — kutucuk, kişinin sistemdeki rolünden fazlasını vermez. */}
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              Bu yetkiler yalnızca bu toplulukta geçerlidir ve kişinin sistemdeki rolünün izin
+              verdiğinden fazlasını veremez.
+            </Typography>
+          </FormControl>
+        )}
+      />
+
       <Controller
         name="displayOrder"
         control={control}

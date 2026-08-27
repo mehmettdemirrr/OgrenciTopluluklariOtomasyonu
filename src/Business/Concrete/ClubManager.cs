@@ -134,10 +134,14 @@ public sealed class ClubManager(
 
         // O-20: yeni kulüp varsayılan unvan setiyle doğar — "Roller" sekmesi boş açılmasın.
         // club.Id yukarıdaki SaveChanges'ten geliyor (düz int FK, navigation property yok).
-        foreach (var (roleName, role, displayOrder) in DefaultClubRoles.All)
+        foreach (var (roleName, role, capabilities, displayOrder) in DefaultClubRoles.All)
         {
             await clubRoleDefinitionRepository.AddAsync(
-                new ClubRoleDefinition { ClubId = club.Id, Name = roleName, ClubRole = role, DisplayOrder = displayOrder },
+                new ClubRoleDefinition
+                {
+                    ClubId = club.Id, Name = roleName, ClubRole = role,
+                    Capabilities = capabilities, DisplayOrder = displayOrder,
+                },
                 cancellationToken).ConfigureAwait(false);
         }
 

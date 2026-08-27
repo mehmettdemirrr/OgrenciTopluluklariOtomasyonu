@@ -132,7 +132,14 @@ public class ClubMemberManagerTests
     {
         // Başkanın kendisi işlemi yapıyor: currentUser == membership.Student.ApplicationUserId.
         _currentUser.Setup(c => c.UserId).Returns(500);
-        var membership = new ClubMembership { Id = 1, ClubId = 1, StudentId = 5, AcademicTermId = 1, ClubRole = ClubRole.President, JoinedAtUtc = FixedNow };
+        var membership = new ClubMembership
+        {
+            Id = 1, ClubId = 1, StudentId = 5, AcademicTermId = 1,
+            ClubRole = ClubRole.President,
+            // A-68: erişim MembersManage'ten geliyor; başkan makamı tek başına yetmiyor artık.
+            Capabilities = ClubCapabilityDefaults.ForRole(ClubRole.President),
+            JoinedAtUtc = FixedNow,
+        };
         _clubMembershipRepository
             .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Expression<Func<ClubMembership, bool>> filter, CancellationToken _) => filter.Compile()(membership) ? membership : null);
@@ -365,6 +372,148 @@ public class ClubMemberManagerTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ResultStatus.Conflict, result.Status);
         Assert.Equal(ClubRole.Officer, definition.ClubRole);
+    }
+
+    [Fact(DisplayName = "A-61/A-68: unvan atanınca kapasite TANIMDAN kopyalanır")]
+    public async Task SetRoleAsync_WithDefinition_CopiesCapabilitiesFromDefinition()
+    {
+        var membership = new ClubMembership
+        {
+            Id = 5, ClubId = 1, StudentId = 9, AcademicTermId = 1,
+            ClubRole = ClubRole.Member, Capabilities = ClubCapability.None, JoinedAtUtc = FixedNow,
+        };
+        _clubMembershipRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(membership);
+        _clubRoleDefinitionRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubRoleDefinition, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubRoleDefinition
+            {
+                Id = 3, ClubId = 1, Name = "Sayman", ClubRole = ClubRole.Member,
+                Capabilities = ClubCapability.EventsManage | ClubCapability.ReportsView, DisplayOrder = 3,
+            });
+
+        GrantAdminScope();
+
+        var result = await _sut.SetRoleAsync(1, 5, new SetClubRoleRequestDto { ClubRoleDefinitionId = 3 });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClubCapability.EventsManage | ClubCapability.ReportsView, membership.Capabilities);
+    }
+
+    [Fact(DisplayName = "A-68: unvansız atamada kapasite makamdan türetilir — eski davranış")]
+    public async Task SetRoleAsync_WithoutDefinition_DerivesCapabilitiesFromRole()
+    {
+        var membership = new ClubMembership
+        {
+            Id = 5, ClubId = 1, StudentId = 9, AcademicTermId = 1,
+            ClubRole = ClubRole.Member, Capabilities = ClubCapability.None, JoinedAtUtc = FixedNow,
+        };
+        _clubMembershipRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(membership);
+
+        GrantAdminScope();
+
+        var result = await _sut.SetRoleAsync(1, 5, new SetClubRoleRequestDto { ClubRole = ClubRole.Officer });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClubCapabilityDefaults.ForRole(ClubRole.Officer), membership.Capabilities);
+        Assert.Null(membership.ClubRoleDefinitionId);
+    }
+
+    [Fact(DisplayName = "O-27: tanımın KAPASİTESİ değişince taşıyan tüm üyeliklere yayılır")]
+    public async Task UpdateRoleDefinitionAsync_CapabilityChange_CascadesToMemberships()
+    {
+        var definition = new ClubRoleDefinition
+        {
+            Id = 3, ClubId = 1, Name = "Sayman", ClubRole = ClubRole.Member,
+            Capabilities = ClubCapability.MembersView, DisplayOrder = 3,
+        };
+        var holders = new List<ClubMembership>
+        {
+            new() { Id = 11, ClubId = 1, StudentId = 21, AcademicTermId = 1, ClubRole = ClubRole.Member, Capabilities = ClubCapability.MembersView, ClubRoleDefinitionId = 3, JoinedAtUtc = FixedNow },
+            new() { Id = 12, ClubId = 1, StudentId = 22, AcademicTermId = 1, ClubRole = ClubRole.Member, Capabilities = ClubCapability.MembersView, ClubRoleDefinitionId = 3, JoinedAtUtc = FixedNow },
+        };
+
+        _clubRoleDefinitionRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubRoleDefinition, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<ClubRoleDefinition, bool>> filter, CancellationToken _) =>
+                new[] { definition }.AsQueryable().Where(filter).FirstOrDefault());
+        _clubMembershipRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(holders);
+
+        GrantAdminScope();
+
+        // Makam değişmiyor, YALNIZCA kapasite — eski kod bu durumda hiç yayılım yapmazdı.
+        var result = await _sut.UpdateRoleDefinitionAsync(1, 3, new UpdateClubRoleDefinitionRequestDto
+        {
+            Name = "Sayman",
+            ClubRole = ClubRole.Member,
+            Capabilities = ClubCapability.MembersView | ClubCapability.EventsManage,
+            DisplayOrder = 3,
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.All(holders, m => Assert.True(m.Capabilities.HasFlag(ClubCapability.EventsManage)));
+    }
+
+    [Fact(DisplayName = "A-68: kapasitesi MembersView olan üye listeyi görür — makamı hâlâ Member olsa bile")]
+    public async Task GetMembersPagedAsync_MemberWithMembersViewCapability_ReturnsSuccess()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(200);
+        _academicStaffRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 999, Title = "Dr.", DepartmentId = 1 });
+        _studentRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Student { Id = 9, ApplicationUserId = 200, StudentNumber = "S1", DepartmentId = 1, EnrollmentYear = 2026 });
+
+        // Makam Member, ama kapasite açık — matrisin merdivenden ayrıldığı yer burası.
+        _clubMembershipRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubMembership
+            {
+                Id = 5, ClubId = 1, StudentId = 9, AcademicTermId = 1,
+                ClubRole = ClubRole.Member,
+                Capabilities = ClubCapability.MembersView,
+                JoinedAtUtc = FixedNow,
+            });
+        _clubMembershipRepository
+            .Setup(r => r.GetListPagedAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResult<ClubMembership>([], 0, 0, 20));
+
+        var result = await _sut.GetMembersPagedAsync(1, 0, 20);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "A-68: kapasitesi kısılmış BAŞKAN üye listesini göremez — makam yetki vermez")]
+    public async Task GetMembersPagedAsync_PresidentWithoutMembersView_ReturnsForbidden()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(200);
+        _academicStaffRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 999, Title = "Dr.", DepartmentId = 1 });
+        _studentRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Student { Id = 9, ApplicationUserId = 200, StudentNumber = "S1", DepartmentId = 1, EnrollmentYear = 2026 });
+        _clubMembershipRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubMembership
+            {
+                Id = 5, ClubId = 1, StudentId = 9, AcademicTermId = 1,
+                ClubRole = ClubRole.President,
+                Capabilities = ClubCapability.EventsManage,
+                JoinedAtUtc = FixedNow,
+            });
+
+        var result = await _sut.GetMembersPagedAsync(1, 0, 20);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
     }
 
     /// <summary>Y-66: yönetici yolu — kapsam metotlarının ilk satırı. Bu testler kapsamı değil atamayı sınıyor.</summary>

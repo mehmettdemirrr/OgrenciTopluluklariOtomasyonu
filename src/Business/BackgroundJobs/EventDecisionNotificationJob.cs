@@ -36,6 +36,9 @@ public sealed class EventDecisionNotificationJob(
         }
 
         var studentIds = (await clubMembershipRepository
+                // A-68: bu bir YETKİ kararı değil, bildirim hedefi — makam sorusu olduğu için
+                // ClubRole'de kaldı. Kapasiteye çevirmek "duyuru yetkisi olan herkese haber ver"
+                // demek olurdu; kastedilen o değil.
                 .GetListAsync(m => m.ClubId == @event.ClubId && m.AcademicTermId == term.Id && (m.ClubRole == ClubRole.Officer || m.ClubRole == ClubRole.President))
                 .ConfigureAwait(false))
             .Select(m => m.StudentId)

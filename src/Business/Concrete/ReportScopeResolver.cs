@@ -56,9 +56,13 @@ public sealed class ReportScopeResolver(
         {
             var officerMemberships = await clubMembershipRepository
                 .GetListAsync(
+                    // A-68: EF Core enum bayrak testini SQL'e çevirir — (Capabilities & 32) = 32.
+                    // HasFlag burada KULLANILAMAZ: sorgu ifadesi içinde çevrilemez, bellekte
+                    // değerlendirilir ve tüm tabloyu çeker. Diğer beş kapı bellekte çalıştığı
+                    // için orada HasFlag serbest.
                     m => m.StudentId == student.Id
                         && m.AcademicTermId == term.Id
-                        && (m.ClubRole == ClubRole.Officer || m.ClubRole == ClubRole.President),
+                        && (m.Capabilities & ClubCapability.ReportsView) == ClubCapability.ReportsView,
                     cancellationToken)
                 .ConfigureAwait(false);
 

@@ -452,10 +452,14 @@ public sealed class ClubApplicationManager(
                     await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
                     // O-20: onayla doğan kulüp de varsayılan unvan setini alır (ClubManager.CreateAsync ile aynı).
-                    foreach (var (roleName, role, displayOrder) in DefaultClubRoles.All)
+                    foreach (var (roleName, role, capabilities, displayOrder) in DefaultClubRoles.All)
                     {
                         await clubRoleDefinitionRepository.AddAsync(
-                            new ClubRoleDefinition { ClubId = club.Id, Name = roleName, ClubRole = role, DisplayOrder = displayOrder },
+                            new ClubRoleDefinition
+                            {
+                                ClubId = club.Id, Name = roleName, ClubRole = role,
+                                Capabilities = capabilities, DisplayOrder = displayOrder,
+                            },
                             cancellationToken).ConfigureAwait(false);
                     }
 
@@ -465,6 +469,8 @@ public sealed class ClubApplicationManager(
                         StudentId = application.StudentId,
                         AcademicTermId = application.AcademicTermId,
                         ClubRole = ClubRole.President,
+                        // A-68: kapasite makamla birlikte yazılır, yoksa yeni başkan hiçbir şey yapamaz.
+                        Capabilities = ClubCapabilityDefaults.ForRole(ClubRole.President),
                         JoinedAtUtc = now,
                     };
                     await clubMembershipRepository.AddAsync(membership, cancellationToken).ConfigureAwait(false);

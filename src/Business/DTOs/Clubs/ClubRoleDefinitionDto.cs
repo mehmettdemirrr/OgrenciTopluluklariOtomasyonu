@@ -13,7 +13,11 @@ public sealed class ClubRoleDefinitionDto
 
     public required string Name { get; set; }
 
+    /// <summary>docs/MIMARI.md · A-68: makam. A-39 ve dönem devri kullanır; yetki vermez.</summary>
     public ClubRole ClubRole { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-68: bu unvanın kulüp içinde yapabilecekleri.</summary>
+    public ClubCapability Capabilities { get; set; }
 
     public int DisplayOrder { get; set; }
 }

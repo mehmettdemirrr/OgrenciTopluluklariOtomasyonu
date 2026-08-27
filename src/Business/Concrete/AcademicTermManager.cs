@@ -211,6 +211,11 @@ public sealed class AcademicTermManager(
                     StudentId = membership.StudentId,
                     AcademicTermId = targetTermId,
                     ClubRole = role,
+                    // A-68: kapasite `role`'den TÜRETİLİR, kaynak üyelikten kopyalanmaz. Kopyalasaydık
+                    // Officer'a düşürülen başkan MembersManage yetkisini taşımaya devam ederdi.
+                    // Unvanı (ClubRoleDefinitionId) devretmiyoruz: tanım kulübe özel ve dönemsiz,
+                    // ama devir kararı makam üzerinden veriliyor — ikisini karıştırmak yanlış olurdu.
+                    Capabilities = ClubCapabilityDefaults.ForRole(role),
                     JoinedAtUtc = now,
                 },
                 cancellationToken).ConfigureAwait(false);

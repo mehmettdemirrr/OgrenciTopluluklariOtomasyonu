@@ -186,7 +186,10 @@ public sealed class EventApprovalFlowTests : IClassFixture<CustomWebApplicationF
 
         db.ClubMemberships.Add(new ClubMembership
         {
-            ClubId = club.Id, StudentId = officerStudent.Id, AcademicTermId = term.Id, ClubRole = ClubRole.Officer, JoinedAtUtc = DateTime.UtcNow,
+            ClubId = club.Id, StudentId = officerStudent.Id, AcademicTermId = term.Id,
+            ClubRole = ClubRole.Officer,
+            Capabilities = ClubCapabilityDefaults.ForRole(ClubRole.Officer),
+            JoinedAtUtc = DateTime.UtcNow,
         });
         await db.SaveChangesAsync();
 

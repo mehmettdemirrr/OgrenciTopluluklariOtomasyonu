@@ -372,6 +372,44 @@ public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFa
         Assert.Equal(2, await db.ClubRoleDefinitions.CountAsync(d => d.Name == name));
     }
 
+    [Fact(DisplayName = "A-68: varsayılan kapasite eşlemesi Faz 34 öncesi davranışı birebir korur")]
+    public async Task Migration_BackfillsCapabilitiesFromClubRole()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var (club, student, term) = await SeedClubStudentTermAsync(db, "cap-backfill");
+
+        Assert.Equal(ClubCapability.None, ClubCapabilityDefaults.ForRole(ClubRole.Member));
+
+        Assert.Equal(
+            ClubCapability.MembersView | ClubCapability.EventsManage | ClubCapability.EventParticipantsView
+                | ClubCapability.AnnouncementsManage | ClubCapability.ReportsView,
+            ClubCapabilityDefaults.ForRole(ClubRole.Officer));
+
+        // Başkan = Officer + üye yönetimi. Bugünkü EnsureRoleManagementAccessAsync yalnızca
+        // President'i geçiriyor — eşleme bunu birebir korumalı.
+        Assert.Equal(
+            ClubCapabilityDefaults.ForRole(ClubRole.Officer) | ClubCapability.MembersManage,
+            ClubCapabilityDefaults.ForRole(ClubRole.President));
+
+        db.ClubMemberships.Add(new ClubMembership
+        {
+            ClubId = club.Id, StudentId = student.Id, AcademicTermId = term.Id,
+            ClubRole = ClubRole.Officer,
+            Capabilities = ClubCapabilityDefaults.ForRole(ClubRole.Officer),
+            JoinedAtUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var reloaded = await db.ClubMemberships.AsNoTracking()
+            .SingleAsync(m => m.ClubId == club.Id && m.StudentId == student.Id && m.AcademicTermId == term.Id);
+
+        // Kapasite tek int kolonda round-trip etmeli (bayrak kümesi bozulmadan).
+        Assert.True(reloaded.Capabilities.HasFlag(ClubCapability.EventsManage));
+        Assert.False(reloaded.Capabilities.HasFlag(ClubCapability.MembersManage));
+    }
+
     [Fact(DisplayName = "A-61: ClubMembership hem yetki seviyesini hem unvanı taşır; unvan nullable")]
     public async Task ClubMembership_CarriesBothRoleAndDefinition()
     {

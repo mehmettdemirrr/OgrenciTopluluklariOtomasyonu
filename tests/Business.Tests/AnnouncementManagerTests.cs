@@ -124,7 +124,13 @@ public class AnnouncementManagerTests
         _studentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Student { Id = 5, ApplicationUserId = 200, StudentNumber = "S1", DepartmentId = 1, EnrollmentYear = 2026 });
         _clubMembershipRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ClubMembership { Id = 1, ClubId = 1, StudentId = 5, AcademicTermId = 1, ClubRole = ClubRole.President, JoinedAtUtc = FixedNow });
+            .ReturnsAsync(new ClubMembership
+            {
+                Id = 1, ClubId = 1, StudentId = 5, AcademicTermId = 1,
+                ClubRole = ClubRole.President,
+                Capabilities = ClubCapabilityDefaults.ForRole(ClubRole.President),
+                JoinedAtUtc = FixedNow,
+            });
 
         var result = await _sut.DeleteAsync(1);
 

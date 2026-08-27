@@ -4,6 +4,8 @@ import { z } from 'zod'
 export const clubRoleDefinitionFormSchema = z.object({
   name: z.string().min(1, 'Unvan adı gerekli.').max(100),
   clubRole: z.enum(['Member', 'Officer', 'President']),
+  // A-68: bit maskesi. Tanımsız bit gönderilirse API 400 döner (Y-69) — sınır kontrolü orada.
+  capabilities: z.number().int().min(0),
   displayOrder: z.number().int().min(0),
 })
 
@@ -12,5 +14,6 @@ export type ClubRoleDefinitionFormValues = z.infer<typeof clubRoleDefinitionForm
 export const emptyClubRoleDefinitionFormValues: ClubRoleDefinitionFormValues = {
   name: '',
   clubRole: 'Member',
+  capabilities: 0,
   displayOrder: 0,
 }

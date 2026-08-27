@@ -147,6 +147,8 @@ public sealed class ClubMemberManager(
         // ClubRole yok sayılır. İki alan asla ayrışmaz; yetki kararı yine ClubRole'den okunacak.
         var targetRole = request.ClubRole;
         int? targetDefinitionId = null;
+        // A-68: unvansız atamada kapasite makamdan türetilir — Faz 34 öncesi davranış.
+        var targetCapabilities = ClubCapabilityDefaults.ForRole(request.ClubRole);
 
         if (request.ClubRoleDefinitionId is { } definitionId)
         {
@@ -161,6 +163,7 @@ public sealed class ClubMemberManager(
 
             targetRole = definition.ClubRole;
             targetDefinitionId = definition.Id;
+            targetCapabilities = definition.Capabilities;
         }
 
         // A-39: kendi başkanlık rolünü kendi kendine kaldıramaz/değiştiremez — CannotRemoveOwnAdminRole
@@ -185,6 +188,7 @@ public sealed class ClubMemberManager(
 
         membership.ClubRole = targetRole;
         membership.ClubRoleDefinitionId = targetDefinitionId;
+        membership.Capabilities = targetCapabilities;
         clubMembershipRepository.Update(membership);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -336,7 +340,11 @@ public sealed class ClubMemberManager(
 
         var definition = new ClubRoleDefinition
         {
-            ClubId = clubId, Name = name, ClubRole = request.ClubRole, DisplayOrder = request.DisplayOrder,
+            ClubId = clubId,
+            Name = name,
+            ClubRole = request.ClubRole,
+            Capabilities = request.Capabilities,
+            DisplayOrder = request.DisplayOrder,
         };
 
         await clubRoleDefinitionRepository.AddAsync(definition, cancellationToken).ConfigureAwait(false);
@@ -377,18 +385,20 @@ public sealed class ClubMemberManager(
             return Result.Conflict(Messages.ClubRoleDefinitionNameTaken);
         }
 
-        var levelChanged = definition.ClubRole != request.ClubRole;
+        var roleChanged = definition.ClubRole != request.ClubRole;
+        var capabilitiesChanged = definition.Capabilities != request.Capabilities;
 
-        // O-27: seviye değişikliği bu unvanı taşıyan TÜM üyeliklere yayılır — iki alan asla ayrışmaz.
+        // O-27: makam VEYA kapasite değiştiyse taşıyıcıları topla — ikisi de üyeliğe yansır.
+        // Yalnızca makama bakmak, "kapasiteyi kıstım ama üye hâlâ yapabiliyor" hatasını üretirdi.
         List<ClubMembership> holders = [];
-        if (levelChanged)
+        if (roleChanged || capabilitiesChanged)
         {
             holders = await clubMembershipRepository
                 .GetListAsync(m => m.ClubRoleDefinitionId == definitionId, cancellationToken)
                 .ConfigureAwait(false);
 
-            // A-39: bir kulüpte tek başkan. Filtreli unique index de yakalar ama sebebi söylemez.
-            if (request.ClubRole == ClubRole.President && holders.Count > 1)
+            // A-39: bir kulüpte tek başkan makamı. Filtreli unique index de yakalar ama sebebi söylemez.
+            if (roleChanged && request.ClubRole == ClubRole.President && holders.Count > 1)
             {
                 return Result.Conflict(Messages.ClubRoleDefinitionWouldCreateSecondPresident);
             }
@@ -396,12 +406,14 @@ public sealed class ClubMemberManager(
 
         definition.Name = name;
         definition.ClubRole = request.ClubRole;
+        definition.Capabilities = request.Capabilities;
         definition.DisplayOrder = request.DisplayOrder;
         clubRoleDefinitionRepository.Update(definition);
 
         foreach (var membership in holders)
         {
             membership.ClubRole = request.ClubRole;
+            membership.Capabilities = request.Capabilities;
             clubMembershipRepository.Update(membership);
         }
 
@@ -450,7 +462,7 @@ public sealed class ClubMemberManager(
 
     private static ClubRoleDefinitionDto ToRoleDefinitionDto(ClubRoleDefinition d) => new()
     {
-        Id = d.Id, Name = d.Name, ClubRole = d.ClubRole, DisplayOrder = d.DisplayOrder,
+        Id = d.Id, Name = d.Name, ClubRole = d.ClubRole, Capabilities = d.Capabilities, DisplayOrder = d.DisplayOrder,
     };
 
     /// <summary>Y-10: unvan adları tek toplu sorguyla — üyelik başına sorgu N+1 üretirdi.</summary>
@@ -506,7 +518,8 @@ public sealed class ClubMemberManager(
             .GetAsync(m => m.ClubId == club.Id && m.StudentId == student.Id && m.AcademicTermId == term.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        return membership is not null && membership.ClubRole is ClubRole.Officer or ClubRole.President
+        // A-68: karar kapasiteden. Y-75: uçtaki [SecuredOperation(memberships.read)] birinci kapı.
+        return membership is not null && membership.Capabilities.HasFlag(ClubCapability.MembersView)
             ? null
             : Messages.NotClubAdvisorOrOfficer;
     }
@@ -548,7 +561,9 @@ public sealed class ClubMemberManager(
             .GetAsync(m => m.ClubId == club.Id && m.StudentId == student.Id && m.AcademicTermId == term.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        return membership is not null && membership.ClubRole == ClubRole.President
+        // A-68: karar kapasiteden. Bu, Faz 34'te "yalnızca President" olan kapıydı —
+        // MembersManage varsayılan olarak yalnızca President makamına verilir (ClubCapabilityDefaults).
+        return membership is not null && membership.Capabilities.HasFlag(ClubCapability.MembersManage)
             ? null
             : Messages.NotClubAdvisorOrPresident;
     }

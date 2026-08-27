@@ -277,7 +277,8 @@ public sealed class EventParticipationManager(
             .GetAsync(m => m.ClubId == club.Id && m.StudentId == student.Id && m.AcademicTermId == term.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        return membership is not null && membership.ClubRole is ClubRole.Officer or ClubRole.President
+        // A-68: karar kapasiteden. Y-75: uçtaki [SecuredOperation] birinci kapı olarak yerinde.
+        return membership is not null && membership.Capabilities.HasFlag(ClubCapability.EventParticipantsView)
             ? null
             : Messages.NotClubAdvisorOrOfficer;
     }
