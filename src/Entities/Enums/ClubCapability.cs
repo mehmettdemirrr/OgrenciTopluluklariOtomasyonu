@@ -9,6 +9,15 @@ namespace Entities.Enums;
 /// VERMEZ — uçtaki [SecuredOperation] birinci kapı olarak yerinde kalır, bu ikinci kapıdır.
 ///
 /// <b>Y-06:</b> sayısal değerler sabittir — veritabanında int olarak saklanır.
+///
+/// <b>Tel biçimi SAYIDIR</b> ve bunu <c>Program.cs</c> kuruyor — oradaki dönüştürücü sırasına
+/// bakmadan bu dosyayı değiştirme. Gerekçe: global <c>JsonStringEnumConverter</c> bir [Flags]
+/// enum'ı <c>"EventsManage, AnnouncementsManage"</c> diye VİRGÜLLÜ METNE çevirir; arayüz bit
+/// maskesiyle çalıştığı için (<c>capabilities &amp; value</c>) metin gelince <c>NaN</c> üretir ve
+/// her kutucuk boş görünür. Tip üzerindeki [JsonConverter] özniteliği burada İŞE YARAMAZ:
+/// System.Text.Json önceliği property özniteliği → options.Converters → tip özniteliği şeklindedir,
+/// yani koleksiyondaki dönüştürücü tipinkini ezer.
+/// Regresyon: <c>RoleDefinitions_CapabilitiesTravelAsNumber</c>.
 /// </summary>
 [Flags]
 public enum ClubCapability

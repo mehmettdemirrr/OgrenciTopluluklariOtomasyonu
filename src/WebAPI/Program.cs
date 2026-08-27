@@ -9,6 +9,7 @@ using Business.BackgroundJobs;
 using Business.DependencyResolvers;
 using Core.DataAccess;
 using Core.Utilities.Security;
+using Entities.Enums;
 using Hangfire;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -55,7 +56,18 @@ builder.Host.UseSerilog((context, _, loggerConfiguration) =>
 
 // Sessiz onay: enum'lar API'de metin olarak taşınır (DB'de int kalır).
 builder.Services.AddControllers()
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(options =>
+    {
+        // A-68 · SIRA ÖNEMLİ: dönüştürücüler eklendikleri sırada denenir, ilk eşleşen kazanır.
+        // ClubCapability bir [Flags] enum'ı; JsonStringEnumConverter onu
+        // "EventsManage, AnnouncementsManage" diye VİRGÜLLÜ METNE çevirir. Arayüz bit maskesiyle
+        // çalıştığı için (capabilities & value) metin gelince NaN üretir ve her yetki kutucuğu boş
+        // görünür. Bu satır JsonStringEnumConverter'dan ÖNCE gelmek zorunda.
+        // Tip üzerine [JsonConverter] koymak çözmez: options.Converters tip özniteliğini ezer.
+        // Regresyon: RoleDefinitions_CapabilitiesTravelAsNumber.
+        options.JsonSerializerOptions.Converters.Add(new JsonNumberEnumConverter<ClubCapability>());
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

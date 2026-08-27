@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using DataAccess;
 using Entities;
 using Entities.Enums;
@@ -129,6 +130,40 @@ public sealed class ClubMemberManagementTests : IClassFixture<CustomWebApplicati
             HttpMethod.Get, $"/api/clubs/{otherScenario.Club.Id}/role-definitions", otherAdvisorToken);
         Assert.Equal(HttpStatusCode.OK, otherListResponse.StatusCode);
         Assert.DoesNotContain(name, await otherListResponse.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "A-68: kapasite tel üzerinde SAYI olarak taşınır — arayüz bit maskesiyle çalışıyor")]
+    public async Task RoleDefinitions_CapabilitiesTravelAsNumber()
+    {
+        var scenario = await SeedScenarioAsync("cap-wire");
+        var advisorToken = await LoginAndGetAccessTokenAsync(scenario.AdvisorEmail, scenario.AdvisorPassword);
+
+        var name = $"Kapasite {Guid.NewGuid():N}"[..20];
+        // 20 = EventsManage (4) | AnnouncementsManage (16)
+        var createResponse = await SendWithBearerAsync(
+            HttpMethod.Post, $"/api/clubs/{scenario.Club.Id}/role-definitions", advisorToken,
+            new { Name = name, ClubRole = "Officer", Capabilities = 20, DisplayOrder = 6 });
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+        var listResponse = await SendWithBearerAsync(HttpMethod.Get, $"/api/clubs/{scenario.Club.Id}/role-definitions", advisorToken);
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+
+        var body = await listResponse.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(body);
+
+        var created = document.RootElement.EnumerateArray()
+            .Single(e => e.GetProperty("name").GetString() == name);
+
+        var capabilities = created.GetProperty("capabilities");
+
+        // JsonStringEnumConverter bir [Flags] enum'ı "EventsManage, AnnouncementsManage" diye
+        // VİRGÜLLÜ METNE çevirir. Arayüz bit maskesi bekliyor: string & number → NaN → her
+        // kutucuk boş görünür. Sözleşme sayıdır.
+        Assert.True(
+            capabilities.ValueKind == JsonValueKind.Number,
+            $"capabilities sayı olarak taşınmalı, gelen: {capabilities.ValueKind} ({capabilities})");
+
+        Assert.Equal(20, capabilities.GetInt32());
     }
 
     [Fact(DisplayName = "Y-23: bu kulüpte başkan olmayan biri rol tanımı oluşturamaz — 403")]

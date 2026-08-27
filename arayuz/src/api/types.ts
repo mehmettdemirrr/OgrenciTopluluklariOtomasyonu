@@ -40,8 +40,10 @@ export interface ClubCategoryListItemDto {
 // src/Entities/Enums/ClubRole.cs (JsonStringEnumConverter ile metin olarak taşınır)
 export type ClubRole = 'Member' | 'Officer' | 'President'
 
-// src/Entities/Enums/ClubCapability.cs — [Flags] enum SAYI olarak taşınır (metin değil):
-// JsonStringEnumConverter bileşik bayrak değerlerini metne çeviremez.
+// src/Entities/Enums/ClubCapability.cs — [Flags] enum SAYI olarak taşınır (diğer enum'lar metin).
+// Bunu Program.cs'teki JsonNumberEnumConverter<ClubCapability> sağlıyor ve o satır
+// JsonStringEnumConverter'dan ÖNCE gelmek zorunda. Aksi hâlde "EventsManage, AnnouncementsManage"
+// gibi virgüllü metin gelir, aşağıdaki bit maskesi NaN üretir ve her yetki boş görünür.
 export const ClubCapability = {
   None: 0,
   MembersView: 1,
