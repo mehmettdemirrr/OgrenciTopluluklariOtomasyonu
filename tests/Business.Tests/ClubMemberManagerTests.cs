@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Business.Concrete;
 using Business.DTOs.Clubs;
 using Core.DataAccess;
+using Core.Utilities.Results;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
 using DataAccess.Seed;
@@ -22,6 +23,10 @@ public class ClubMemberManagerTests
 
     private readonly Mock<IEntityRepository<Club>> _clubRepository = new();
     private readonly Mock<IEntityRepository<ClubMembership>> _clubMembershipRepository = new();
+
+    // Faz 34 (K-36): unvan kataloğu.
+    private readonly Mock<IEntityRepository<ClubRoleDefinition>> _clubRoleDefinitionRepository = new();
+
     private readonly Mock<IEntityRepository<Student>> _studentRepository = new();
     private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
     private readonly Mock<IEntityRepository<AcademicTerm>> _academicTermRepository = new();
@@ -44,6 +49,7 @@ public class ClubMemberManagerTests
         _sut = new ClubMemberManager(
             _clubRepository.Object,
             _clubMembershipRepository.Object,
+            _clubRoleDefinitionRepository.Object,
             _studentRepository.Object,
             _academicStaffRepository.Object,
             _academicTermRepository.Object,
@@ -228,4 +234,140 @@ public class ClubMemberManagerTests
         Assert.Empty(result.Data!);
         _clubMembershipRepository.Verify(r => r.GetListAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact(DisplayName = "A-61/Y-22: unvan atanınca ClubRole TANIMDAN gelir, istemcinin gönderdiği değer yok sayılır")]
+    public async Task SetRoleAsync_WithDefinition_TakesRoleFromDefinitionNotRequest()
+    {
+        var membership = new ClubMembership
+        {
+            Id = 5, ClubId = 1, StudentId = 9, AcademicTermId = 1, ClubRole = ClubRole.Member, JoinedAtUtc = FixedNow,
+        };
+        _clubMembershipRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(membership);
+        _clubRoleDefinitionRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubRoleDefinition, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubRoleDefinition { Id = 3, ClubId = 1, Name = "Sayman", ClubRole = ClubRole.Officer, DisplayOrder = 3 });
+
+        GrantAdminScope();
+
+        // İstemci "Member" diyor ama tanım "Officer" — tanım kazanmalı.
+        var result = await _sut.SetRoleAsync(1, 5, new SetClubRoleRequestDto
+        {
+            ClubRole = ClubRole.Member,
+            ClubRoleDefinitionId = 3,
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClubRole.Officer, membership.ClubRole);
+        Assert.Equal(3, membership.ClubRoleDefinitionId);
+    }
+
+    [Fact(DisplayName = "A-61: unvansız atama bugünkü davranışı sürdürür — ClubRole istekten gelir, unvan null olur")]
+    public async Task SetRoleAsync_WithoutDefinition_KeepsLegacyBehaviour()
+    {
+        var membership = new ClubMembership
+        {
+            Id = 5, ClubId = 1, StudentId = 9, AcademicTermId = 1, ClubRole = ClubRole.Member,
+            ClubRoleDefinitionId = 7, JoinedAtUtc = FixedNow,
+        };
+        _clubMembershipRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(membership);
+
+        GrantAdminScope();
+
+        var result = await _sut.SetRoleAsync(1, 5, new SetClubRoleRequestDto { ClubRole = ClubRole.Officer });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClubRole.Officer, membership.ClubRole);
+        Assert.Null(membership.ClubRoleDefinitionId);
+    }
+
+    [Fact(DisplayName = "O-20: başka kulübün unvanı atanamaz — 404")]
+    public async Task SetRoleAsync_DefinitionFromAnotherClub_ReturnsNotFound()
+    {
+        _clubMembershipRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubMembership { Id = 5, ClubId = 1, StudentId = 9, AcademicTermId = 1, ClubRole = ClubRole.Member, JoinedAtUtc = FixedNow });
+
+        // Predicate GERÇEKTEN çalıştırılır: tanım ClubId = 2, istek ClubId = 1 → eşleşme yok.
+        _clubRoleDefinitionRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubRoleDefinition, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<ClubRoleDefinition, bool>> filter, CancellationToken _) =>
+                new[] { new ClubRoleDefinition { Id = 3, ClubId = 2, Name = "Sayman", ClubRole = ClubRole.Officer, DisplayOrder = 3 } }
+                    .AsQueryable().Where(filter).FirstOrDefault());
+
+        GrantAdminScope();
+
+        var result = await _sut.SetRoleAsync(1, 5, new SetClubRoleRequestDto { ClubRoleDefinitionId = 3 });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
+    }
+
+    [Fact(DisplayName = "O-27: tanımın seviyesi değişince o unvanı taşıyan TÜM üyeliklerin ClubRole'ü de değişir")]
+    public async Task UpdateRoleDefinitionAsync_LevelChange_CascadesToMemberships()
+    {
+        var definition = new ClubRoleDefinition { Id = 3, ClubId = 1, Name = "Sayman", ClubRole = ClubRole.Member, DisplayOrder = 3 };
+        var holders = new List<ClubMembership>
+        {
+            new() { Id = 11, ClubId = 1, StudentId = 21, AcademicTermId = 1, ClubRole = ClubRole.Member, ClubRoleDefinitionId = 3, JoinedAtUtc = FixedNow },
+            new() { Id = 12, ClubId = 1, StudentId = 22, AcademicTermId = 1, ClubRole = ClubRole.Member, ClubRoleDefinitionId = 3, JoinedAtUtc = FixedNow },
+        };
+
+        // Ad çakışması sorgusu da aynı kurulumu görüyor; yalnızca Id eşleşmesi olan çağrı tanımı bulmalı.
+        _clubRoleDefinitionRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubRoleDefinition, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<ClubRoleDefinition, bool>> filter, CancellationToken _) =>
+                new[] { definition }.AsQueryable().Where(filter).FirstOrDefault());
+        _clubMembershipRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(holders);
+
+        GrantAdminScope();
+
+        var result = await _sut.UpdateRoleDefinitionAsync(1, 3, new UpdateClubRoleDefinitionRequestDto
+        {
+            Name = "Sayman", ClubRole = ClubRole.Officer, DisplayOrder = 3,
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClubRole.Officer, definition.ClubRole);
+        Assert.All(holders, m => Assert.Equal(ClubRole.Officer, m.ClubRole));
+    }
+
+    [Fact(DisplayName = "O-27/A-39: iki üyenin taşıdığı unvan Başkan seviyesine yükseltilemez — 409")]
+    public async Task UpdateRoleDefinitionAsync_WouldCreateSecondPresident_ReturnsConflict()
+    {
+        var definition = new ClubRoleDefinition { Id = 3, ClubId = 1, Name = "Sayman", ClubRole = ClubRole.Officer, DisplayOrder = 3 };
+        var holders = new List<ClubMembership>
+        {
+            new() { Id = 11, ClubId = 1, StudentId = 21, AcademicTermId = 1, ClubRole = ClubRole.Officer, ClubRoleDefinitionId = 3, JoinedAtUtc = FixedNow },
+            new() { Id = 12, ClubId = 1, StudentId = 22, AcademicTermId = 1, ClubRole = ClubRole.Officer, ClubRoleDefinitionId = 3, JoinedAtUtc = FixedNow },
+        };
+
+        _clubRoleDefinitionRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubRoleDefinition, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<ClubRoleDefinition, bool>> filter, CancellationToken _) =>
+                new[] { definition }.AsQueryable().Where(filter).FirstOrDefault());
+        _clubMembershipRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(holders);
+
+        GrantAdminScope();
+
+        var result = await _sut.UpdateRoleDefinitionAsync(1, 3, new UpdateClubRoleDefinitionRequestDto
+        {
+            Name = "Sayman", ClubRole = ClubRole.President, DisplayOrder = 3,
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Conflict, result.Status);
+        Assert.Equal(ClubRole.Officer, definition.ClubRole);
+    }
+
+    /// <summary>Y-66: yönetici yolu — kapsam metotlarının ilk satırı. Bu testler kapsamı değil atamayı sınıyor.</summary>
+    private void GrantAdminScope() =>
+        _currentUser.Setup(c => c.Permissions).Returns([IdentitySeedData.Permissions.ClubsManageAll]);
 }

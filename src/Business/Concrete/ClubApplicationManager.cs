@@ -25,6 +25,7 @@ public sealed class ClubApplicationManager(
     IEntityRepository<AcademicStaff> academicStaffRepository,
     IEntityRepository<ClubCategory> clubCategoryRepository,
     IEntityRepository<AcademicTerm> academicTermRepository,
+    IEntityRepository<ClubRoleDefinition> clubRoleDefinitionRepository,
     IEntityRepository<ClubDocumentType> clubDocumentTypeRepository,
     IEntityRepository<ClubApplicationDocument> clubApplicationDocumentRepository,
     IEntityRepository<StoredFile> storedFileRepository,
@@ -449,6 +450,14 @@ public sealed class ClubApplicationManager(
                     // standart çözümü (bkz. FileManager.StoreFileAsync → UploadClubLogoAsync).
                     await clubRepository.AddAsync(club, cancellationToken).ConfigureAwait(false);
                     await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+                    // O-20: onayla doğan kulüp de varsayılan unvan setini alır (ClubManager.CreateAsync ile aynı).
+                    foreach (var (roleName, role, displayOrder) in DefaultClubRoles.All)
+                    {
+                        await clubRoleDefinitionRepository.AddAsync(
+                            new ClubRoleDefinition { ClubId = club.Id, Name = roleName, ClubRole = role, DisplayOrder = displayOrder },
+                            cancellationToken).ConfigureAwait(false);
+                    }
 
                     var membership = new ClubMembership
                     {

@@ -19,6 +19,13 @@ public sealed class ClubMembership : IEntity, ISoftDeletable
 
     public ClubRole ClubRole { get; set; }
 
+    /// <summary>
+    /// docs/MIMARI.md · K-36/A-61: görünen unvan. Null = unvansız (yalnızca yetki seviyesi).
+    /// <b>Yetki kararı bu alandan OKUNMAZ</b> — <see cref="ClubRole"/> yetkinin tek kaynağı olarak kalır.
+    /// İkisi asla ayrışmaz: atama ve seviye değişikliği ikisini birlikte yazar (O-27).
+    /// </summary>
+    public int? ClubRoleDefinitionId { get; set; }
+
     public DateTime JoinedAtUtc { get; set; }
 
     public bool IsDeleted { get; set; }

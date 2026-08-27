@@ -1,4 +1,5 @@
 using Business.DTOs.Clubs;
+using Business.ValidationRules;
 using Core.Aspects.Autofac;
 using Core.DataAccess;
 using Core.Utilities.Results;
@@ -36,4 +37,29 @@ public interface IClubMemberService
     /// </summary>
     [TransactionAspect]
     Task<IResult> LeaveAsync(int clubId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · K-36/O-20: kulübün rol tanımları. Küçük ve kulübe özel — sayfalanmaz.
+    /// Kapsam kararı mevcut <c>EnsureMemberViewAccessAsync</c>'ten, DEĞİŞTİRİLMEDEN gelir.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.MembershipsRead)]
+    Task<IDataResult<IReadOnlyList<ClubRoleDefinitionDto>>> GetRoleDefinitionsAsync(
+        int clubId, CancellationToken cancellationToken = default);
+
+    [SecuredOperation(IdentitySeedData.Permissions.MembershipsWrite)]
+    [ValidationAspect(typeof(CreateClubRoleDefinitionRequestValidator))]
+    [TransactionAspect]
+    Task<IDataResult<ClubRoleDefinitionDto>> CreateRoleDefinitionAsync(
+        int clubId, CreateClubRoleDefinitionRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>docs/PLAN-V6.md · O-27: seviye değişikliği üyeliklere yayılır; ikinci başkan üretecekse 409.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.MembershipsWrite)]
+    [ValidationAspect(typeof(UpdateClubRoleDefinitionRequestValidator))]
+    [TransactionAspect]
+    Task<IResult> UpdateRoleDefinitionAsync(
+        int clubId, int definitionId, UpdateClubRoleDefinitionRequestDto request, CancellationToken cancellationToken = default);
+
+    [SecuredOperation(IdentitySeedData.Permissions.MembershipsWrite)]
+    [TransactionAspect]
+    Task<IResult> DeleteRoleDefinitionAsync(int clubId, int definitionId, CancellationToken cancellationToken = default);
 }

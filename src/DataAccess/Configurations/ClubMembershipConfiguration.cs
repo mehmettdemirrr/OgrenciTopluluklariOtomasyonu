@@ -29,6 +29,12 @@ public sealed class ClubMembershipConfiguration : IEntityTypeConfiguration<ClubM
             .HasForeignKey(m => m.AcademicTermId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // A-61: kullanımdaki unvan silinemesin — Restrict, Business'ta 409'a dönüşür.
+        builder.HasOne<ClubRoleDefinition>()
+            .WithMany()
+            .HasForeignKey(m => m.ClubRoleDefinitionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // A-15/Y-18: aynı öğrenci, aynı kulüp, aynı dönemde yalnızca bir aktif üyelik.
         builder.HasIndex(m => new { m.ClubId, m.StudentId, m.AcademicTermId })
             .IsUnique()

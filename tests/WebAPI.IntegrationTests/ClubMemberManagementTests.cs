@@ -106,6 +106,84 @@ public sealed class ClubMemberManagementTests : IClassFixture<CustomWebApplicati
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact(DisplayName = "O-20: danışman kendi kulübüne rol tanımı ekler; tanım o kulübün listesinde görünür, başka kulüpte görünmez")]
+    public async Task RoleDefinitions_ScopedToClub()
+    {
+        var scenario = await SeedScenarioAsync("roledefs");
+        var otherScenario = await SeedScenarioAsync("roledefs-other");
+        var advisorToken = await LoginAndGetAccessTokenAsync(scenario.AdvisorEmail, scenario.AdvisorPassword);
+
+        var name = $"Sosyal Medya {Guid.NewGuid():N}"[..24];
+        var createResponse = await SendWithBearerAsync(
+            HttpMethod.Post, $"/api/clubs/{scenario.Club.Id}/role-definitions", advisorToken,
+            new { Name = name, ClubRole = "Officer", DisplayOrder = 6 });
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+        var listResponse = await SendWithBearerAsync(HttpMethod.Get, $"/api/clubs/{scenario.Club.Id}/role-definitions", advisorToken);
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.Contains(name, await listResponse.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        // O-20: kapsam kulüptür — diğer kulübün danışmanı bu unvanı GÖREMEZ.
+        var otherAdvisorToken = await LoginAndGetAccessTokenAsync(otherScenario.AdvisorEmail, otherScenario.AdvisorPassword);
+        var otherListResponse = await SendWithBearerAsync(
+            HttpMethod.Get, $"/api/clubs/{otherScenario.Club.Id}/role-definitions", otherAdvisorToken);
+        Assert.Equal(HttpStatusCode.OK, otherListResponse.StatusCode);
+        Assert.DoesNotContain(name, await otherListResponse.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "Y-23: bu kulüpte başkan olmayan biri rol tanımı oluşturamaz — 403")]
+    public async Task CreateRoleDefinition_NotPresidentInThisClub_ReturnsForbidden()
+    {
+        var scenario = await SeedScenarioAsync("roledef-forbidden");
+        // memberships.write claim'i var ama BU kulüpte ClubRole hâlâ Member — Y-23.
+        var officerToken = await LoginAndGetAccessTokenAsync(scenario.OfficerEmail, scenario.OfficerPassword);
+
+        var response = await SendWithBearerAsync(
+            HttpMethod.Post, $"/api/clubs/{scenario.Club.Id}/role-definitions", officerToken,
+            new { Name = "Yetkisiz Unvan", ClubRole = "Officer", DisplayOrder = 9 });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "A-61: kullanımdaki unvan silinemez — 409; unvan atanınca yetki seviyesi tanımdan gelir")]
+    public async Task DeleteRoleDefinition_InUse_ReturnsConflict()
+    {
+        var scenario = await SeedScenarioAsync("roledef-inuse");
+        var advisorToken = await LoginAndGetAccessTokenAsync(scenario.AdvisorEmail, scenario.AdvisorPassword);
+
+        var name = $"Kullanimda {Guid.NewGuid():N}"[..22];
+        var createResponse = await SendWithBearerAsync(
+            HttpMethod.Post, $"/api/clubs/{scenario.Club.Id}/role-definitions", advisorToken,
+            new { Name = name, ClubRole = "Officer", DisplayOrder = 7 });
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+
+        int definitionId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            definitionId = (await db.ClubRoleDefinitions.SingleAsync(d => d.ClubId == scenario.Club.Id && d.Name == name)).Id;
+        }
+
+        // A-61/Y-22: istemci ClubRole GÖNDERMİYOR — sunucu tanımdan okumak zorunda.
+        var assignResponse = await SendWithBearerAsync(
+            HttpMethod.Put, $"/api/clubs/{scenario.Club.Id}/members/{scenario.MembershipId}/role", advisorToken,
+            new { ClubRoleDefinitionId = definitionId });
+        Assert.Equal(HttpStatusCode.OK, assignResponse.StatusCode);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var membership = await db.ClubMemberships.AsNoTracking().SingleAsync(m => m.Id == scenario.MembershipId);
+            Assert.Equal(ClubRole.Officer, membership.ClubRole);
+            Assert.Equal(definitionId, membership.ClubRoleDefinitionId);
+        }
+
+        var deleteResponse = await SendWithBearerAsync(
+            HttpMethod.Delete, $"/api/clubs/{scenario.Club.Id}/role-definitions/{definitionId}", advisorToken);
+
+        Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
+    }
+
     private async Task<int> AddPlainMemberAsync(int clubId, int termId, string suffix)
     {
         using var scope = _factory.Services.CreateScope();

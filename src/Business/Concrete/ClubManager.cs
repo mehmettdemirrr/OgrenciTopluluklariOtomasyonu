@@ -14,6 +14,7 @@ public sealed class ClubManager(
     IEntityRepository<Club> clubRepository,
     IEntityRepository<AcademicStaff> academicStaffRepository,
     IEntityRepository<ClubCategory> clubCategoryRepository,
+    IEntityRepository<ClubRoleDefinition> clubRoleDefinitionRepository,
     IEntityRepository<MembershipApplication> membershipApplicationRepository,
     IUnitOfWork unitOfWork,
     IClock clock,
@@ -129,6 +130,17 @@ public sealed class ClubManager(
         };
 
         await clubRepository.AddAsync(club, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        // O-20: yeni kulüp varsayılan unvan setiyle doğar — "Roller" sekmesi boş açılmasın.
+        // club.Id yukarıdaki SaveChanges'ten geliyor (düz int FK, navigation property yok).
+        foreach (var (roleName, role, displayOrder) in DefaultClubRoles.All)
+        {
+            await clubRoleDefinitionRepository.AddAsync(
+                new ClubRoleDefinition { ClubId = club.Id, Name = roleName, ClubRole = role, DisplayOrder = displayOrder },
+                cancellationToken).ConfigureAwait(false);
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return DataResult<int>.Success(club.Id, Messages.ClubCreated);

@@ -40,12 +40,23 @@ export interface ClubCategoryListItemDto {
 // src/Entities/Enums/ClubRole.cs (JsonStringEnumConverter ile metin olarak taşınır)
 export type ClubRole = 'Member' | 'Officer' | 'President'
 
+// src/Business/DTOs/Clubs/ClubRoleDefinitionDto.cs
+export interface ClubRoleDefinitionDto {
+  id: number
+  name: string
+  clubRole: ClubRole
+  displayOrder: number
+}
+
 // src/Business/DTOs/Clubs/ClubMemberListItemDto.cs
 export interface ClubMemberListItemDto {
   membershipId: number
   studentId: number
   studentNumber: string
   clubRole: ClubRole
+  clubRoleDefinitionId: number | null
+  /** Görünen unvan (K-36). Null ise arayüz yetki seviyesine düşer. */
+  clubRoleName: string | null
   joinedAtUtc: string
 }
 
@@ -292,6 +303,8 @@ export interface MyClubMembershipDto {
   clubName: string
   clubIsActive: boolean
   clubRole: ClubRole
+  /** Görünen unvan (K-36). Null ise arayüz yetki seviyesine düşer. */
+  clubRoleName: string | null
   joinedAtUtc: string
   /** Liste güncel döneme filtreli (PLAN-V4 §22.3). */
   academicTermName: string

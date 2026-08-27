@@ -30,6 +30,9 @@ public class ClubApplicationManagerTests
     private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
     private readonly Mock<IEntityRepository<AcademicTerm>> _academicTermRepository = new();
 
+    // Faz 34 (K-36): onayla doğan kulüp varsayılan unvan setini alır.
+    private readonly Mock<IEntityRepository<ClubRoleDefinition>> _clubRoleDefinitionRepository = new();
+
     // Faz 33 (K-37): kuruluş evrakları.
     private readonly Mock<IEntityRepository<ClubDocumentType>> _clubDocumentTypeRepository = new();
     private readonly Mock<IEntityRepository<ClubApplicationDocument>> _clubApplicationDocumentRepository = new();
@@ -58,6 +61,7 @@ public class ClubApplicationManagerTests
             _academicStaffRepository.Object,
             _clubCategoryRepository.Object,
             _academicTermRepository.Object,
+            _clubRoleDefinitionRepository.Object,
             _clubDocumentTypeRepository.Object,
             _clubApplicationDocumentRepository.Object,
             _storedFileRepository.Object,

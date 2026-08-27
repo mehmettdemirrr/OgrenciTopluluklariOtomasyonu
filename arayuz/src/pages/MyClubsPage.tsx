@@ -74,7 +74,15 @@ export function MyClubsPage() {
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {membership.clubName}
                     </Typography>
-                    <ClubRoleChip role={membership.clubRole} />
+                    {/* K-36: unvan varsa onu göster, yetki seviyesi rozeti yanında kalır. */}
+                    {membership.clubRoleName ? (
+                      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexShrink: 0 }}>
+                        <Chip size="small" label={membership.clubRoleName} />
+                        <ClubRoleChip role={membership.clubRole} />
+                      </Stack>
+                    ) : (
+                      <ClubRoleChip role={membership.clubRole} />
+                    )}
                   </Stack>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     {!membership.clubIsActive && <Chip size="small" label="Pasif" variant="outlined" />}

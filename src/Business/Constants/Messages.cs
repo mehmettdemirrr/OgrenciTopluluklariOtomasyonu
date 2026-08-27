@@ -200,4 +200,15 @@ public static class Messages
     public const string UnknownClubDocumentType = "Gönderilen evrak tiplerinden biri tanımlı değil.";
     public const string DuplicateClubDocumentUpload = "Aynı evrak tipi için birden fazla dosya gönderildi.";
     public const string ClubApplicationDocumentForbidden = "Bu evrağı görüntüleme yetkiniz yok.";
+
+    // Faz 34 — Dinamik topluluk içi roller (K-36, A-61, Y-69)
+    public const string ClubRoleDefinitionNotFound = "Rol tanımı bulunamadı.";
+    public const string ClubRoleDefinitionNameTaken = "Bu toplulukta bu isimde bir rol tanımı zaten var.";
+    public const string ClubRoleDefinitionCreated = "Rol tanımı eklendi.";
+    public const string ClubRoleDefinitionUpdated = "Rol tanımı güncellendi.";
+    public const string ClubRoleDefinitionDeleted = "Rol tanımı silindi.";
+    public const string ClubRoleDefinitionInUse = "Bu unvanı taşıyan üyeler var; önce onları başka bir unvana taşıyın.";
+
+    public const string ClubRoleDefinitionWouldCreateSecondPresident =
+        "Bu unvanı birden fazla üye taşıyor; Başkan seviyesine yükseltilemez (bir toplulukta tek başkan olur).";
 }

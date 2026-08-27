@@ -334,4 +334,67 @@ public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFa
         var reloaded = await db.Clubs.AsNoTracking().SingleAsync(c => c.Id == club.Id);
         Assert.Null(reloaded.ClubCategoryId);
     }
+
+    [Fact(DisplayName = "A-61: aynı kulüpte aynı adla ikinci rol tanımı DB seviyesinde reddedilir")]
+    public async Task ClubRoleDefinition_DuplicateNamePerClub_IsRejected()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var (club, _, _) = await SeedClubStudentTermAsync(db, "role-dup");
+
+        db.ClubRoleDefinitions.Add(new ClubRoleDefinition { ClubId = club.Id, Name = "Sayman", ClubRole = ClubRole.Officer, DisplayOrder = 1 });
+        await db.SaveChangesAsync();
+
+        db.ClubRoleDefinitions.Add(new ClubRoleDefinition { ClubId = club.Id, Name = "Sayman", ClubRole = ClubRole.Member, DisplayOrder = 2 });
+
+        await Assert.ThrowsAnyAsync<Exception>(() => db.SaveChangesAsync());
+    }
+
+    [Fact(DisplayName = "O-20: iki farklı kulüp aynı unvan adını kullanabilir (kapsam kulüptür)")]
+    public async Task ClubRoleDefinition_SameNameAcrossClubs_IsAllowed()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var (clubA, _, _) = await SeedClubStudentTermAsync(db, "role-a");
+        var (clubB, _, _) = await SeedClubStudentTermAsync(db, "role-b");
+
+        // Y-34: ad benzersiz olmalı, yoksa migration'ın geri doldurduğu "Sekreter" ile çakışır.
+        var name = $"Sekreter {Guid.NewGuid():N}"[..20];
+
+        db.ClubRoleDefinitions.AddRange(
+            new ClubRoleDefinition { ClubId = clubA.Id, Name = name, ClubRole = ClubRole.Officer, DisplayOrder = 1 },
+            new ClubRoleDefinition { ClubId = clubB.Id, Name = name, ClubRole = ClubRole.Officer, DisplayOrder = 1 });
+
+        await db.SaveChangesAsync();
+
+        Assert.Equal(2, await db.ClubRoleDefinitions.CountAsync(d => d.Name == name));
+    }
+
+    [Fact(DisplayName = "A-61: ClubMembership hem yetki seviyesini hem unvanı taşır; unvan nullable")]
+    public async Task ClubMembership_CarriesBothRoleAndDefinition()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var (club, student, term) = await SeedClubStudentTermAsync(db, "role-both");
+
+        var definition = new ClubRoleDefinition { ClubId = club.Id, Name = "Sayman", ClubRole = ClubRole.Officer, DisplayOrder = 1 };
+        db.ClubRoleDefinitions.Add(definition);
+        await db.SaveChangesAsync();
+
+        db.ClubMemberships.Add(new ClubMembership
+        {
+            ClubId = club.Id, StudentId = student.Id, AcademicTermId = term.Id,
+            ClubRole = ClubRole.Officer, ClubRoleDefinitionId = definition.Id, JoinedAtUtc = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var reloaded = await db.ClubMemberships.AsNoTracking()
+            .SingleAsync(m => m.ClubId == club.Id && m.StudentId == student.Id && m.AcademicTermId == term.Id);
+
+        Assert.Equal(ClubRole.Officer, reloaded.ClubRole);
+        Assert.Equal(definition.Id, reloaded.ClubRoleDefinitionId);
+    }
 }

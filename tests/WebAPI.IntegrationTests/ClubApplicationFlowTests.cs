@@ -528,6 +528,44 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
         Assert.Contains("FR-0230", body, StringComparison.Ordinal);
     }
 
+    [Fact(DisplayName = "O-20: onayla doğan kulüp beş varsayılan rol tanımıyla gelir")]
+    public async Task Approve_CreatesDefaultRoleDefinitions()
+    {
+        var proposedName = $"Varsayilan Rol {Guid.NewGuid():N}"[..30];
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+        Assert.Equal(HttpStatusCode.OK, (await SubmitWithAllDocumentsAsync(studentToken, proposedName)).StatusCode);
+
+        int applicationId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            applicationId = (await db.ClubApplications.SingleAsync(a => a.ProposedName == proposedName)).Id;
+        }
+
+        var adminToken = await LoginAsync(AdminEmail, AdminPassword);
+        var decision = await SendWithBearerAsync(
+            HttpMethod.Put, $"/api/club-applications/{applicationId}/decision", adminToken,
+            new { Status = "Approved", ReviewNote = (string?)null });
+        Assert.Equal(HttpStatusCode.OK, decision.StatusCode);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var application = await db.ClubApplications.SingleAsync(a => a.Id == applicationId);
+            Assert.NotNull(application.CreatedClubId);
+
+            var definitions = await db.ClubRoleDefinitions
+                .Where(d => d.ClubId == application.CreatedClubId!.Value)
+                .OrderBy(d => d.DisplayOrder)
+                .ToListAsync();
+
+            Assert.Equal(5, definitions.Count);
+            Assert.Equal("Başkan", definitions[0].Name);
+            Assert.Equal(ClubRole.President, definitions[0].ClubRole);
+        }
+    }
+
     [Fact(DisplayName = "A-62: aynı başvuruya aynı evrak tipi iki kez yüklenemez (bileşik unique index)")]
     public async Task ClubApplicationDocument_DuplicateTypePerApplication_IsRejected()
     {

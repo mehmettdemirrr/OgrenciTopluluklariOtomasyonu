@@ -14,6 +14,7 @@ namespace Business.Concrete;
 public sealed class ClubMemberManager(
     IEntityRepository<Club> clubRepository,
     IEntityRepository<ClubMembership> clubMembershipRepository,
+    IEntityRepository<ClubRoleDefinition> clubRoleDefinitionRepository,
     IEntityRepository<Student> studentRepository,
     IEntityRepository<AcademicStaff> academicStaffRepository,
     IEntityRepository<AcademicTerm> academicTermRepository,
@@ -54,6 +55,9 @@ public sealed class ClubMemberManager(
         var clubsById = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
             .ToDictionary(c => c.Id, c => c);
 
+        var definitionNames = await GetRoleDefinitionNamesAsync(
+            memberships.Select(m => m.ClubRoleDefinitionId), cancellationToken).ConfigureAwait(false);
+
         IReadOnlyCollection<MyClubMembershipDto> items = memberships
             .OrderByDescending(m => m.JoinedAtUtc)
             .Select(m =>
@@ -65,6 +69,7 @@ public sealed class ClubMemberManager(
                     ClubName = club?.Name ?? string.Empty,
                     ClubIsActive = club?.IsActive ?? false,
                     ClubRole = m.ClubRole,
+                    ClubRoleName = m.ClubRoleDefinitionId is { } did ? definitionNames.GetValueOrDefault(did) : null,
                     JoinedAtUtc = m.JoinedAtUtc,
                     AcademicTermName = term.Name,
                 };
@@ -98,12 +103,17 @@ public sealed class ClubMemberManager(
         var studentNumbers = (await studentRepository.GetListAsync(s => studentIds.Contains(s.Id), cancellationToken).ConfigureAwait(false))
             .ToDictionary(s => s.Id, s => s.StudentNumber);
 
+        var definitionNames = await GetRoleDefinitionNamesAsync(
+            paged.Items.Select(m => m.ClubRoleDefinitionId), cancellationToken).ConfigureAwait(false);
+
         var items = paged.Items.Select(m => new ClubMemberListItemDto
         {
             MembershipId = m.Id,
             StudentId = m.StudentId,
             StudentNumber = studentNumbers.GetValueOrDefault(m.StudentId, string.Empty),
             ClubRole = m.ClubRole,
+            ClubRoleDefinitionId = m.ClubRoleDefinitionId,
+            ClubRoleName = m.ClubRoleDefinitionId is { } did ? definitionNames.GetValueOrDefault(did) : null,
             JoinedAtUtc = m.JoinedAtUtc,
         }).ToList();
 
@@ -133,16 +143,36 @@ public sealed class ClubMemberManager(
             return Result.Forbidden(accessError);
         }
 
+        // A-61/Y-22: unvan verilmişse yetki seviyesi TANIMDAN okunur — istemcinin gönderdiği
+        // ClubRole yok sayılır. İki alan asla ayrışmaz; yetki kararı yine ClubRole'den okunacak.
+        var targetRole = request.ClubRole;
+        int? targetDefinitionId = null;
+
+        if (request.ClubRoleDefinitionId is { } definitionId)
+        {
+            // O-20: tanım BU kulübe ait olmalı — başka kulübün unvanı atanamaz.
+            var definition = await clubRoleDefinitionRepository
+                .GetAsync(d => d.Id == definitionId && d.ClubId == clubId, cancellationToken)
+                .ConfigureAwait(false);
+            if (definition is null)
+            {
+                return Result.NotFound(Messages.ClubRoleDefinitionNotFound);
+            }
+
+            targetRole = definition.ClubRole;
+            targetDefinitionId = definition.Id;
+        }
+
         // A-39: kendi başkanlık rolünü kendi kendine kaldıramaz/değiştiremez — CannotRemoveOwnAdminRole
         // muhafızıyla aynı sınıf (kilitlenme değil, kendine dokunmayı engelleyen bir öz-kısıtlama).
         // Danışman her zaman başka bir başkan atayabilir; bu yalnızca President'in KENDİ eylemini kapatır.
-        if (membership.ClubRole == ClubRole.President && request.ClubRole != ClubRole.President
+        if (membership.ClubRole == ClubRole.President && targetRole != ClubRole.President
             && await IsActingAsThisStudentAsync(membership.StudentId, cancellationToken).ConfigureAwait(false))
         {
             return Result.Conflict(Messages.CannotChangeOwnPresidentRole);
         }
 
-        if (request.ClubRole == ClubRole.President && membership.ClubRole != ClubRole.President)
+        if (targetRole == ClubRole.President && membership.ClubRole != ClubRole.President)
         {
             var existingPresident = await clubMembershipRepository
                 .GetAsync(m => m.ClubId == clubId && m.AcademicTermId == membership.AcademicTermId && m.ClubRole == ClubRole.President, cancellationToken)
@@ -153,7 +183,8 @@ public sealed class ClubMemberManager(
             }
         }
 
-        membership.ClubRole = request.ClubRole;
+        membership.ClubRole = targetRole;
+        membership.ClubRoleDefinitionId = targetDefinitionId;
         clubMembershipRepository.Update(membership);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -247,6 +278,193 @@ public sealed class ClubMemberManager(
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return Result.Success(Messages.ClubLeft);
+    }
+
+    public async Task<IDataResult<IReadOnlyList<ClubRoleDefinitionDto>>> GetRoleDefinitionsAsync(
+        int clubId, CancellationToken cancellationToken = default)
+    {
+        var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return DataResult<IReadOnlyList<ClubRoleDefinitionDto>>.NotFound(Messages.ClubNotFound);
+        }
+
+        // Y-23: mevcut kapsam metodu DEĞİŞTİRİLMEDEN çağrılır — bu fazın sözü budur.
+        var accessError = await EnsureMemberViewAccessAsync(club, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return DataResult<IReadOnlyList<ClubRoleDefinitionDto>>.Forbidden(accessError);
+        }
+
+        var definitions = await clubRoleDefinitionRepository
+            .GetListAsync(d => d.ClubId == clubId, cancellationToken)
+            .ConfigureAwait(false);
+
+        // Y-64: DisplayOrder artan, Id son kırıcı.
+        IReadOnlyList<ClubRoleDefinitionDto> items = definitions
+            .OrderBy(d => d.DisplayOrder)
+            .ThenBy(d => d.Id)
+            .Select(ToRoleDefinitionDto)
+            .ToList();
+
+        return DataResult<IReadOnlyList<ClubRoleDefinitionDto>>.Success(items);
+    }
+
+    public async Task<IDataResult<ClubRoleDefinitionDto>> CreateRoleDefinitionAsync(
+        int clubId, CreateClubRoleDefinitionRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return DataResult<ClubRoleDefinitionDto>.NotFound(Messages.ClubNotFound);
+        }
+
+        var accessError = await EnsureRoleManagementAccessAsync(club, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return DataResult<ClubRoleDefinitionDto>.Forbidden(accessError);
+        }
+
+        var name = request.Name.Trim();
+        var duplicate = await clubRoleDefinitionRepository
+            .GetAsync(d => d.ClubId == clubId && d.Name == name, cancellationToken)
+            .ConfigureAwait(false);
+        if (duplicate is not null)
+        {
+            return DataResult<ClubRoleDefinitionDto>.Conflict(Messages.ClubRoleDefinitionNameTaken);
+        }
+
+        var definition = new ClubRoleDefinition
+        {
+            ClubId = clubId, Name = name, ClubRole = request.ClubRole, DisplayOrder = request.DisplayOrder,
+        };
+
+        await clubRoleDefinitionRepository.AddAsync(definition, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return DataResult<ClubRoleDefinitionDto>.Success(ToRoleDefinitionDto(definition), Messages.ClubRoleDefinitionCreated);
+    }
+
+    public async Task<IResult> UpdateRoleDefinitionAsync(
+        int clubId, int definitionId, UpdateClubRoleDefinitionRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return Result.NotFound(Messages.ClubNotFound);
+        }
+
+        var accessError = await EnsureRoleManagementAccessAsync(club, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return Result.Forbidden(accessError);
+        }
+
+        var definition = await clubRoleDefinitionRepository
+            .GetAsync(d => d.Id == definitionId && d.ClubId == clubId, cancellationToken)
+            .ConfigureAwait(false);
+        if (definition is null)
+        {
+            return Result.NotFound(Messages.ClubRoleDefinitionNotFound);
+        }
+
+        var name = request.Name.Trim();
+        var duplicate = await clubRoleDefinitionRepository
+            .GetAsync(d => d.Id != definitionId && d.ClubId == clubId && d.Name == name, cancellationToken)
+            .ConfigureAwait(false);
+        if (duplicate is not null)
+        {
+            return Result.Conflict(Messages.ClubRoleDefinitionNameTaken);
+        }
+
+        var levelChanged = definition.ClubRole != request.ClubRole;
+
+        // O-27: seviye değişikliği bu unvanı taşıyan TÜM üyeliklere yayılır — iki alan asla ayrışmaz.
+        List<ClubMembership> holders = [];
+        if (levelChanged)
+        {
+            holders = await clubMembershipRepository
+                .GetListAsync(m => m.ClubRoleDefinitionId == definitionId, cancellationToken)
+                .ConfigureAwait(false);
+
+            // A-39: bir kulüpte tek başkan. Filtreli unique index de yakalar ama sebebi söylemez.
+            if (request.ClubRole == ClubRole.President && holders.Count > 1)
+            {
+                return Result.Conflict(Messages.ClubRoleDefinitionWouldCreateSecondPresident);
+            }
+        }
+
+        definition.Name = name;
+        definition.ClubRole = request.ClubRole;
+        definition.DisplayOrder = request.DisplayOrder;
+        clubRoleDefinitionRepository.Update(definition);
+
+        foreach (var membership in holders)
+        {
+            membership.ClubRole = request.ClubRole;
+            clubMembershipRepository.Update(membership);
+        }
+
+        // [TransactionAspect] tek transaction'ı garanti eder — tanım ve üyelikler birlikte yazılır.
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ClubRoleDefinitionUpdated);
+    }
+
+    public async Task<IResult> DeleteRoleDefinitionAsync(int clubId, int definitionId, CancellationToken cancellationToken = default)
+    {
+        var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return Result.NotFound(Messages.ClubNotFound);
+        }
+
+        var accessError = await EnsureRoleManagementAccessAsync(club, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return Result.Forbidden(accessError);
+        }
+
+        var definition = await clubRoleDefinitionRepository
+            .GetAsync(d => d.Id == definitionId && d.ClubId == clubId, cancellationToken)
+            .ConfigureAwait(false);
+        if (definition is null)
+        {
+            return Result.NotFound(Messages.ClubRoleDefinitionNotFound);
+        }
+
+        // A-61: kullanımdaysa açık mesajla reddet. FK Restrict de yakalar ama sebebi o söylemez.
+        var inUse = await clubMembershipRepository
+            .GetAsync(m => m.ClubRoleDefinitionId == definitionId, cancellationToken)
+            .ConfigureAwait(false);
+        if (inUse is not null)
+        {
+            return Result.Conflict(Messages.ClubRoleDefinitionInUse);
+        }
+
+        clubRoleDefinitionRepository.Delete(definition);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ClubRoleDefinitionDeleted);
+    }
+
+    private static ClubRoleDefinitionDto ToRoleDefinitionDto(ClubRoleDefinition d) => new()
+    {
+        Id = d.Id, Name = d.Name, ClubRole = d.ClubRole, DisplayOrder = d.DisplayOrder,
+    };
+
+    /// <summary>Y-10: unvan adları tek toplu sorguyla — üyelik başına sorgu N+1 üretirdi.</summary>
+    private async Task<Dictionary<int, string>> GetRoleDefinitionNamesAsync(
+        IEnumerable<int?> definitionIds, CancellationToken cancellationToken)
+    {
+        var ids = definitionIds.Where(id => id is not null).Select(id => id!.Value).Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return (await clubRoleDefinitionRepository.GetListAsync(d => ids.Contains(d.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(d => d.Id, d => d.Name);
     }
 
     // Y-23: memberships.read izni yeterli değil — danışman, o kulüpte güncel dönemde Officer/President

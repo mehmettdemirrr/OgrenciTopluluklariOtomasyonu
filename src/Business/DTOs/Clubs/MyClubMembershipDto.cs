@@ -13,6 +13,9 @@ public sealed class MyClubMembershipDto
 
     public ClubRole ClubRole { get; set; }
 
+    /// <summary>docs/MIMARI.md · K-36: görünen unvan. Null ise arayüz yetki seviyesine düşer.</summary>
+    public string? ClubRoleName { get; set; }
+
     public DateTime JoinedAtUtc { get; set; }
 
     /// <summary>docs/PLAN-V4.md §22.3: liste güncel döneme filtreli — hangi dönem olduğu görünsün.</summary>

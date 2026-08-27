@@ -32,6 +32,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Club> Clubs => Set<Club>();
 
+    public DbSet<ClubRoleDefinition> ClubRoleDefinitions => Set<ClubRoleDefinition>();
+
     public DbSet<ClubMembership> ClubMemberships => Set<ClubMembership>();
 
     public DbSet<MembershipApplication> MembershipApplications => Set<MembershipApplication>();
@@ -102,6 +104,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.ApplyConfiguration(new AcademicStaffConfiguration());
         builder.ApplyConfiguration(new ClubCategoryConfiguration());
         builder.ApplyConfiguration(new ClubConfiguration());
+        builder.ApplyConfiguration(new ClubRoleDefinitionConfiguration());
         builder.ApplyConfiguration(new ClubMembershipConfiguration());
         builder.ApplyConfiguration(new MembershipApplicationConfiguration());
         builder.ApplyConfiguration(new ClubApplicationConfiguration());

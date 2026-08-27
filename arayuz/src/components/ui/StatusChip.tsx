@@ -1,7 +1,6 @@
 import { Chip, type ChipProps } from '@mui/material'
-import type { AnnouncementVisibility, ApplicationStatus, EventAudience, EventStatus, ReportStatus } from '../../api/types'
-
-type ClubRole = 'Member' | 'Officer' | 'President'
+// K-36: ClubRole'ün tek tanımı api/types.ts'te — burada ikinci bir kopya tutulmuyor.
+import type { AnnouncementVisibility, ApplicationStatus, ClubRole, EventAudience, EventStatus, ReportStatus } from '../../api/types'
 
 type ChipColor = ChipProps['color']
 
