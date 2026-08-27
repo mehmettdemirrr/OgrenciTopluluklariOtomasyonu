@@ -165,5 +165,22 @@ public sealed class InstitutionalReferenceDataTests : IClassFixture<CustomWebApp
         Assert.Equal(facultyBlocks.Count, facultyBlocks.Distinct().Count());
     }
 
+    [Fact(DisplayName = "A-58/A-62: sekiz gerçek MTÜ formu HasData ile seed edilir ve hepsi zorunludur")]
+    public async Task ClubDocumentTypes_EightRealFormsAreSeeded()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var seeded = await db.ClubDocumentTypes.AsNoTracking().OrderBy(t => t.DisplayOrder).ToListAsync();
+
+        string[] expectedCodes =
+            ["FR-0230", "FR-0240", "FR-0241", "FR-0242", "FR-0243", "FR-0244", "FR-0245", "FR-0272"];
+
+        Assert.Equal(expectedCodes, seeded.Select(t => t.Code).ToArray());
+        Assert.All(seeded, t => Assert.True(t.IsRequired));
+        Assert.All(seeded, t => Assert.True(t.IsActive));
+        Assert.All(seeded, t => Assert.False(string.IsNullOrWhiteSpace(t.Name)));
+    }
+
     private sealed record RegistrationDepartmentRow(int Id, string Name, string FacultyName);
 }

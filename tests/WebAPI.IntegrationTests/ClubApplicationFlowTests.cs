@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -107,15 +108,11 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
         Assert.DoesNotContain(proposedName, await beforeResponse.Content.ReadAsStringAsync());
 
         // 2. Başvuru.
-        var submitResponse = await SendWithBearerAsync(
-            HttpMethod.Post, "/api/club-applications", studentToken,
-            new { ProposedName = proposedName, Description = "Test açıklaması", Justification = "Test gerekçesi", ProposedAdvisorId = _proposedAdvisorId });
+        var submitResponse = await SubmitWithAllDocumentsAsync(studentToken, proposedName);
         Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
 
         // 3. Aynı dönemde ikinci bekleyen başvuru — filtreli unique index'in iş kuralı yansıması (A-45).
-        var duplicateResponse = await SendWithBearerAsync(
-            HttpMethod.Post, "/api/club-applications", studentToken,
-            new { ProposedName = $"Başka Ad {Guid.NewGuid():N}"[..20], Justification = "Başka gerekçe", ProposedAdvisorId = _proposedAdvisorId });
+        var duplicateResponse = await SubmitWithAllDocumentsAsync(studentToken, $"Başka Ad {Guid.NewGuid():N}"[..20]);
         Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
 
         // 4. "Başvurularım" ekranında görünüyor mu?
@@ -192,9 +189,7 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
         var proposedName = $"Satranç Kulübü {Guid.NewGuid():N}"[..30];
         var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
 
-        var submitResponse = await SendWithBearerAsync(
-            HttpMethod.Post, "/api/club-applications", studentToken,
-            new { ProposedName = proposedName, Justification = "Test gerekçesi", ProposedAdvisorId = _proposedAdvisorId });
+        var submitResponse = await SubmitWithAllDocumentsAsync(studentToken, proposedName);
         Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
 
         int applicationId;
@@ -333,13 +328,229 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
     {
         await ClearPendingApplicationsAsync(email);
 
-        return await SendWithBearerAsync(HttpMethod.Post, "/api/club-applications", accessToken, new
+        return await SubmitWithAllDocumentsAsync(accessToken, $"Pencere Kulübü {Guid.NewGuid():N}"[..30]);
+    }
+
+    private static byte[] FakePdfBytes() =>
+        [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37, 0x0A, 0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A];
+
+    private static byte[] FakePngBytes() =>
+        [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D];
+
+    /// <summary>Katalogdaki zorunlu evrak tiplerinin kimlikleri (A-62).</summary>
+    private async Task<List<int>> GetRequiredDocumentTypeIdsAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        return await db.ClubDocumentTypes
+            .Where(t => t.IsActive && t.IsRequired)
+            .OrderBy(t => t.DisplayOrder)
+            .Select(t => t.Id)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Faz 33: uç artık multipart. Evrak bütünlüğünü (Y-71) sınamayan testler tam evrak
+    /// göndermek zorunda — aksi hâlde ölçtükleri kural yerine "eksik evrak" kuralına takılırlar.
+    /// </summary>
+    private async Task<HttpResponseMessage> SubmitWithAllDocumentsAsync(
+        string accessToken, string proposedName, int? proposedCategoryId = null)
+    {
+        var requiredIds = await GetRequiredDocumentTypeIdsAsync();
+        var documents = requiredIds
+            .Select((id, index) => (TypeId: id, Bytes: FakePdfBytes(), FileName: $"evrak{index}.pdf"))
+            .ToList();
+
+        return await SubmitMultipartAsync(accessToken, proposedName, documents, proposedCategoryId);
+    }
+
+    private async Task<HttpResponseMessage> SubmitMultipartAsync(
+        string accessToken,
+        string proposedName,
+        IReadOnlyList<(int TypeId, byte[] Bytes, string FileName)> documents,
+        int? proposedCategoryId = null)
+    {
+        using var content = new MultipartFormDataContent
         {
-            ProposedName = $"Pencere Kulübü {Guid.NewGuid():N}"[..30],
-            Description = "Pencere testi",
-            Justification = "Pencere testi gerekçesi",
-            ProposedAdvisorId = _proposedAdvisorId,
+            { new StringContent(proposedName), "ProposedName" },
+            { new StringContent("Evrak testi"), "Description" },
+            { new StringContent("Evrak testi gerekçesi"), "Justification" },
+            { new StringContent(_proposedAdvisorId.ToString(CultureInfo.InvariantCulture)), "ProposedAdvisorId" },
+        };
+
+        if (proposedCategoryId is { } categoryId)
+        {
+            content.Add(new StringContent(categoryId.ToString(CultureInfo.InvariantCulture)), "ProposedCategoryId");
+        }
+
+        for (var i = 0; i < documents.Count; i++)
+        {
+            content.Add(new StringContent(documents[i].TypeId.ToString(CultureInfo.InvariantCulture)), $"Documents[{i}].DocumentTypeId");
+
+            var fileContent = new ByteArrayContent(documents[i].Bytes);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            content.Add(fileContent, $"Documents[{i}].File", documents[i].FileName);
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/club-applications") { Content = content };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        return await _client.SendAsync(request);
+    }
+
+    [Fact(DisplayName = "Y-71: eksik zorunlu evrakla başvuru 400 alır ve HİÇBİR kayıt yazılmaz")]
+    public async Task Submit_MissingRequiredDocuments_ReturnsValidationErrorAndWritesNothing()
+    {
+        var requiredIds = await GetRequiredDocumentTypeIdsAsync();
+        Assert.NotEmpty(requiredIds);
+
+        var proposedName = $"Eksik Evrak {Guid.NewGuid():N}"[..30];
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+
+        // Yalnızca ilk zorunlu evrak yüklenir — geri kalanı eksik.
+        var response = await SubmitMultipartAsync(studentToken, proposedName,
+            [(requiredIds[0], FakePdfBytes(), "evrak1.pdf")]);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False(await db.ClubApplications.AnyAsync(a => a.ProposedName == proposedName));
+    }
+
+    [Fact(DisplayName = "O-22: tam evrakla başvuru kabul edilir, evraklar Protected görünürlükle saklanır")]
+    public async Task Submit_AllRequiredDocuments_IsAcceptedAndStoredProtected()
+    {
+        var requiredIds = await GetRequiredDocumentTypeIdsAsync();
+        var proposedName = $"Tam Evrak {Guid.NewGuid():N}"[..30];
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+
+        var response = await SubmitWithAllDocumentsAsync(studentToken, proposedName);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var application = await db.ClubApplications.SingleAsync(a => a.ProposedName == proposedName);
+        var stored = await db.ClubApplicationDocuments.Where(d => d.ClubApplicationId == application.Id).ToListAsync();
+        Assert.Equal(requiredIds.Count, stored.Count);
+
+        var fileIds = stored.Select(d => d.StoredFileId).ToList();
+        var files = await db.StoredFiles.Where(f => fileIds.Contains(f.Id)).ToListAsync();
+
+        // Y-70: adli sicil/kurucu üye dilekçesi kişisel veridir — Public kaydedilemez.
+        Assert.All(files, f => Assert.Equal(FileVisibility.Protected, f.Visibility));
+        Assert.All(files, f => Assert.Equal("application/pdf", f.ContentType));
+        // Y-40: ad sunucuda üretilir — istemcinin verdiği "evrak0.pdf" saklanmaz.
+        Assert.All(files, f => Assert.DoesNotContain("evrak", f.GeneratedFileName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact(DisplayName = "A-64: evrak yerine PNG yüklenirse 400 alınır ve kayıt yazılmaz")]
+    public async Task Submit_NonPdfDocument_ReturnsValidationError()
+    {
+        var requiredIds = await GetRequiredDocumentTypeIdsAsync();
+        var proposedName = $"Yanlis Tip {Guid.NewGuid():N}"[..30];
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+
+        var documents = requiredIds
+            .Select((id, index) => (TypeId: id, Bytes: index == 0 ? FakePngBytes() : FakePdfBytes(), FileName: $"evrak{index}.pdf"))
+            .ToList();
+
+        var response = await SubmitMultipartAsync(studentToken, proposedName, documents);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False(await db.ClubApplications.AnyAsync(a => a.ProposedName == proposedName));
+    }
+
+    [Fact(DisplayName = "A-63/Y-70: başvuran ve yönetici evrağı indirir; başka öğrenci 403 alır; anonim uçtan erişilemez")]
+    public async Task DocumentDownload_EnforcesOwnershipAndVisibility()
+    {
+        var proposedName = $"Indirme {Guid.NewGuid():N}"[..30];
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var ownerToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+        Assert.Equal(HttpStatusCode.OK, (await SubmitWithAllDocumentsAsync(ownerToken, proposedName)).StatusCode);
+
+        int applicationId;
+        int documentId;
+        int storedFileId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var application = await db.ClubApplications.SingleAsync(a => a.ProposedName == proposedName);
+            applicationId = application.Id;
+            var document = await db.ClubApplicationDocuments.FirstAsync(d => d.ClubApplicationId == applicationId);
+            documentId = document.Id;
+            storedFileId = document.StoredFileId;
+        }
+
+        var url = $"/api/club-applications/{applicationId}/documents/{documentId}";
+
+        // 1. Başvuran indirebilir.
+        var ownerResponse = await SendWithBearerAsync(HttpMethod.Get, url, ownerToken);
+        Assert.Equal(HttpStatusCode.OK, ownerResponse.StatusCode);
+        Assert.Equal("application/pdf", ownerResponse.Content.Headers.ContentType?.MediaType);
+
+        // 2. Yönetici indirebilir.
+        var adminToken = await LoginAsync(AdminEmail, AdminPassword);
+        Assert.Equal(HttpStatusCode.OK, (await SendWithBearerAsync(HttpMethod.Get, url, adminToken)).StatusCode);
+
+        // 3. Başka bir öğrenci indiremez — Y-70.
+        var strangerToken = await LoginAsync(MemberEmail, MemberPassword);
+        Assert.Equal(HttpStatusCode.Forbidden, (await SendWithBearerAsync(HttpMethod.Get, url, strangerToken)).StatusCode);
+
+        // 4. Anonim dosya ucu Protected kaydı GÖREMEZ — Y-52/Y-70 ikinci savunma katmanı.
+        var anonymousResponse = await _client.GetAsync($"/api/files/{storedFileId}");
+        Assert.Equal(HttpStatusCode.NotFound, anonymousResponse.StatusCode);
+    }
+
+    [Fact(DisplayName = "K-37: inceleme listesi her başvurunun evraklarını kod ve adla taşır")]
+    public async Task GetPending_IncludesDocuments()
+    {
+        var proposedName = $"Liste Evrak {Guid.NewGuid():N}"[..30];
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+        Assert.Equal(HttpStatusCode.OK, (await SubmitWithAllDocumentsAsync(studentToken, proposedName)).StatusCode);
+
+        // A-50/Y-11: sunucu pageSize'ı 100'e kırpar; kendi başvurumuzu bulmak için son sayfaya
+        // değil, bu başvurunun kimliğine bakıyoruz.
+        var adminToken = await LoginAsync(AdminEmail, AdminPassword);
+        var response = await SendWithBearerAsync(HttpMethod.Get, "/api/club-applications?pageIndex=0&pageSize=100", adminToken);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains(proposedName, body, StringComparison.Ordinal);
+        Assert.Contains("FR-0230", body, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "A-62: aynı başvuruya aynı evrak tipi iki kez yüklenemez (bileşik unique index)")]
+    public async Task ClubApplicationDocument_DuplicateTypePerApplication_IsRejected()
+    {
+        var proposedName = $"Evrak Unique {Guid.NewGuid():N}"[..30];
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+        Assert.Equal(HttpStatusCode.OK, (await SubmitWithAllDocumentsAsync(studentToken, proposedName)).StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var application = await db.ClubApplications.SingleAsync(a => a.ProposedName == proposedName);
+        var existing = await db.ClubApplicationDocuments.FirstAsync(d => d.ClubApplicationId == application.Id);
+
+        // Aynı (başvuru, tip) çifti için ikinci satır — index bunu DB seviyesinde reddetmeli.
+        db.ClubApplicationDocuments.Add(new ClubApplicationDocument
+        {
+            ClubApplicationId = existing.ClubApplicationId,
+            ClubDocumentTypeId = existing.ClubDocumentTypeId,
+            StoredFileId = existing.StoredFileId,
         });
+
+        await Assert.ThrowsAnyAsync<Exception>(() => db.SaveChangesAsync());
     }
 
     [Theory(DisplayName = "Y-73: pencere kapalıyken başvuru 409, açıkken kabul — dört senaryo")]
@@ -462,14 +673,7 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
         await ClearPendingApplicationsAsync(OtherStudentEmail);
         var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
 
-        var submitResponse = await SendWithBearerAsync(HttpMethod.Post, "/api/club-applications", studentToken, new
-        {
-            ProposedName = proposedName,
-            Description = "Kategori testi",
-            Justification = "Kategori testi gerekçesi",
-            ProposedAdvisorId = _proposedAdvisorId,
-            ProposedCategoryId = categoryId,
-        });
+        var submitResponse = await SubmitWithAllDocumentsAsync(studentToken, proposedName, categoryId);
         Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
 
         int applicationId;
@@ -503,14 +707,7 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
         await ClearPendingApplicationsAsync(OtherStudentEmail);
         var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
 
-        var response = await SendWithBearerAsync(HttpMethod.Post, "/api/club-applications", studentToken, new
-        {
-            ProposedName = proposedName,
-            Description = "Test",
-            Justification = "Test gerekçesi",
-            ProposedAdvisorId = _proposedAdvisorId,
-            ProposedCategoryId = 999_999,
-        });
+        var response = await SubmitWithAllDocumentsAsync(studentToken, proposedName, 999_999);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 

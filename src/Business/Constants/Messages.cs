@@ -185,4 +185,19 @@ public static class Messages
     public const string ClubCategoryUpdated = "Topluluk kategorisi güncellendi.";
     public const string ClubCategoryDeleted = "Topluluk kategorisi silindi.";
     public const string ClubCategoryInUse = "Bu kategori kullanımda olduğu için silinemez.";
+
+    // Faz 33 — Kuruluş evrakları (K-37, A-62, A-63, A-64)
+    // A-64: iki farklı bağlam, iki farklı mesaj. UnsupportedFileType görsel yolunda kalır.
+    public const string UnsupportedDocumentFileType = "Desteklenmeyen dosya türü. Evraklar yalnızca PDF olarak yüklenebilir.";
+
+    public const string ClubDocumentTypeNotFound = "Evrak tipi bulunamadı.";
+    public const string ClubDocumentTypeCodeTaken = "Bu kodla bir evrak tipi zaten var.";
+    public const string ClubDocumentTypeUpdated = "Evrak tipi güncellendi.";
+    public const string ClubDocumentTypeDeleted = "Evrak tipi silindi.";
+    public const string ClubDocumentTypeInUse = "Bu evrak tipi başvurularda kullanıldığı için silinemez. Yürürlükten kaldırmak için pasife alın.";
+
+    public const string MissingRequiredClubDocuments = "Zorunlu evrakların tamamı yüklenmeden başvuru gönderilemez.";
+    public const string UnknownClubDocumentType = "Gönderilen evrak tiplerinden biri tanımlı değil.";
+    public const string DuplicateClubDocumentUpload = "Aynı evrak tipi için birden fazla dosya gönderildi.";
+    public const string ClubApplicationDocumentForbidden = "Bu evrağı görüntüleme yetkiniz yok.";
 }

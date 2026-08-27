@@ -1,6 +1,8 @@
 using System.Linq.Expressions;
+using Business.Abstract;
 using Business.Concrete;
 using Core.DataAccess;
+using Core.Utilities.Files;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
 using DataAccess.Repositories;
@@ -27,6 +29,14 @@ public class ClubApplicationManagerTests
     private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
     private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
     private readonly Mock<IEntityRepository<AcademicTerm>> _academicTermRepository = new();
+
+    // Faz 33 (K-37): kuruluş evrakları.
+    private readonly Mock<IEntityRepository<ClubDocumentType>> _clubDocumentTypeRepository = new();
+    private readonly Mock<IEntityRepository<ClubApplicationDocument>> _clubApplicationDocumentRepository = new();
+    private readonly Mock<IEntityRepository<StoredFile>> _storedFileRepository = new();
+    private readonly Mock<IFileService> _fileService = new();
+    private readonly Mock<IFileStorage> _fileStorage = new();
+
     private readonly Mock<IAcademicStaffDal> _academicStaffDal = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<ICurrentUser> _currentUser = new();
@@ -48,7 +58,12 @@ public class ClubApplicationManagerTests
             _academicStaffRepository.Object,
             _clubCategoryRepository.Object,
             _academicTermRepository.Object,
+            _clubDocumentTypeRepository.Object,
+            _clubApplicationDocumentRepository.Object,
+            _storedFileRepository.Object,
             _academicStaffDal.Object,
+            _fileService.Object,
+            _fileStorage.Object,
             _unitOfWork.Object,
             _currentUser.Object,
             _clock.Object,

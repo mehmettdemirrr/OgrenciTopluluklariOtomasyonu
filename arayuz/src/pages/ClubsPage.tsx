@@ -24,7 +24,7 @@ import {
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
@@ -39,14 +39,12 @@ import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { ResultPagination } from '../components/ui/ResultPagination'
 import { SearchField } from '../components/ui/SearchField'
 import { createClubFormSchema, emptyCreateClubFormValues, toCategoryPayload, type CreateClubFormValues } from '../schemas/clubForm'
-import { clubApplicationFormSchema, emptyClubApplicationFormValues, type ClubApplicationFormValues } from '../schemas/clubApplicationForm'
 import type {
   AcademicStaffListItemDto,
   ClubApplicationWindowDto,
   ClubCategoryListItemDto,
   ClubListItemDto,
   PagedResult,
-  SelectableAcademicStaffDto,
 } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
@@ -57,6 +55,7 @@ export function ClubsPage() {
 
   const queryClient = useQueryClient()
   const notify = useNotifier()
+  const navigate = useNavigate()
   const { hasPermission } = useAuth()
   const canUploadLogo = hasPermission(Permissions.FilesUpload)
   const canManageClubs = hasPermission(Permissions.ClubsWrite)
@@ -103,34 +102,10 @@ export function ClubsPage() {
       (await apiClient.get<PagedResult<ClubCategoryListItemDto>>('/club-categories', { params: { pageIndex: 0, pageSize: 100 } })).data,
   })
 
-  const applyDialog = useFormDialog()
-  const applyForm = useForm<ClubApplicationFormValues>({
-    resolver: zodResolver(clubApplicationFormSchema),
-    defaultValues: emptyClubApplicationFormValues,
-  })
-
   // K-39: pencerenin durumu sunucudan gelir. Arayüz tarihlere bakıp kendi kararını VERMEZ (Y-73).
   const windowQuery = useQuery({
     queryKey: ['club-application-window'],
     queryFn: async () => (await apiClient.get<ClubApplicationWindowDto>('/club-applications/window')).data,
-  })
-
-  const submitClubApplicationMutation = useMutation({
-    mutationFn: async (values: ClubApplicationFormValues) => {
-      await apiClient.post('/club-applications', {
-        proposedName: values.proposedName,
-        description: values.description.trim() || null,
-        justification: values.justification,
-        proposedAdvisorId: values.proposedAdvisorId,
-        proposedCategoryId: toCategoryPayload(values.proposedCategoryId),
-      })
-    },
-    onSuccess: () => {
-      notify({ message: 'Topluluk kurma başvurunuz alındı, yönetici onayı bekleniyor.', severity: 'success' })
-      applyDialog.closeDialog()
-      applyForm.reset(emptyClubApplicationFormValues)
-    },
-    onError: (error) => notify({ message: extractErrorMessage(error, 'Başvuru gönderilemedi.'), severity: 'error' }),
   })
 
   const applyMutation = useMutation({
@@ -208,7 +183,11 @@ export function ClubsPage() {
               }
             >
               <span>
-                <Button variant="outlined" disabled={windowQuery.data?.isOpen !== true} onClick={applyDialog.openDialog}>
+                <Button
+                  variant="outlined"
+                  disabled={windowQuery.data?.isOpen !== true}
+                  onClick={() => navigate('/club-applications/new')}
+                >
                   Topluluk Kurmak İstiyorum
                 </Button>
               </span>
@@ -405,108 +384,6 @@ export function ClubsPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog
-        open={applyDialog.open}
-        onClose={() => {
-          applyDialog.closeDialog()
-          applyForm.reset(emptyClubApplicationFormValues)
-        }}
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle>Topluluk Kurma Başvurusu</DialogTitle>
-        <DialogContent>
-          <Controller
-            name="proposedName"
-            control={applyForm.control}
-            render={({ field, fieldState }) => (
-              <TextField {...field} autoFocus fullWidth margin="dense" label="Topluluk Adı" error={!!fieldState.error} helperText={fieldState.error?.message} />
-            )}
-          />
-          <Controller
-            name="description"
-            control={applyForm.control}
-            render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
-          />
-          <Controller
-            name="justification"
-            control={applyForm.control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                fullWidth
-                multiline
-                minRows={2}
-                margin="dense"
-                label="Gerekçe"
-                helperText={fieldState.error?.message ?? 'Bu topluluk neden gerekli?'}
-                error={!!fieldState.error}
-              />
-            )}
-          />
-          {/* K-29/A-45: reference.manage değil — herhangi bir kimliği doğrulanmış öğrenci danışman seçebilsin diye dar uç. */}
-          <Controller
-            name="proposedAdvisorId"
-            control={applyForm.control}
-            render={({ field, fieldState }) => (
-              <RemoteSelect<SelectableAcademicStaffDto>
-                label="Danışman"
-                value={field.value || null}
-                onChange={(value) => field.onChange(value ?? 0)}
-                queryKey={['academic-staff-selectable']}
-                enabled={applyDialog.open}
-                fetchOptions={async (term) =>
-                  (await apiClient.get<PagedResult<SelectableAcademicStaffDto>>('/academic-staff/selectable', {
-                    params: { pageIndex: 0, pageSize: 20, search: term || undefined },
-                  })).data.items
-                }
-                getOptionId={(staff) => staff.id}
-                getOptionLabel={(staff) => `${staff.title} ${staff.fullName}`}
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-              />
-            )}
-          />
-          <Controller
-            name="proposedCategoryId"
-            control={applyForm.control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                fullWidth
-                margin="dense"
-                label="Kategori (isteğe bağlı)"
-                onChange={(event) => field.onChange(Number(event.target.value))}
-              >
-                <MenuItem value={0}>— Kategorisiz —</MenuItem>
-                {(categoriesQuery.data?.items ?? []).map((category) => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              applyDialog.closeDialog()
-              applyForm.reset(emptyClubApplicationFormValues)
-            }}
-          >
-            Vazgeç
-          </Button>
-          <Button
-            variant="contained"
-            disabled={applyForm.formState.isSubmitting || submitClubApplicationMutation.isPending}
-            onClick={applyForm.handleSubmit((values) => submitClubApplicationMutation.mutate(values))}
-          >
-            Başvur
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   )
 }

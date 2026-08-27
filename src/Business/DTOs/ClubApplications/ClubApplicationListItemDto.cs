@@ -39,4 +39,10 @@ public sealed class ClubApplicationListItemDto
     public string? ReviewNote { get; set; }
 
     public int? CreatedClubId { get; set; }
+
+    /// <summary>
+    /// docs/MIMARI.md · K-37: yüklenen evraklar. Zorunlu ama yüklenmemiş tipler bu listede YOKTUR —
+    /// arayüz eksikliği katalogla karşılaştırarak gösterir.
+    /// </summary>
+    public IReadOnlyList<ClubApplicationDocumentDto> Documents { get; set; } = [];
 }

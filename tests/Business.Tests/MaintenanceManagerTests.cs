@@ -19,6 +19,11 @@ public class MaintenanceManagerTests
     private readonly Mock<IEntityRepository<RefreshToken>> _refreshTokenRepository = new();
     private readonly Mock<IEntityRepository<StoredFile>> _storedFileRepository = new();
     private readonly Mock<IEntityRepository<ReportRequest>> _reportRequestRepository = new();
+
+    // Faz 33 (K-37/A-63): kuruluş evrakı saklama süresi.
+    private readonly Mock<IEntityRepository<ClubApplication>> _clubApplicationRepository = new();
+    private readonly Mock<IEntityRepository<ClubApplicationDocument>> _clubApplicationDocumentRepository = new();
+
     private readonly Mock<ITrafficLogDal> _trafficLogDal = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<IClock> _clock = new();
@@ -33,6 +38,8 @@ public class MaintenanceManagerTests
             _refreshTokenRepository.Object,
             _storedFileRepository.Object,
             _reportRequestRepository.Object,
+            _clubApplicationRepository.Object,
+            _clubApplicationDocumentRepository.Object,
             _trafficLogDal.Object,
             _unitOfWork.Object,
             _clock.Object,
@@ -41,6 +48,11 @@ public class MaintenanceManagerTests
         _storedFileRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<StoredFile, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _refreshTokenRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<RefreshToken, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _reportRequestRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ReportRequest, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _clubApplicationRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubApplication, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        _clubApplicationDocumentRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubApplicationDocument, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+
+        // Moq varsayılanı Task<IReadOnlyList<string>> için null döner — sahipsiz dosya taraması NRE alırdı.
+        _fileStorage.Setup(s => s.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
     }
 
     [Fact(DisplayName = "RunNightlyMaintenanceAsync: süresi geçmiş refresh token silinir")]
@@ -146,5 +158,127 @@ public class MaintenanceManagerTests
 
         Assert.True(result.IsSuccess);
         _trafficLogDal.Verify(d => d.DeleteOlderThanAsync(FixedNow.AddDays(-30), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "A-63: 90 günü geçmiş REDDEDİLMİŞ başvurunun evrakları silinir")]
+    public async Task RunNightlyMaintenanceAsync_OldRejectedApplication_DeletesDocuments()
+    {
+        var rejected = new ClubApplication
+        {
+            Id = 1, StudentId = 1, AcademicTermId = 1, ProposedName = "Eski Ret", Justification = "x",
+            ProposedAdvisorId = 1, Status = ApplicationStatus.Rejected,
+            AppliedAtUtc = FixedNow.AddDays(-200), ReviewedAtUtc = FixedNow.AddDays(-91),
+        };
+        var link = new ClubApplicationDocument { Id = 10, ClubApplicationId = 1, ClubDocumentTypeId = 1, StoredFileId = 100 };
+        var file = new StoredFile
+        {
+            Id = 100, GeneratedFileName = "abc.pdf", OriginalFileName = "evrak.pdf", ContentType = "application/pdf",
+            FileSizeBytes = 10, Visibility = FileVisibility.Protected, UploadedByUserId = 1, UploadedAtUtc = FixedNow.AddDays(-200),
+        };
+
+        SetupApplicationCleanupScenario([rejected], [link], [file]);
+
+        var result = await _sut.RunNightlyMaintenanceAsync();
+
+        Assert.True(result.IsSuccess);
+        _clubApplicationDocumentRepository.Verify(r => r.Delete(It.Is<ClubApplicationDocument>(d => d.Id == 10)), Times.Once);
+        _storedFileRepository.Verify(r => r.Delete(It.Is<StoredFile>(f => f.Id == 100)), Times.Once);
+        _fileStorage.Verify(s => s.DeleteAsync("abc.pdf", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "A-63/K-37: ONAYLANMIŞ başvurunun evrakları 90 gün sonra da durur — 7 günlük rapor temizliği onlara dokunmaz")]
+    public async Task RunNightlyMaintenanceAsync_OldApprovedApplication_KeepsDocuments()
+    {
+        var approved = new ClubApplication
+        {
+            Id = 2, StudentId = 1, AcademicTermId = 1, ProposedName = "Eski Onay", Justification = "x",
+            ProposedAdvisorId = 1, Status = ApplicationStatus.Approved, CreatedClubId = 5,
+            AppliedAtUtc = FixedNow.AddDays(-200), ReviewedAtUtc = FixedNow.AddDays(-150),
+        };
+        var link = new ClubApplicationDocument { Id = 20, ClubApplicationId = 2, ClubDocumentTypeId = 1, StoredFileId = 200 };
+        var file = new StoredFile
+        {
+            Id = 200, GeneratedFileName = "onay.pdf", OriginalFileName = "evrak.pdf", ContentType = "application/pdf",
+            FileSizeBytes = 10, Visibility = FileVisibility.Protected, UploadedByUserId = 1, UploadedAtUtc = FixedNow.AddDays(-200),
+        };
+
+        SetupApplicationCleanupScenario([approved], [link], [file]);
+
+        var result = await _sut.RunNightlyMaintenanceAsync();
+
+        Assert.True(result.IsSuccess);
+        _clubApplicationDocumentRepository.Verify(r => r.Delete(It.IsAny<ClubApplicationDocument>()), Times.Never);
+        // Dosya Protected ve 200 günlük: ayıklama olmasa 7 günlük rapor temizliği bunu silerdi.
+        _storedFileRepository.Verify(r => r.Delete(It.IsAny<StoredFile>()), Times.Never);
+        _fileStorage.Verify(s => s.DeleteAsync("onay.pdf", It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "A-63: 90 günü DOLMAMIŞ reddedilmiş başvurunun evrakları durur")]
+    public async Task RunNightlyMaintenanceAsync_RecentRejectedApplication_KeepsDocuments()
+    {
+        var rejected = new ClubApplication
+        {
+            Id = 3, StudentId = 1, AcademicTermId = 1, ProposedName = "Yeni Ret", Justification = "x",
+            ProposedAdvisorId = 1, Status = ApplicationStatus.Rejected,
+            AppliedAtUtc = FixedNow.AddDays(-40), ReviewedAtUtc = FixedNow.AddDays(-30),
+        };
+        var link = new ClubApplicationDocument { Id = 30, ClubApplicationId = 3, ClubDocumentTypeId = 1, StoredFileId = 300 };
+        var file = new StoredFile
+        {
+            Id = 300, GeneratedFileName = "yeni.pdf", OriginalFileName = "evrak.pdf", ContentType = "application/pdf",
+            FileSizeBytes = 10, Visibility = FileVisibility.Protected, UploadedByUserId = 1, UploadedAtUtc = FixedNow.AddDays(-40),
+        };
+
+        SetupApplicationCleanupScenario([rejected], [link], [file]);
+
+        var result = await _sut.RunNightlyMaintenanceAsync();
+
+        Assert.True(result.IsSuccess);
+        _clubApplicationDocumentRepository.Verify(r => r.Delete(It.IsAny<ClubApplicationDocument>()), Times.Never);
+        _storedFileRepository.Verify(r => r.Delete(It.IsAny<StoredFile>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "K-37 Tuzak 3: StoredFile kaydı olmayan disk dosyası (sahipsiz) silinir")]
+    public async Task RunNightlyMaintenanceAsync_OrphanDiskFile_IsDeleted()
+    {
+        var known = new StoredFile
+        {
+            Id = 400, GeneratedFileName = "kayitli.pdf", OriginalFileName = "evrak.pdf", ContentType = "application/pdf",
+            FileSizeBytes = 10, Visibility = FileVisibility.Protected, UploadedByUserId = 1, UploadedAtUtc = FixedNow,
+        };
+        _storedFileRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<StoredFile, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<StoredFile, bool>> f, CancellationToken _) =>
+                new[] { known }.AsQueryable().Where(f).ToList());
+
+        _fileStorage
+            .Setup(s => s.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["kayitli.pdf", "sahipsiz.pdf"]);
+
+        var result = await _sut.RunNightlyMaintenanceAsync();
+
+        Assert.True(result.IsSuccess);
+        _fileStorage.Verify(s => s.DeleteAsync("sahipsiz.pdf", It.IsAny<CancellationToken>()), Times.Once);
+        _fileStorage.Verify(s => s.DeleteAsync("kayitli.pdf", It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>Predicate'ler GERÇEKTEN çalıştırılır — Moq salt-geçiş olsaydı testler kuralı kanıtlamazdı.</summary>
+    private void SetupApplicationCleanupScenario(
+        ClubApplication[] applications, ClubApplicationDocument[] links, StoredFile[] files)
+    {
+        _clubApplicationRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubApplication, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<ClubApplication, bool>> f, CancellationToken _) =>
+                applications.AsQueryable().Where(f).ToList());
+
+        _clubApplicationDocumentRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubApplicationDocument, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<ClubApplicationDocument, bool>> f, CancellationToken _) =>
+                links.AsQueryable().Where(f).ToList());
+
+        _storedFileRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<StoredFile, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<StoredFile, bool>> f, CancellationToken _) =>
+                files.AsQueryable().Where(f).ToList());
     }
 }

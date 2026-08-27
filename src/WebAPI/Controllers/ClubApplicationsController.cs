@@ -1,7 +1,9 @@
 using Business.Abstract;
 using Business.DTOs.ClubApplications;
+using Business.DTOs.Files;
 using Microsoft.AspNetCore.Mvc;
 using WebAPI.Extensions;
+using WebAPI.Models;
 
 namespace WebAPI.Controllers;
 
@@ -10,11 +12,78 @@ namespace WebAPI.Controllers;
 [Route("api")]
 public sealed class ClubApplicationsController(IClubApplicationService clubApplicationService) : ControllerBase
 {
+    /// <summary>
+    /// docs/MIMARI.md · O-22: form + evraklar tek istekte, atomik. Y-05/Y-09: IFormFile bu katmanda kalır.
+    /// Y-01: aşağıdaki döngü bağlama/dönüştürmedir — tek `if` null dosyayı atlıyor, iş kuralı değil.
+    /// Karar veren tek satır SubmitAsync'tedir.
+    /// </summary>
     [HttpPost("club-applications")]
-    public async Task<IActionResult> Submit(SubmitClubApplicationRequestDto request, CancellationToken cancellationToken)
+    [RequestSizeLimit(62_914_560)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 62_914_560)]
+    public async Task<IActionResult> Submit([FromForm] SubmitClubApplicationForm form, CancellationToken cancellationToken)
     {
-        var result = await clubApplicationService.SubmitAsync(request, cancellationToken);
-        return result.ToActionResult();
+        var documents = new List<ClubApplicationDocumentUploadDto>(form.Documents.Count);
+        var streams = new List<Stream>(form.Documents.Count);
+
+        try
+        {
+            foreach (var part in form.Documents)
+            {
+                if (part.File is null)
+                {
+                    continue;
+                }
+
+                var stream = part.File.OpenReadStream();
+                streams.Add(stream);
+                documents.Add(new ClubApplicationDocumentUploadDto
+                {
+                    DocumentTypeId = part.DocumentTypeId,
+                    File = new UploadFileRequestDto
+                    {
+                        Content = stream,
+                        OriginalFileName = part.File.FileName,
+                        Length = part.File.Length,
+                    },
+                });
+            }
+
+            var request = new SubmitClubApplicationRequestDto
+            {
+                ProposedName = form.ProposedName,
+                Description = form.Description,
+                Justification = form.Justification,
+                ProposedAdvisorId = form.ProposedAdvisorId,
+                ProposedCategoryId = form.ProposedCategoryId,
+                Documents = documents,
+            };
+
+            var result = await clubApplicationService.SubmitAsync(request, cancellationToken);
+            return result.ToActionResult();
+        }
+        finally
+        {
+            foreach (var stream in streams)
+            {
+                await stream.DisposeAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    /// docs/MIMARI.md · A-63/Y-70/Y-51: korumalı evrak indirme. FilesController'daki anonim ucun
+    /// aksine Cache-Control YOK — kişisel veri tarayıcı önbelleğinde bırakılmaz.
+    /// </summary>
+    [HttpGet("club-applications/{applicationId:int}/documents/{documentId:int}")]
+    public async Task<IActionResult> GetDocument(int applicationId, int documentId, CancellationToken cancellationToken)
+    {
+        var result = await clubApplicationService.GetDocumentAsync(applicationId, documentId, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return result.ToActionResult();
+        }
+
+        return File(result.Data.Content, result.Data.ContentType, result.Data.DownloadFileName);
     }
 
     /// <summary>docs/MIMARI.md · K-39/A-42: giriş yapmış kullanıcıya açık; anonim vitrine eklenmez.</summary>

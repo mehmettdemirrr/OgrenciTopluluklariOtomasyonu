@@ -14,6 +14,7 @@ public sealed class ReferenceDataManager(
     IEntityRepository<AcademicStaff> academicStaffRepository,
     IEntityRepository<Club> clubRepository,
     IEntityRepository<ClubCategory> clubCategoryRepository,
+    IEntityRepository<ClubDocumentType> clubDocumentTypeRepository,
     IAcademicStaffDal academicStaffDal,
     IUnitOfWork unitOfWork) : IReferenceDataService
 {
@@ -239,6 +240,108 @@ public sealed class ReferenceDataManager(
 
         return Result.Success(Messages.ClubCategoryDeleted);
     }
+
+    public async Task<IDataResult<PagedResult<ClubDocumentTypeListItemDto>>> GetClubDocumentTypesPagedAsync(
+        int pageIndex, int pageSize, bool activeOnly = false, CancellationToken cancellationToken = default)
+    {
+        // Y-64: DisplayOrder'a göre artan — form alanlarının sırası kurumun kararı, alfabetik değil.
+        var paged = await clubDocumentTypeRepository
+            .GetListPagedAsync(
+                pageIndex, ClampPageSize(pageSize),
+                t => !activeOnly || t.IsActive,
+                t => t.DisplayOrder, descending: false, cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = paged.Items.Select(ToDocumentTypeDto).ToList();
+        return DataResult<PagedResult<ClubDocumentTypeListItemDto>>.Success(
+            new PagedResult<ClubDocumentTypeListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<ClubDocumentTypeListItemDto>> CreateClubDocumentTypeAsync(
+        CreateClubDocumentTypeRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var code = request.Code.Trim();
+
+        // Kategoriden farklı: kod kurumsal bir kimliktir. Sessizce mevcut satıra düşmek (CreateClubCategoryAsync
+        // deseni) burada yanlış olurdu — yönetici hangi kodun alınmış olduğunu bilmeli.
+        var existing = await clubDocumentTypeRepository.GetAsync(t => t.Code == code, cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return DataResult<ClubDocumentTypeListItemDto>.Conflict(Messages.ClubDocumentTypeCodeTaken);
+        }
+
+        var documentType = new ClubDocumentType
+        {
+            Code = code,
+            Name = request.Name.Trim(),
+            IsRequired = request.IsRequired,
+            IsActive = request.IsActive,
+            DisplayOrder = request.DisplayOrder,
+        };
+
+        await clubDocumentTypeRepository.AddAsync(documentType, cancellationToken).ConfigureAwait(false);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return DataResult<ClubDocumentTypeListItemDto>.Success(ToDocumentTypeDto(documentType));
+    }
+
+    public async Task<IResult> UpdateClubDocumentTypeAsync(
+        int documentTypeId, UpdateClubDocumentTypeRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var documentType = await clubDocumentTypeRepository
+            .GetAsync(t => t.Id == documentTypeId, cancellationToken).ConfigureAwait(false);
+        if (documentType is null)
+        {
+            return Result.NotFound(Messages.ClubDocumentTypeNotFound);
+        }
+
+        var code = request.Code.Trim();
+        var duplicate = await clubDocumentTypeRepository
+            .GetAsync(t => t.Id != documentTypeId && t.Code == code, cancellationToken).ConfigureAwait(false);
+        if (duplicate is not null)
+        {
+            return Result.Conflict(Messages.ClubDocumentTypeCodeTaken);
+        }
+
+        documentType.Code = code;
+        documentType.Name = request.Name.Trim();
+        documentType.IsRequired = request.IsRequired;
+        documentType.IsActive = request.IsActive;
+        documentType.DisplayOrder = request.DisplayOrder;
+
+        clubDocumentTypeRepository.Update(documentType);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return Result.Success(Messages.ClubDocumentTypeUpdated);
+    }
+
+    public async Task<IResult> DeleteClubDocumentTypeAsync(int documentTypeId, CancellationToken cancellationToken = default)
+    {
+        var documentType = await clubDocumentTypeRepository
+            .GetAsync(t => t.Id == documentTypeId, cancellationToken).ConfigureAwait(false);
+        if (documentType is null)
+        {
+            return Result.NotFound(Messages.ClubDocumentTypeNotFound);
+        }
+
+        clubDocumentTypeRepository.Delete(documentType);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (ReferentialIntegrityConflictException)
+        {
+            // A-62: başvuruya yüklenmiş bir evrak bu tipe bağlıysa FK Restrict devreye girer.
+            return Result.Conflict(Messages.ClubDocumentTypeInUse);
+        }
+
+        return Result.Success(Messages.ClubDocumentTypeDeleted);
+    }
+
+    private static ClubDocumentTypeListItemDto ToDocumentTypeDto(ClubDocumentType t) => new()
+    {
+        Id = t.Id, Code = t.Code, Name = t.Name, IsRequired = t.IsRequired, IsActive = t.IsActive, DisplayOrder = t.DisplayOrder,
+    };
 
     public async Task<IDataResult<PagedResult<AcademicStaffListItemDto>>> GetAcademicStaffPagedAsync(
         int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default)

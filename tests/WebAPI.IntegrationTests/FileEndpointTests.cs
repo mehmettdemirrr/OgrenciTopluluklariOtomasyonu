@@ -113,12 +113,32 @@ public sealed class FileEndpointTests : IClassFixture<CustomWebApplicationFactor
         Assert.DoesNotContain("wwwroot", expectedPath, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task<HttpResponseMessage> UploadClubLogoAsync(int clubId, string accessToken, byte[] fileBytes)
+    [Fact(DisplayName = "A-64 REGRESYON: kulüp logosu ucuna PDF yüklenemez (400) — PDF eklenince tip kümesi gevşemedi")]
+    public async Task UploadClubLogo_PdfContent_ReturnsBadRequest()
+    {
+        var scenario = await SeedAdvisorWithClubAsync("pdf");
+        var token = await LoginAndGetAccessTokenAsync(scenario.Email, scenario.Password);
+
+        // Geçerli bir PDF imzası: Core artık bunu TANIYOR. Uç yine de reddetmeli — logo yolunun
+        // izin verdiği küme yalnızca JPEG/PNG/WebP (A-64).
+        byte[] pdfBytes = [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37, 0x0A, 0x25, 0xE2, 0xE3, 0xCF, 0xD3];
+
+        var response = await UploadClubLogoAsync(scenario.ClubId, token, pdfBytes, "application/pdf", "sahte-logo.pdf");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private async Task<HttpResponseMessage> UploadClubLogoAsync(
+        int clubId,
+        string accessToken,
+        byte[] fileBytes,
+        string contentType = "image/png",
+        string fileName = "logo.png")
     {
         using var content = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent(fileBytes);
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
-        content.Add(fileContent, "file", "logo.png");
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Add(fileContent, "file", fileName);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/clubs/{clubId}/logo") { Content = content };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);

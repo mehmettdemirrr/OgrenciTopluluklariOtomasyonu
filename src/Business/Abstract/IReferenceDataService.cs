@@ -90,6 +90,40 @@ public interface IReferenceDataService
     [TransactionAspect]
     Task<IResult> DeleteClubCategoryAsync(int categoryId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// docs/MIMARI.md · K-37/A-62: başvuru formu bu katalogdan render edilir, bu yüzden okuma izni
+    /// `clubs.read` (kategori kararının aynısı). `activeOnly = true` yalnızca yürürlükteki formları döner.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ClubsRead)]
+    [CacheAspect(durationMinutes: 60)]
+    Task<IDataResult<PagedResult<ClubDocumentTypeListItemDto>>> GetClubDocumentTypesPagedAsync(
+        int pageIndex, int pageSize, bool activeOnly = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Y-45: tek önek yeterli. Kategoriden (A-60) farkı: evrak tipi kodu/adı yalnızca
+    /// GetClubDocumentTypesPagedAsync'in cache'inde yaşıyor — ClubApplicationManager'da
+    /// [CacheAspect] YOK, inceleme listesi katalogu her istekte taze okuyor.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [ValidationAspect(typeof(CreateClubDocumentTypeRequestValidator))]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IDataResult<ClubDocumentTypeListItemDto>> CreateClubDocumentTypeAsync(
+        CreateClubDocumentTypeRequestDto request, CancellationToken cancellationToken = default);
+
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [ValidationAspect(typeof(UpdateClubDocumentTypeRequestValidator))]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IResult> UpdateClubDocumentTypeAsync(
+        int documentTypeId, UpdateClubDocumentTypeRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>A-62: kullanımdaysa 409 — yürürlükten kaldırmanın yolu IsActive = false.</summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IResult> DeleteClubDocumentTypeAsync(int documentTypeId, CancellationToken cancellationToken = default);
+
     /// <summary>docs/PLAN-V2.md §9: kulüp oluşturma diyaloğundaki danışman seçici için sayfalı liste.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
     [CacheAspect(durationMinutes: 5)]

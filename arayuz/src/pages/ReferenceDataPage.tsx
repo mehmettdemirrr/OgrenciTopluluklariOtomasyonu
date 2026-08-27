@@ -16,6 +16,7 @@ import {
   Radio,
   RadioGroup,
   Stack,
+  Switch,
   Tab,
   Tabs,
   TextField,
@@ -43,7 +44,19 @@ import {
   type AcademicTermFormValues,
   type NameFormValues,
 } from '../schemas/referenceForm'
-import type { AcademicTermListItemDto, ClubCategoryListItemDto, DepartmentListItemDto, FacultyListItemDto, PagedResult } from '../api/types'
+import type {
+  AcademicTermListItemDto,
+  ClubCategoryListItemDto,
+  ClubDocumentTypeListItemDto,
+  DepartmentListItemDto,
+  FacultyListItemDto,
+  PagedResult,
+} from '../api/types'
+import {
+  clubDocumentTypeFormSchema,
+  emptyClubDocumentTypeFormValues,
+  type ClubDocumentTypeFormValues,
+} from '../schemas/clubDocumentTypeForm'
 import {
   clubApplicationWindowFormSchema,
   emptyClubApplicationWindowFormValues,
@@ -75,7 +88,7 @@ export function ReferenceDataPage() {
     <>
       <PageHeader
         title="Referans Verisi"
-        description="Fakülte, bölüm, akademik dönem, topluluk kategorisi ve akademik personel verilerini yönetin."
+        description="Fakülte, bölüm, akademik dönem, topluluk kategorisi, kuruluş evrakları ve akademik personel verilerini yönetin."
       />
 
       <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
@@ -83,6 +96,8 @@ export function ReferenceDataPage() {
         <Tab label="Akademik Dönemler" />
         {/* K-35: topluluk kategorisi — Faculty/Department ile aynı sınıf referans verisi (A-60). */}
         <Tab label="Topluluk Kategorileri" />
+        {/* K-37: kuruluş evrakı kataloğu — başvuru formu bu listeden render edilir (A-62). */}
+        <Tab label="Kuruluş Evrakları" />
         {/* K-33: akademik personel artık salt-okunur değil — kulüplere danışman buradan doğar. */}
         <Tab label="Akademik Personel" />
       </Tabs>
@@ -90,7 +105,8 @@ export function ReferenceDataPage() {
       {tab === 0 && <FacultiesTab />}
       {tab === 1 && <TermsTab />}
       {tab === 2 && <ClubCategoriesTab />}
-      {tab === 3 && <AcademicStaffTab />}
+      {tab === 3 && <ClubDocumentTypesTab />}
+      {tab === 4 && <AcademicStaffTab />}
     </>
   )
 }
@@ -953,6 +969,280 @@ function ClubCategoriesTab() {
         loading={deleteMutation.isPending}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         onCancel={() => setDeleteTarget(null)}
+      />
+    </>
+  )
+}
+
+function ClubDocumentTypesTab() {
+  const queryClient = useQueryClient()
+  const notify = useNotifier()
+  const dialog = useFormDialog()
+  const [editTarget, setEditTarget] = useState<ClubDocumentTypeListItemDto | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ClubDocumentTypeListItemDto | null>(null)
+
+  const createForm = useForm<ClubDocumentTypeFormValues>({
+    resolver: zodResolver(clubDocumentTypeFormSchema),
+    defaultValues: emptyClubDocumentTypeFormValues,
+  })
+  const editForm = useForm<ClubDocumentTypeFormValues>({
+    resolver: zodResolver(clubDocumentTypeFormSchema),
+    defaultValues: emptyClubDocumentTypeFormValues,
+  })
+
+  const { paginationModel, setPaginationModel, query: documentTypesQuery } = usePagedQuery({
+    queryKey: ['club-document-types'],
+    queryFn: async (pageIndex, pageSize) =>
+      (await apiClient.get<PagedResult<ClubDocumentTypeListItemDto>>('/club-document-types', { params: { pageIndex, pageSize } })).data,
+  })
+
+  // Y-45'in arayüz karşılığı: katalog başvuru formunu ve inceleme listesini besliyor.
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['club-document-types'] })
+    queryClient.invalidateQueries({ queryKey: ['club-applications'] })
+  }
+
+  const createMutation = useMutation({
+    mutationFn: async (values: ClubDocumentTypeFormValues) =>
+      (await apiClient.post<ClubDocumentTypeListItemDto>('/club-document-types', values)).data,
+    onSuccess: (_data, values) => {
+      notify({ message: `"${values.code}" evrak tipi eklendi.`, severity: 'success' })
+      dialog.closeDialog()
+      createForm.reset(emptyClubDocumentTypeFormValues)
+      invalidate()
+    },
+    // A-62: kod çakışması 409 döner; mesajı API veriyor (Y-35).
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Evrak tipi eklenemedi.'), severity: 'error' }),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async (values: ClubDocumentTypeFormValues) => {
+      if (!editTarget) return
+      await apiClient.put(`/club-document-types/${editTarget.id}`, values)
+    },
+    onSuccess: () => {
+      notify({ message: 'Evrak tipi güncellendi.', severity: 'success' })
+      setEditTarget(null)
+      invalidate()
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Evrak tipi güncellenemedi.'), severity: 'error' }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.delete(`/club-document-types/${id}`)
+    },
+    onSuccess: () => {
+      notify({ message: 'Evrak tipi silindi.', severity: 'success' })
+      setDeleteTarget(null)
+      invalidate()
+    },
+    onError: (error) => {
+      // A-62: başvurularda kullanılan tip 409 döner — yürürlükten kaldırmanın yolu pasife almak.
+      notify({ message: extractErrorMessage(error, 'Evrak tipi silinemedi.'), severity: 'error' })
+      setDeleteTarget(null)
+    },
+  })
+
+  const columns: GridColDef<ClubDocumentTypeListItemDto>[] = [
+    { field: 'displayOrder', headerName: 'Sıra', width: 80 },
+    { field: 'code', headerName: 'Kod', width: 120 },
+    { field: 'name', headerName: 'Evrak Adı', flex: 1, minWidth: 240 },
+    {
+      field: 'isRequired',
+      headerName: 'Zorunlu',
+      width: 110,
+      renderCell: (params) =>
+        params.row.isRequired ? <Chip size="small" color="error" label="Zorunlu" /> : <Chip size="small" variant="outlined" label="İsteğe bağlı" />,
+    },
+    {
+      field: 'isActive',
+      headerName: 'Durum',
+      width: 110,
+      renderCell: (params) =>
+        params.row.isActive ? <Chip size="small" color="success" label="Yürürlükte" /> : <Chip size="small" variant="outlined" label="Pasif" />,
+    },
+    {
+      field: 'actions',
+      headerName: '',
+      width: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <IconButton
+            size="small"
+            onClick={() => {
+              setEditTarget(params.row)
+              editForm.reset({
+                code: params.row.code,
+                name: params.row.name,
+                isRequired: params.row.isRequired,
+                isActive: params.row.isActive,
+                displayOrder: params.row.displayOrder,
+              })
+            }}
+          >
+            <EditOutlinedIcon fontSize="small" />
+          </IconButton>
+          <IconButton size="small" color="error" onClick={() => setDeleteTarget(params.row)}>
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      ),
+    },
+  ]
+
+  return (
+    <>
+      <Box sx={{ mb: 2 }}>
+        <Button variant="contained" onClick={dialog.openDialog}>
+          Yeni Evrak Tipi
+        </Button>
+      </Box>
+
+      <DataTable
+        mobileHiddenFields={['displayOrder', 'isActive']}
+        rows={documentTypesQuery.data?.items ?? []}
+        columns={columns}
+        loading={documentTypesQuery.isFetching}
+        paginationMode="server"
+        rowCount={documentTypesQuery.data?.totalCount ?? 0}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        pageSizeOptions={[10, 20, 50]}
+        emptyTitle="Henüz evrak tipi yok"
+        emptyDescription="Topluluk kuruluş başvurusunda istenecek formları buradan tanımlayın."
+      />
+
+      <Dialog
+        open={dialog.open}
+        onClose={() => {
+          dialog.closeDialog()
+          createForm.reset(emptyClubDocumentTypeFormValues)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Yeni Evrak Tipi</DialogTitle>
+        <DialogContent>
+          <ClubDocumentTypeFormFields control={createForm.control} />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              dialog.closeDialog()
+              createForm.reset(emptyClubDocumentTypeFormValues)
+            }}
+          >
+            Vazgeç
+          </Button>
+          <Button
+            variant="contained"
+            disabled={createMutation.isPending}
+            onClick={createForm.handleSubmit((values) => createMutation.mutate(values))}
+          >
+            Kaydet
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={editTarget !== null} onClose={() => setEditTarget(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Evrak Tipini Düzenle</DialogTitle>
+        <DialogContent>
+          <ClubDocumentTypeFormFields control={editForm.control} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditTarget(null)}>Vazgeç</Button>
+          <Button
+            variant="contained"
+            disabled={updateMutation.isPending}
+            onClick={editForm.handleSubmit((values) => updateMutation.mutate(values))}
+          >
+            Kaydet
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Evrak tipini sil"
+        description={
+          deleteTarget
+            ? `"${deleteTarget.code} ${deleteTarget.name}" tipini silmek istediğinize emin misiniz? Başvurularda kullanıldıysa silinemez; bu durumda pasife alın.`
+            : undefined
+        }
+        confirmLabel="Sil"
+        destructive
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
+  )
+}
+
+function ClubDocumentTypeFormFields({ control }: { control: Control<ClubDocumentTypeFormValues> }) {
+  return (
+    <>
+      <Controller
+        name="code"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            autoFocus
+            fullWidth
+            margin="dense"
+            label="Form kodu"
+            placeholder="FR-0230"
+            error={!!fieldState.error}
+            helperText={fieldState.error?.message}
+          />
+        )}
+      />
+      <Controller
+        name="name"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField {...field} fullWidth margin="dense" label="Evrak adı" error={!!fieldState.error} helperText={fieldState.error?.message} />
+        )}
+      />
+      <Controller
+        name="displayOrder"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            {...field}
+            type="number"
+            fullWidth
+            margin="dense"
+            label="Sıra"
+            onChange={(event) => field.onChange(Number(event.target.value))}
+            error={!!fieldState.error}
+            helperText={fieldState.error?.message ?? 'Başvuru formundaki görünüm sırası.'}
+          />
+        )}
+      />
+      <Controller
+        name="isRequired"
+        control={control}
+        render={({ field }) => (
+          <FormControlLabel
+            control={<Switch checked={field.value} onChange={(event) => field.onChange(event.target.checked)} />}
+            label="Zorunlu"
+          />
+        )}
+      />
+      <Controller
+        name="isActive"
+        control={control}
+        render={({ field }) => (
+          <FormControlLabel
+            control={<Switch checked={field.value} onChange={(event) => field.onChange(event.target.checked)} />}
+            label="Yürürlükte"
+          />
+        )}
       />
     </>
   )

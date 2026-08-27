@@ -18,4 +18,12 @@ public interface IFileService
 
     /// <summary>docs/MIMARI.md · Y-52: anonim — aspect kasıtlı olarak yok, sorgu Visibility==Public'e sabit.</summary>
     Task<IDataResult<FileContentDto>> GetPublicFileAsync(int fileId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · K-37/A-63/A-64: kuruluş evrakı — yalnızca PDF, daima Protected.
+    /// Controller ucu YOKTUR; yalnızca ClubApplicationManager çağırır (başvuru akışının parçası),
+    /// bu yüzden [SecuredOperation] da yok — yetki SubmitAsync'te zaten kurulmuş durumda.
+    /// </summary>
+    Task<IDataResult<UploadedFileDto>> StoreApplicationDocumentAsync(
+        UploadFileRequestDto request, CancellationToken cancellationToken = default);
 }

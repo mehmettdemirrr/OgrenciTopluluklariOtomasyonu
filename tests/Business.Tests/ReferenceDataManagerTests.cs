@@ -24,6 +24,9 @@ public class ReferenceDataManagerTests
     // Faz 32 (K-35): topluluk kategorisi — Faculty ile aynı sınıf referans verisi.
     private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
 
+    // Faz 33 (K-37): kuruluş evrakı tipi kataloğu.
+    private readonly Mock<IEntityRepository<ClubDocumentType>> _clubDocumentTypeRepository = new();
+
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly ReferenceDataManager _sut;
 
@@ -34,6 +37,7 @@ public class ReferenceDataManagerTests
             _academicStaffRepository.Object,
             _clubRepository.Object,
             _clubCategoryRepository.Object,
+            _clubDocumentTypeRepository.Object,
             _academicStaffDal.Object,
             _unitOfWork.Object);
 
@@ -296,5 +300,61 @@ public class ReferenceDataManagerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ResultStatus.NotFound, result.Status);
+    }
+
+    [Fact(DisplayName = "A-62: aynı kodla ikinci evrak tipi oluşturulamaz — 409")]
+    public async Task CreateClubDocumentTypeAsync_DuplicateCode_ReturnsConflict()
+    {
+        _clubDocumentTypeRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubDocumentType, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubDocumentType { Id = 1, Code = "FR-0230", Name = "Var olan", IsRequired = true, IsActive = true, DisplayOrder = 1 });
+
+        var result = await _sut.CreateClubDocumentTypeAsync(new CreateClubDocumentTypeRequestDto
+        {
+            Code = "  FR-0230  ", Name = "Yeni", IsRequired = true, IsActive = true, DisplayOrder = 9,
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Conflict, result.Status);
+    }
+
+    [Fact(DisplayName = "A-62: yeni kod ile evrak tipi oluşturulur, kod ve ad kırpılır")]
+    public async Task CreateClubDocumentTypeAsync_NewCode_AddsTrimmed()
+    {
+        ClubDocumentType? captured = null;
+        _clubDocumentTypeRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubDocumentType, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ClubDocumentType?)null);
+        _clubDocumentTypeRepository
+            .Setup(r => r.AddAsync(It.IsAny<ClubDocumentType>(), It.IsAny<CancellationToken>()))
+            .Callback((ClubDocumentType t, CancellationToken _) => captured = t)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.CreateClubDocumentTypeAsync(new CreateClubDocumentTypeRequestDto
+        {
+            Code = "  FR-0299  ", Name = "  Adli Sicil Belgesi  ", IsRequired = false, IsActive = true, DisplayOrder = 9,
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(captured);
+        Assert.Equal("FR-0299", captured!.Code);
+        Assert.Equal("Adli Sicil Belgesi", captured.Name);
+        Assert.False(captured.IsRequired);
+    }
+
+    [Fact(DisplayName = "A-62: kullanımdaki evrak tipi silinemez — 409")]
+    public async Task DeleteClubDocumentTypeAsync_InUse_ReturnsConflict()
+    {
+        _clubDocumentTypeRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubDocumentType, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubDocumentType { Id = 1, Code = "FR-0230", Name = "Kullanımda", IsRequired = true, IsActive = true, DisplayOrder = 1 });
+        _unitOfWork
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ReferentialIntegrityConflictException("FK ihlali", new InvalidOperationException("inner")));
+
+        var result = await _sut.DeleteClubDocumentTypeAsync(1);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Conflict, result.Status);
     }
 }

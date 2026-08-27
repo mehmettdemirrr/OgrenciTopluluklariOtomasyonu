@@ -98,6 +98,28 @@ export interface ClubApplicationListItemDto {
   createdClubId: number | null
   proposedCategoryId: number | null
   proposedCategoryName: string | null
+  documents: ClubApplicationDocumentDto[]
+}
+
+// src/Business/DTOs/Reference/ClubDocumentTypeListItemDto.cs
+export interface ClubDocumentTypeListItemDto {
+  id: number
+  code: string
+  name: string
+  isRequired: boolean
+  isActive: boolean
+  displayOrder: number
+}
+
+// src/Business/DTOs/ClubApplications/ClubApplicationDocumentDto.cs
+export interface ClubApplicationDocumentDto {
+  documentId: number
+  documentTypeId: number
+  code: string
+  name: string
+  isRequired: boolean
+  originalFileName: string
+  fileSizeBytes: number
 }
 
 // WebAPI/Extensions/ResultExtensions.cs · ToProblemResult

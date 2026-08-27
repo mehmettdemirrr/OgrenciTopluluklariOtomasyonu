@@ -1,22 +1,24 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Stack, TextField } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Stack, TextField, Typography } from '@mui/material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { apiClient } from '../api/client'
+import { downloadBlob } from '../api/download'
 import { extractErrorMessage } from '../api/errors'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { DataTable } from '../components/ui/DataTable'
 import { PageHeader } from '../components/ui/PageHeader'
+import { SectionCard } from '../components/ui/SectionCard'
 import { ApplicationStatusChip } from '../components/ui/StatusChip'
 import {
   clubApplicationDecisionFormSchema,
   emptyClubApplicationDecisionFormValues,
   type ClubApplicationDecisionFormValues,
 } from '../schemas/clubApplicationDecisionForm'
-import type { ClubApplicationListItemDto, PagedResult } from '../api/types'
+import type { ClubApplicationDocumentDto, ClubApplicationListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export function ClubApplicationsReviewPage() {
@@ -25,6 +27,16 @@ export function ClubApplicationsReviewPage() {
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const [rejectTarget, setRejectTarget] = useState<ClubApplicationListItemDto | null>(null)
+  const [expanded, setExpanded] = useState<ClubApplicationListItemDto | null>(null)
+
+  const downloadDocument = async (applicationId: number, document: ClubApplicationDocumentDto) => {
+    try {
+      // A-36: Authorization başlığı <a href> ile gönderilemez — downloadBlob axios blob'u kullanır.
+      await downloadBlob(`/club-applications/${applicationId}/documents/${document.documentId}`, document.originalFileName)
+    } catch (error) {
+      notify({ message: extractErrorMessage(error, 'Evrak indirilemedi.'), severity: 'error' })
+    }
+  }
 
   const rejectForm = useForm<ClubApplicationDecisionFormValues>({
     resolver: zodResolver(clubApplicationDecisionFormSchema),
@@ -68,6 +80,18 @@ export function ClubApplicationsReviewPage() {
       headerName: 'Başvuru Tarihi',
       width: 180,
       valueFormatter: (value: string) => new Date(value).toLocaleString('tr-TR'),
+    },
+    {
+      field: 'documents',
+      headerName: 'Evraklar',
+      width: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Button size="small" onClick={() => setExpanded(params.row)}>
+          {params.row.documents.length} evrak
+        </Button>
+      ),
     },
     {
       field: 'actions',
@@ -118,6 +142,36 @@ export function ClubApplicationsReviewPage() {
         emptyTitle="Bekleyen başvuru yok"
         emptyDescription="Yeni bir topluluk kurma başvurusu geldiğinde burada görünecek."
       />
+
+      {expanded && (
+        <SectionCard
+          sx={{ mt: 2 }}
+          action={
+            <Button size="small" onClick={() => setExpanded(null)}>
+              Kapat
+            </Button>
+          }
+          title={`${expanded.proposedName} — Evraklar`}
+        >
+          <Stack spacing={1}>
+            {expanded.documents.map((document) => (
+              <Stack key={document.documentId} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  {document.code} {document.name}
+                </Typography>
+                <Button size="small" variant="outlined" onClick={() => downloadDocument(expanded.id, document)}>
+                  İndir
+                </Button>
+              </Stack>
+            ))}
+            {expanded.documents.length === 0 && (
+              <Typography variant="body2" color="text.secondary">
+                Bu başvuruya evrak yüklenmemiş.
+              </Typography>
+            )}
+          </Stack>
+        </SectionCard>
+      )}
 
       <Dialog
         open={rejectTarget !== null}

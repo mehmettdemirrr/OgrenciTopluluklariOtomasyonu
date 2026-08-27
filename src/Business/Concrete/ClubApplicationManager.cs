@@ -2,11 +2,14 @@ using Business.Abstract;
 using Business.BackgroundJobs;
 using Business.Constants;
 using Business.DTOs.ClubApplications;
+using Business.DTOs.Files;
 using Core.DataAccess;
+using Core.Utilities.Files;
 using Core.Utilities.Results;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
 using DataAccess.Repositories;
+using DataAccess.Seed;
 using Entities;
 using Entities.Enums;
 using Hangfire;
@@ -22,7 +25,12 @@ public sealed class ClubApplicationManager(
     IEntityRepository<AcademicStaff> academicStaffRepository,
     IEntityRepository<ClubCategory> clubCategoryRepository,
     IEntityRepository<AcademicTerm> academicTermRepository,
+    IEntityRepository<ClubDocumentType> clubDocumentTypeRepository,
+    IEntityRepository<ClubApplicationDocument> clubApplicationDocumentRepository,
+    IEntityRepository<StoredFile> storedFileRepository,
     IAcademicStaffDal academicStaffDal,
+    IFileService fileService,
+    IFileStorage fileStorage,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     IClock clock,
@@ -92,6 +100,31 @@ public sealed class ClubApplicationManager(
             return Result.Conflict(Messages.DuplicatePendingClubApplication);
         }
 
+        // Y-71: bütünlük kontrolü BURADA — katalog DB'den okunur, biçimsel doğrulama değil iş kuralıdır.
+        // FluentValidation'a konulamaz: "hangi evrak zorunlu" cevabı veritabanındadır.
+        var activeTypes = await clubDocumentTypeRepository
+            .GetListAsync(t => t.IsActive, cancellationToken)
+            .ConfigureAwait(false);
+
+        var submittedTypeIds = request.Documents.Select(d => d.DocumentTypeId).ToList();
+
+        if (submittedTypeIds.Count != submittedTypeIds.Distinct().Count())
+        {
+            return Result.ValidationError(Messages.DuplicateClubDocumentUpload);
+        }
+
+        var activeTypeIds = activeTypes.Select(t => t.Id).ToHashSet();
+        if (submittedTypeIds.Any(id => !activeTypeIds.Contains(id)))
+        {
+            return Result.ValidationError(Messages.UnknownClubDocumentType);
+        }
+
+        var requiredTypeIds = activeTypes.Where(t => t.IsRequired).Select(t => t.Id).ToList();
+        if (requiredTypeIds.Any(id => !submittedTypeIds.Contains(id)))
+        {
+            return Result.ValidationError(Messages.MissingRequiredClubDocuments);
+        }
+
         var application = new ClubApplication
         {
             StudentId = student.Id,
@@ -106,6 +139,30 @@ public sealed class ClubApplicationManager(
         };
 
         await clubApplicationRepository.AddAsync(application, cancellationToken).ConfigureAwait(false);
+        // Başvuru kimliği ClubApplicationDocument'in düz int FK'si için gerekli — ara SaveChanges,
+        // bu kod tabanında navigation property kullanmamanın standart çözümü (DecideAsync precedent'i).
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var document in request.Documents)
+        {
+            // A-63/A-64: Protected + yalnızca PDF. Tip hatası burada yakalanır ve başvuru
+            // [TransactionAspect] sayesinde geri alınır — yarım kayıt kalmaz (O-22 atomiklik).
+            var stored = await fileService.StoreApplicationDocumentAsync(document.File, cancellationToken).ConfigureAwait(false);
+            if (!stored.IsSuccess)
+            {
+                return Result.ValidationError(stored.Message ?? Messages.UnsupportedDocumentFileType);
+            }
+
+            await clubApplicationDocumentRepository.AddAsync(
+                new ClubApplicationDocument
+                {
+                    ClubApplicationId = application.Id,
+                    ClubDocumentTypeId = document.DocumentTypeId,
+                    StoredFileId = stored.Data.FileId,
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return Result.Success(Messages.ClubApplicationSubmitted);
@@ -153,6 +210,7 @@ public sealed class ClubApplicationManager(
             .ConfigureAwait(false);
 
         var items = await MapWithAdvisorNamesAsync(applications, student.StudentNumber, cancellationToken).ConfigureAwait(false);
+        await AttachDocumentsAsync(items, cancellationToken).ConfigureAwait(false);
 
         return DataResult<IReadOnlyList<ClubApplicationListItemDto>>.Success(
             items.OrderByDescending(a => a.AppliedAtUtc).ToList());
@@ -195,8 +253,141 @@ public sealed class ClubApplicationManager(
             CreatedClubId = a.CreatedClubId,
         }).ToList();
 
+        await AttachDocumentsAsync(items, cancellationToken).ConfigureAwait(false);
+
         var result = new PagedResult<ClubApplicationListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize);
         return DataResult<PagedResult<ClubApplicationListItemDto>>.Success(result);
+    }
+
+    public async Task<IDataResult<FileContentDto>> GetDocumentAsync(
+        int applicationId, int documentId, CancellationToken cancellationToken = default)
+    {
+        var document = await clubApplicationDocumentRepository
+            .GetAsync(d => d.Id == documentId && d.ClubApplicationId == applicationId, cancellationToken)
+            .ConfigureAwait(false);
+        if (document is null)
+        {
+            return DataResult<FileContentDto>.NotFound(Messages.FileNotFound);
+        }
+
+        var application = await clubApplicationRepository
+            .GetAsync(a => a.Id == applicationId, cancellationToken)
+            .ConfigureAwait(false);
+        if (application is null)
+        {
+            return DataResult<FileContentDto>.NotFound(Messages.ClubApplicationNotFound);
+        }
+
+        // Y-51/Y-70: yetki İNDİRME ANINDA yeniden kontrol edilir — başvuru kuyrukta beklerken
+        // öğrencinin veya inceleyicinin yetkisi değişmiş olabilir.
+        var accessError = await EnsureDocumentAccessAsync(application, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return DataResult<FileContentDto>.Forbidden(accessError);
+        }
+
+        var file = await storedFileRepository
+            .GetAsync(f => f.Id == document.StoredFileId, cancellationToken)
+            .ConfigureAwait(false);
+        if (file is null)
+        {
+            return DataResult<FileContentDto>.NotFound(Messages.FileNotFound);
+        }
+
+        var stream = await fileStorage.OpenReadAsync(file.GeneratedFileName, cancellationToken).ConfigureAwait(false);
+        if (stream is null)
+        {
+            return DataResult<FileContentDto>.NotFound(Messages.FileNotFound);
+        }
+
+        return DataResult<FileContentDto>.Success(new FileContentDto
+        {
+            Content = stream,
+            ContentType = file.ContentType,
+            DownloadFileName = file.OriginalFileName,
+        });
+    }
+
+    /// <summary>
+    /// Y-23/Y-70: izin claim'i tek başına yetmez. İnceleyici (clubs.manage.all / clubs.write) VEYA
+    /// başvurunun sahibi öğrenci görebilir. Y-66: yönetici kontrolü ilk satırda.
+    /// </summary>
+    private async Task<string?> EnsureDocumentAccessAsync(ClubApplication application, CancellationToken cancellationToken)
+    {
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll)
+            || currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsWrite))
+        {
+            return null;
+        }
+
+        if (currentUser.UserId is not { } userId)
+        {
+            return Messages.ClubApplicationDocumentForbidden;
+        }
+
+        var student = await studentRepository
+            .GetAsync(s => s.ApplicationUserId == userId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return student is not null && student.Id == application.StudentId
+            ? null
+            : Messages.ClubApplicationDocumentForbidden;
+    }
+
+    /// <summary>Y-10: evraklar tek toplu sorguyla — başvuru başına sorgu N+1 üretirdi.</summary>
+    private async Task AttachDocumentsAsync(
+        List<ClubApplicationListItemDto> items, CancellationToken cancellationToken)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var applicationIds = items.Select(i => i.Id).ToList();
+        var links = await clubApplicationDocumentRepository
+            .GetListAsync(d => applicationIds.Contains(d.ClubApplicationId), cancellationToken)
+            .ConfigureAwait(false);
+
+        if (links.Count == 0)
+        {
+            return;
+        }
+
+        var typeIds = links.Select(d => d.ClubDocumentTypeId).Distinct().ToList();
+        var typesById = (await clubDocumentTypeRepository.GetListAsync(t => typeIds.Contains(t.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(t => t.Id, t => t);
+
+        var fileIds = links.Select(d => d.StoredFileId).Distinct().ToList();
+        var filesById = (await storedFileRepository.GetListAsync(f => fileIds.Contains(f.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(f => f.Id, f => f);
+
+        var documentsByApplication = links
+            .GroupBy(d => d.ClubApplicationId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<ClubApplicationDocumentDto>)g.Select(d =>
+                    {
+                        typesById.TryGetValue(d.ClubDocumentTypeId, out var type);
+                        filesById.TryGetValue(d.StoredFileId, out var file);
+                        return new ClubApplicationDocumentDto
+                        {
+                            DocumentId = d.Id,
+                            DocumentTypeId = d.ClubDocumentTypeId,
+                            Code = type?.Code ?? string.Empty,
+                            Name = type?.Name ?? string.Empty,
+                            IsRequired = type?.IsRequired ?? false,
+                            OriginalFileName = file?.OriginalFileName ?? string.Empty,
+                            FileSizeBytes = file?.FileSizeBytes ?? 0,
+                        };
+                    })
+                    // Y-64: belirleyici sıra — kurumsal form kodu.
+                    .OrderBy(d => d.Code, StringComparer.Ordinal)
+                    .ToList());
+
+        foreach (var item in items)
+        {
+            item.Documents = documentsByApplication.GetValueOrDefault(item.Id, []);
+        }
     }
 
     public async Task<IResult> DecideAsync(int applicationId, DecideClubApplicationRequestDto request, CancellationToken cancellationToken = default)

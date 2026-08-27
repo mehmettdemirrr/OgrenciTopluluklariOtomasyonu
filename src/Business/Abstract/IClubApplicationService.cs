@@ -1,4 +1,5 @@
 using Business.DTOs.ClubApplications;
+using Business.DTOs.Files;
 using Business.ValidationRules;
 using Core.Aspects.Autofac;
 using Core.DataAccess;
@@ -39,4 +40,12 @@ public interface IClubApplicationService
     [ValidationAspect(typeof(DecideClubApplicationRequestValidator))]
     [CacheRemoveAspect("ClubManager.", "PublicContentManager.")]
     Task<IResult> DecideAsync(int applicationId, DecideClubApplicationRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · A-63/Y-70/Y-51: korumalı evrak indirme. Yetki İNDİRME ANINDA yeniden
+    /// kontrol edilir — başvuran öğrenci veya clubs.write/clubs.manage.all taşıyan inceleyici.
+    /// [SecuredOperation] YOK: öğrencinin kendi evrağını indirmesi izin gerektirmez, sahiplik yeter.
+    /// </summary>
+    Task<IDataResult<FileContentDto>> GetDocumentAsync(
+        int applicationId, int documentId, CancellationToken cancellationToken = default);
 }

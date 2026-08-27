@@ -38,6 +38,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<ClubApplication> ClubApplications => Set<ClubApplication>();
 
+    public DbSet<ClubDocumentType> ClubDocumentTypes => Set<ClubDocumentType>();
+
+    public DbSet<ClubApplicationDocument> ClubApplicationDocuments => Set<ClubApplicationDocument>();
+
     public DbSet<Event> Events => Set<Event>();
 
     public DbSet<EventParticipation> EventParticipations => Set<EventParticipation>();
@@ -101,6 +105,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.ApplyConfiguration(new ClubMembershipConfiguration());
         builder.ApplyConfiguration(new MembershipApplicationConfiguration());
         builder.ApplyConfiguration(new ClubApplicationConfiguration());
+        builder.ApplyConfiguration(new ClubDocumentTypeConfiguration());
+        builder.ApplyConfiguration(new ClubApplicationDocumentConfiguration());
         builder.ApplyConfiguration(new EventConfiguration());
         builder.ApplyConfiguration(new EventParticipationConfiguration());
         builder.ApplyConfiguration(new AnnouncementConfiguration());

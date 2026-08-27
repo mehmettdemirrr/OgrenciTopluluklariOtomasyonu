@@ -56,6 +56,17 @@ public sealed class LocalFileStorage : IFileStorage
         return Task.FromResult(true);
     }
 
+    public Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<string> names = Directory.EnumerateFiles(_rootPath)
+            .Select(Path.GetFileName)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Select(n => n!)
+            .ToList();
+
+        return Task.FromResult(names);
+    }
+
     // Y-40'ın "sunucu tarafında üretilen ad" kuralı path traversal'ı zaten büyük ölçüde engeller,
     // ama burada da savunma: birleşik tam yol kökün dışına çıkamaz.
     private string ResolvePath(string generatedFileName)

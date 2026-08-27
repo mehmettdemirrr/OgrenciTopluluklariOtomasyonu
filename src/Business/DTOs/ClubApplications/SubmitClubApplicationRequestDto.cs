@@ -12,4 +12,7 @@ public sealed class SubmitClubApplicationRequestDto
 
     /// <summary>docs/MIMARI.md · K-35/A-60: önerilen kategori. Opsiyonel; verilirse var olmalı.</summary>
     public int? ProposedCategoryId { get; set; }
+
+    /// <summary>docs/MIMARI.md · K-37/Y-71: yüklenen evraklar. Bütünlük kontrolü Business'ta, katalog okunarak.</summary>
+    public IReadOnlyList<ClubApplicationDocumentUploadDto> Documents { get; set; } = [];
 }

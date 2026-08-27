@@ -7,6 +7,9 @@ public enum DetectedFileType
     Jpeg,
     Png,
     Webp,
+
+    /// <summary>docs/MIMARI.md · K-37/A-64: kuruluş evrakı. YALNIZCA evrak yolunda kabul edilir.</summary>
+    Pdf,
 }
 
 public static class DetectedFileTypeExtensions
@@ -16,6 +19,7 @@ public static class DetectedFileTypeExtensions
         DetectedFileType.Jpeg => "image/jpeg",
         DetectedFileType.Png => "image/png",
         DetectedFileType.Webp => "image/webp",
+        DetectedFileType.Pdf => "application/pdf",
         _ => null,
     };
 
@@ -24,6 +28,7 @@ public static class DetectedFileTypeExtensions
         DetectedFileType.Jpeg => ".jpg",
         DetectedFileType.Png => ".png",
         DetectedFileType.Webp => ".webp",
+        DetectedFileType.Pdf => ".pdf",
         _ => null,
     };
 }

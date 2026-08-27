@@ -8,4 +8,10 @@ public interface IFileStorage
     Task<Stream?> OpenReadAsync(string generatedFileName, CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(string generatedFileName, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · K-37: depodaki tüm üretilmiş dosya adları. Yalnızca gecelik bakımın
+    /// sahipsiz dosya taraması kullanır — iş kodu dosya listelemez.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken = default);
 }

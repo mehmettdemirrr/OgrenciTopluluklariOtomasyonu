@@ -45,4 +45,24 @@ public class FileSignatureInspectorTests
 
         Assert.Equal(DetectedFileType.Unknown, FileSignatureInspector.Detect(header));
     }
+
+    [Fact(DisplayName = "A-64: %PDF- imzası Pdf olarak tanınır")]
+    public void Detect_PdfSignature_ReturnsPdf()
+    {
+        byte[] header = [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37, 0x0A, 0x00, 0x00, 0x00];
+
+        var detected = FileSignatureInspector.Detect(header);
+
+        Assert.Equal(DetectedFileType.Pdf, detected);
+        Assert.Equal("application/pdf", detected.ToContentType());
+        Assert.Equal(".pdf", detected.ToExtension());
+    }
+
+    [Fact(DisplayName = "Y-40: PDF'e benzeyen ama imzası bozuk içerik Unknown döner")]
+    public void Detect_BrokenPdfSignature_ReturnsUnknown()
+    {
+        byte[] header = [0x25, 0x50, 0x44, 0x00, 0x2D, 0x31, 0x2E, 0x37, 0x0A, 0x00, 0x00, 0x00];
+
+        Assert.Equal(DetectedFileType.Unknown, FileSignatureInspector.Detect(header));
+    }
 }

@@ -15,6 +15,7 @@ import { RolesPage } from './pages/RolesPage'
 import { UsersPage } from './pages/UsersPage'
 import { ClubApplicationsReviewPage } from './pages/ClubApplicationsReviewPage'
 import { ClubDetailPage } from './pages/ClubDetailPage'
+import { ClubApplicationPage } from './pages/ClubApplicationPage'
 import { ClubsPage } from './pages/ClubsPage'
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -74,6 +75,8 @@ function App() {
                   <Route path="/my-events" element={<MyEventsPage />} />
                   <Route path="/my-applications" element={<MyApplicationsPage />} />
                   <Route path="/clubs" element={<ClubsPage />} />
+                  {/* K-37: başvuru artık diyalog değil, evrak yüklemeli tam sayfa. */}
+                  <Route path="/club-applications/new" element={<ClubApplicationPage />} />
                   <Route path="/clubs/:id" element={<ClubDetailPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
 

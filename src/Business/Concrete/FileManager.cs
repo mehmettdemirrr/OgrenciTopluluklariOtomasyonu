@@ -24,6 +24,12 @@ public sealed class FileManager(
     IFileStorage fileStorage,
     IOptions<FileStorageSettings> settings) : IFileService
 {
+    /// <summary>docs/MIMARI.md · A-64: logo/afiş yolu. Sessiz onay: yalnızca JPEG/PNG/WebP.</summary>
+    private static readonly DetectedFileType[] ImageTypes = [DetectedFileType.Jpeg, DetectedFileType.Png, DetectedFileType.Webp];
+
+    /// <summary>docs/MIMARI.md · A-64: kuruluş evrakı yolu. Yalnızca PDF.</summary>
+    private static readonly DetectedFileType[] DocumentTypes = [DetectedFileType.Pdf];
+
     public async Task<IDataResult<UploadedFileDto>> UploadClubLogoAsync(int clubId, UploadFileRequestDto request, CancellationToken cancellationToken = default)
     {
         var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
@@ -38,7 +44,7 @@ public sealed class FileManager(
             return DataResult<UploadedFileDto>.Forbidden(ownershipError);
         }
 
-        var stored = await StoreFileAsync(request, FileVisibility.Public, cancellationToken).ConfigureAwait(false);
+        var stored = await StoreFileAsync(request, FileVisibility.Public, ImageTypes, Messages.UnsupportedFileType, cancellationToken).ConfigureAwait(false);
         if (!stored.IsSuccess)
         {
             return stored;
@@ -71,7 +77,7 @@ public sealed class FileManager(
             return DataResult<UploadedFileDto>.Forbidden(ownershipError);
         }
 
-        var stored = await StoreFileAsync(request, FileVisibility.Public, cancellationToken).ConfigureAwait(false);
+        var stored = await StoreFileAsync(request, FileVisibility.Public, ImageTypes, Messages.UnsupportedFileType, cancellationToken).ConfigureAwait(false);
         if (!stored.IsSuccess)
         {
             return stored;
@@ -129,7 +135,17 @@ public sealed class FileManager(
         return advisor is null || advisor.ApplicationUserId != userId ? Messages.NotClubAdvisor : null;
     }
 
-    private async Task<IDataResult<UploadedFileDto>> StoreFileAsync(UploadFileRequestDto request, FileVisibility visibility, CancellationToken cancellationToken)
+    public Task<IDataResult<UploadedFileDto>> StoreApplicationDocumentAsync(
+        UploadFileRequestDto request, CancellationToken cancellationToken = default) =>
+        // A-64: DocumentTypes = yalnızca PDF. Y-70: görünürlük Protected, pazarlık yok.
+        StoreFileAsync(request, FileVisibility.Protected, DocumentTypes, Messages.UnsupportedDocumentFileType, cancellationToken);
+
+    private async Task<IDataResult<UploadedFileDto>> StoreFileAsync(
+        UploadFileRequestDto request,
+        FileVisibility visibility,
+        IReadOnlyCollection<DetectedFileType> allowedTypes,
+        string unsupportedTypeMessage,
+        CancellationToken cancellationToken)
     {
         if (request.Length > settings.Value.MaxUploadBytes)
         {
@@ -146,9 +162,11 @@ public sealed class FileManager(
         var contentType = detectedType.ToContentType();
         var extension = detectedType.ToExtension();
 
-        if (contentType is null || extension is null)
+        // A-64: PDF Core'a eklendi ama HER çağrı yeri kendi kümesini geçer. Bu satır olmadan
+        // logo/afiş ucu da PDF kabul ederdi — "yalnızca JPEG/PNG/WebP" sessiz onayı sessizce delinirdi.
+        if (contentType is null || extension is null || !allowedTypes.Contains(detectedType))
         {
-            return DataResult<UploadedFileDto>.ValidationError(Messages.UnsupportedFileType);
+            return DataResult<UploadedFileDto>.ValidationError(unsupportedTypeMessage);
         }
 
         buffer.Position = 0;
