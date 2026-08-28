@@ -8,7 +8,10 @@ import { z } from 'zod'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import type { RegistrationDepartmentDto } from '../api/types'
-import logo from '../assets/logo.png'
+import { AuthBrandPanel } from '../components/layout/AuthBrandPanel'
+import { BrandMark } from '../components/layout/BrandMark'
+import { AuthFormCard } from '../components/ui/AuthFormCard'
+import { BackButton } from '../components/ui/BackButton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const currentYear = new Date().getFullYear()
@@ -64,40 +67,19 @@ export function RegisterPage() {
 
   return (
     <Box sx={{ flex: 1, display: 'flex' }}>
-      <Box
-        sx={{
-          display: { xs: 'none', md: 'flex' },
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          width: '42%',
-          bgcolor: 'secondary.main',
-          color: 'common.white',
-          p: 6,
-        }}
-      >
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <Box component="img" src={logo} alt="" sx={{ width: 40, height: 40 }} />
-          <Typography variant="h6" sx={{ fontWeight: 800 }}>
-            Öğrenci Toplulukları
-          </Typography>
-        </Stack>
+      <AuthBrandPanel
+        title="Topluluğuna katıl."
+        subtitle="Hesabını oluştur, e-postanı doğrula ve kampüsteki topluluklara üye ol."
+      />
 
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-            Topluluğuna katıl.
-          </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.8, maxWidth: 420 }}>
-            Hesabını oluştur, e-postanı doğrula ve kampüsteki topluluklara üye ol.
-          </Typography>
-        </Box>
-
-        {/* Telif satırı ortak AppFooter'a taşındı (PLAN-V3 §15.2) — burada tekrarlanmaz. */}
-        <Box />
-      </Box>
-
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3, overflowY: 'auto' }}>
-        <Box sx={{ width: '100%', maxWidth: 400, py: 4 }}>
-          <Typography variant="h5" component="h1" sx={{ fontWeight: 700, mb: 0.5 }}>
+      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: { xs: 2.5, md: 4 }, overflowY: 'auto' }}>
+        <Box sx={{ width: '100%', maxWidth: 440, py: 2 }}>
+          <AuthFormCard>
+          <BackButton to="/" label="Anasayfaya dön" />
+          <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 3, mt: 1 }}>
+            <BrandMark to="/" showSubtitle />
+          </Box>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 0.75, fontSize: 28 }}>
             Kayıt Ol
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -215,6 +197,7 @@ export function RegisterPage() {
               </Button>
             </Box>
           )}
+          </AuthFormCard>
         </Box>
       </Box>
     </Box>

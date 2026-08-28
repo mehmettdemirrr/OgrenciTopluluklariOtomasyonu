@@ -6,4 +6,5 @@ export const brand = {
   orange: '#EF7F1A',
   gold: '#B99C71',
   grey: '#A0A0A0', // kaynak belgedeki RGB 160·160·160; basılı hex #727271 ile tutarsız — RGB kanonik kabul edildi
+  greyDark: '#727271', // PLAN-V2: text.secondary
 } as const

@@ -1,12 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Avatar, Button, Chip, Grid, MenuItem, Stack, TextField } from '@mui/material'
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined'
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useNotifier } from '../notifications/NotifierProvider'
+import { DetailHero } from '../components/ui/DetailHero'
+import { InfoTile } from '../components/ui/InfoTile'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import type { MeResponseDto, RegistrationDepartmentDto } from '../api/types'
@@ -99,21 +103,54 @@ export function ProfilePage() {
     onError: (error) => notify({ message: extractErrorMessage(error, 'Parola güncellenemedi.'), severity: 'error' }),
   })
 
+  const me = meQuery.data
+  const displayName = [me?.firstName, me?.lastName].filter(Boolean).join(' ')
+  const avatarLetter = (displayName || me?.email || '?').charAt(0).toUpperCase()
+
   return (
     <>
-      <PageHeader title="Profilim" description="Hesap bilgileriniz ve parola yönetimi." />
+      <PageHeader title="Profilim" description="Hesap bilgileriniz ve parola yönetimi." backTo="/panel" />
 
       <Stack spacing={3}>
-        <SectionCard title="Hesap Bilgileri">
-          <Stack spacing={1.5}>
-            <Typography variant="body2">{meQuery.data?.email}</Typography>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-              {(meQuery.data?.roles ?? []).map((role) => (
-                <Chip key={role} size="small" label={role} />
-              ))}
-            </Stack>
-          </Stack>
-        </SectionCard>
+        <DetailHero
+          media={
+            <Avatar
+              sx={{
+                width: { xs: 88, md: 112 },
+                height: { xs: 88, md: 112 },
+                bgcolor: 'primary.dark',
+                fontWeight: 800,
+                fontSize: { xs: 32, md: 40 },
+              }}
+            >
+              {avatarLetter}
+            </Avatar>
+          }
+          chips={
+            (me?.roles ?? []).length > 0
+              ? (me?.roles ?? []).map((role) => (
+                  <Chip key={role} size="small" color="primary" variant="outlined" label={role} />
+                ))
+              : undefined
+          }
+          title={displayName || me?.email || 'Hesap'}
+          subtitle={displayName ? me?.email : undefined}
+        >
+          {isStudent && (
+            <Grid container spacing={1.5}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <InfoTile icon={BadgeOutlinedIcon} label="Öğrenci No" value={me?.studentNumber ?? '—'} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <InfoTile
+                  icon={SchoolOutlinedIcon}
+                  label="Bölüm"
+                  value={me?.departmentName ? `${me.departmentName}${me.facultyName ? ` · ${me.facultyName}` : ''}` : '—'}
+                />
+              </Grid>
+            </Grid>
+          )}
+        </DetailHero>
 
         {isStudent && (
           <SectionCard title="Öğrenci Bilgilerim">

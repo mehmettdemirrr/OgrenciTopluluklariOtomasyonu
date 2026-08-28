@@ -17,12 +17,19 @@ export function SearchField({ value, onChange, placeholder = 'Ara…', disabled 
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
-      sx={{ minWidth: 260 }}
+      sx={{
+        minWidth: { xs: '100%', sm: 280 },
+        maxWidth: 440,
+        '& .MuiOutlinedInput-root': {
+          borderRadius: 999,
+          bgcolor: 'background.paper',
+        },
+      }}
       slotProps={{
         input: {
           startAdornment: (
             <InputAdornment position="start">
-              <SearchOutlinedIcon fontSize="small" />
+              <SearchOutlinedIcon fontSize="small" color="action" />
             </InputAdornment>
           ),
         },

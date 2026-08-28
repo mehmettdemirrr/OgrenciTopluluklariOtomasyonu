@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material'
+import { Box, Typography, alpha } from '@mui/material'
 
 /**
  * docs/PLAN-V3.md §15.2 (A-47): kurumsal alt bilgi — tek metin, tek yer.
@@ -11,16 +11,20 @@ export function AppFooter() {
     <Box
       component="footer"
       sx={{
-        py: 2.5,
+        py: 3,
         px: 2,
         mt: 'auto',
         borderTop: '1px solid',
         borderColor: 'divider',
         textAlign: 'center',
+        bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.03),
       }}
     >
+      <Typography variant="body2" sx={{ fontWeight: 600, color: 'secondary.main', mb: 0.5 }}>
+        Malatya Turgut Özal Üniversitesi
+      </Typography>
       <Typography variant="caption" color="text.secondary">
-        © {new Date().getFullYear()} Malatya Turgut Özal Üniversitesi Dijital Dönüşüm Koordinatörlüğü. Tüm Hakları Saklıdır
+        © {new Date().getFullYear()} Dijital Dönüşüm Koordinatörlüğü. Tüm hakları saklıdır.
       </Typography>
     </Box>
   )

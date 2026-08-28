@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Stack, Tab, Tabs, Typography } from '@mui/material'
+import { Alert, Box, Button, Paper, Stack, Tab, Tabs, Typography } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useState } from 'react'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { DateBadge } from '../components/ui/DateBadge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
-import { SectionCard } from '../components/ui/SectionCard'
 import { ApplicationStatusChip } from '../components/ui/StatusChip'
 import type { ClubApplicationListItemDto, ClubApplicationWindowDto, MembershipApplicationListItemDto } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -22,10 +22,12 @@ export function MyApplicationsPage() {
     <>
       <PageHeader title="Başvurularım" description="Üyelik ve topluluk kurma başvurularınızın durumu." />
 
-      <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
-        <Tab label="Üyelik Başvurularım" />
-        <Tab label="Topluluk Kurma" />
-      </Tabs>
+      <Paper variant="outlined" sx={{ mb: 3, px: { xs: 1, md: 1.5 }, borderRadius: 3 }}>
+        <Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="scrollable" allowScrollButtonsMobile>
+          <Tab label="Üyelik Başvurularım" />
+          <Tab label="Topluluk Kurma" />
+        </Tabs>
+      </Paper>
 
       {tab === 0 && <MembershipApplicationsTab />}
       {tab === 1 && <ClubApplicationsTab />}
@@ -72,31 +74,38 @@ function MembershipApplicationsTab() {
 
   return (
     <>
-      <Stack spacing={2}>
+      <Stack spacing={1.5}>
         {items.map((application) => (
-          <SectionCard
-            key={application.id}
-            action={
-              application.status === 'Pending' && (
-                <Button size="small" color="error" onClick={() => setWithdrawTarget(application)}>
-                  Geri Çek
-                </Button>
-              )
-            }
-          >
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                {application.clubName}
-              </Typography>
-              <ApplicationStatusChip status={application.status} />
+          <Paper key={application.id} variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 3 }}>
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
+              <DateBadge iso={application.appliedAtUtc} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1}
+                  sx={{ alignItems: { sm: 'flex-start' }, justifyContent: 'space-between', mb: 0.75 }}
+                >
+                  <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                      {application.clubName}
+                    </Typography>
+                    <ApplicationStatusChip status={application.status} />
+                  </Stack>
+                  {application.status === 'Pending' && (
+                    <Button size="small" color="error" onClick={() => setWithdrawTarget(application)}>
+                      Geri Çek
+                    </Button>
+                  )}
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                  {new Date(application.appliedAtUtc).toLocaleString('tr-TR')} tarihinde başvuruldu
+                  {application.reviewedAtUtc
+                    ? ` · ${new Date(application.reviewedAtUtc).toLocaleString('tr-TR')} tarihinde karara bağlandı`
+                    : ''}
+                </Typography>
+              </Box>
             </Stack>
-            <Typography variant="caption" color="text.secondary">
-              {new Date(application.appliedAtUtc).toLocaleString('tr-TR')} tarihinde başvuruldu
-              {application.reviewedAtUtc
-                ? ` · ${new Date(application.reviewedAtUtc).toLocaleString('tr-TR')} tarihinde karara bağlandı`
-                : ''}
-            </Typography>
-          </SectionCard>
+          </Paper>
         ))}
       </Stack>
 
@@ -161,28 +170,33 @@ function ClubApplicationsTab() {
   return (
     <>
       {windowBanner}
-      <Stack spacing={2}>
-      {items.map((application) => (
-        <SectionCard key={application.id}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {application.proposedName}
-            </Typography>
-            <ApplicationStatusChip status={application.status} />
-          </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Önerilen danışman: {application.proposedAdvisorDisplayName}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {new Date(application.appliedAtUtc).toLocaleString('tr-TR')} tarihinde başvuruldu
-          </Typography>
-          {application.reviewNote && (
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Not: {application.reviewNote}
-            </Typography>
-          )}
-        </SectionCard>
-      ))}
+      <Stack spacing={1.5}>
+        {items.map((application) => (
+          <Paper key={application.id} variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 3 }}>
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
+              <DateBadge iso={application.appliedAtUtc} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 0.75 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                    {application.proposedName}
+                  </Typography>
+                  <ApplicationStatusChip status={application.status} />
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+                  Önerilen danışman: {application.proposedAdvisorDisplayName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {new Date(application.appliedAtUtc).toLocaleString('tr-TR')} tarihinde başvuruldu
+                </Typography>
+                {application.reviewNote && (
+                  <Typography variant="body2" sx={{ mt: 1.25, lineHeight: 1.7 }}>
+                    Not: {application.reviewNote}
+                  </Typography>
+                )}
+              </Box>
+            </Stack>
+          </Paper>
+        ))}
       </Stack>
     </>
   )

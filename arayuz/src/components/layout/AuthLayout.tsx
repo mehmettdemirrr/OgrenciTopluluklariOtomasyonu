@@ -1,4 +1,4 @@
-import { Box } from '@mui/material'
+import { Box, alpha } from '@mui/material'
 import { Outlet } from 'react-router-dom'
 import { AppFooter } from './AppFooter'
 
@@ -10,7 +10,16 @@ import { AppFooter } from './AppFooter'
  */
 export function AuthLayout() {
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.default',
+        backgroundImage: (theme) =>
+          `radial-gradient(ellipse at 0% 0%, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 46%), radial-gradient(ellipse at 100% 100%, ${alpha(theme.palette.secondary.main, 0.08)} 0%, transparent 42%)`,
+      }}
+    >
       <Outlet />
       <AppFooter />
     </Box>

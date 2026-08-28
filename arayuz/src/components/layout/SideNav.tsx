@@ -30,7 +30,7 @@ import type { SvgIconProps } from '@mui/material'
 import { useAuth } from '../../auth/AuthContext'
 import { Permissions } from '../../auth/permissions'
 import { getSession } from '../../auth/tokenStore'
-import logo from '../../assets/logo.png'
+import { BrandMark } from './BrandMark'
 
 interface NavItem {
   label: string
@@ -113,15 +113,26 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             selected={active}
             sx={{
+              position: 'relative',
               borderRadius: 2,
               mx: 1,
               mb: 0.5,
-              color: active ? 'primary.light' : alpha('#ffffff', 0.85),
+              color: active ? 'primary.main' : (theme) => alpha(theme.palette.common.white, 0.82),
               '&.Mui-selected': {
-                bgcolor: alpha('#ffffff', 0.08),
+                bgcolor: (theme) => alpha(theme.palette.common.white, 0.1),
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  left: 0,
+                  top: 8,
+                  bottom: 8,
+                  width: 3,
+                  borderRadius: 8,
+                  bgcolor: 'primary.main',
+                },
               },
               '&:hover': {
-                bgcolor: alpha('#ffffff', 0.06),
+                bgcolor: (theme) => alpha(theme.palette.common.white, 0.08),
               },
             }}
           >
@@ -134,12 +145,18 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
       })
 
   return (
-    <Box sx={{ height: '100%', bgcolor: 'secondary.main', color: 'common.white', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ px: 2.5, gap: 1.25 }}>
-        <Box component="img" src={logo} alt="" sx={{ width: 32, height: 32 }} />
-        <Typography variant="subtitle1" noWrap sx={{ fontWeight: 800, color: 'common.white' }}>
-          Öğrenci Toplulukları
-        </Typography>
+    <Box
+      sx={{
+        height: '100%',
+        color: 'common.white',
+        display: 'flex',
+        flexDirection: 'column',
+        background: (theme) =>
+          `linear-gradient(180deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.dark} 140%)`,
+      }}
+    >
+      <Toolbar sx={{ px: 2, gap: 1.25, minHeight: 72 }}>
+        <BrandMark light to="/panel" />
       </Toolbar>
 
       <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
@@ -159,7 +176,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
 
       {hasPermission(Permissions.HangfireDashboard) && (
         <>
-          <Divider sx={{ borderColor: alpha('#ffffff', 0.12) }} />
+          <Divider sx={{ borderColor: (theme) => alpha(theme.palette.common.white, 0.12) }} />
           {/*
             §23.1'in asıl sorunu: MuiListItemButton `flex-grow: 1` taşır (satır içinde kullanılmak
             üzere tasarlandığı için). Sütun yönlü flex kabında doğrudan çocuk olunca DİKEY büyüyüp
@@ -173,10 +190,10 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
             rel="noreferrer"
             sx={{ py: 1.5, px: 2.5, flex: '0 0 auto' }}
           >
-            <ListItemIcon sx={{ minWidth: 36, color: alpha('#ffffff', 0.85) }}>
+            <ListItemIcon sx={{ minWidth: 36, color: (theme) => alpha(theme.palette.common.white, 0.85) }}>
               <OpenInNewOutlinedIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText slotProps={{ primary: { sx: { fontSize: 13, color: alpha('#ffffff', 0.85) } } }}>Hangfire Paneli</ListItemText>
+            <ListItemText slotProps={{ primary: { sx: { fontSize: 13, color: (theme) => alpha(theme.palette.common.white, 0.85) } } }}>Hangfire Paneli</ListItemText>
           </ListItemButton>
         </>
       )}
@@ -190,7 +207,7 @@ function NavGroupLabel({ text }: { text: string }) {
     <Typography
       component="div"
       variant="overline"
-      sx={{ px: 3, pt: 1, display: 'block', lineHeight: 1.6, color: alpha('#ffffff', 0.5), fontSize: 11, letterSpacing: 1 }}
+      sx={{ px: 3, pt: 1, display: 'block', lineHeight: 1.6, color: (theme) => alpha(theme.palette.common.white, 0.48), fontSize: 11, letterSpacing: 1 }}
     >
       {text}
     </Typography>

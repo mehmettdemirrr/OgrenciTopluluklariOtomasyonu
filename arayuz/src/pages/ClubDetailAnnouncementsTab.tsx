@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import { useState } from 'react'
 import { Controller, useForm, type Control } from 'react-hook-form'
@@ -13,7 +13,7 @@ import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { EmptyState } from '../components/ui/EmptyState'
-import { SectionCard } from '../components/ui/SectionCard'
+import { AnnouncementCard } from '../components/ui/AnnouncementCard'
 import { AnnouncementVisibilityChip } from '../components/ui/StatusChip'
 import { announcementFormSchema, type AnnouncementFormValues } from '../schemas/announcementForm'
 import type { AnnouncementListItemDto, PagedResult } from '../api/types'
@@ -107,12 +107,17 @@ export function ClubAnnouncementsTab({ clubId }: { clubId: number }) {
       {!announcementsQuery.isLoading && items.length === 0 ? (
         <EmptyState icon={CampaignOutlinedIcon} title="Bu toplulukta duyuru yok" />
       ) : (
-        <Stack spacing={2}>
+        <Stack spacing={1.5}>
           {items.map((announcement) => (
-            <SectionCard
+            <AnnouncementCard
               key={announcement.id}
+              title={announcement.title}
+              content={announcement.content}
+              publishedAtUtc={announcement.publishedAtUtc}
+              meta={new Date(announcement.publishedAtUtc).toLocaleString('tr-TR')}
+              chip={<AnnouncementVisibilityChip visibility={announcement.visibility} />}
               action={
-                canWrite && (
+                canWrite ? (
                   <Stack direction="row" spacing={1}>
                     <Button size="small" onClick={() => openEditDialog(announcement)}>
                       Düzenle
@@ -121,22 +126,9 @@ export function ClubAnnouncementsTab({ clubId }: { clubId: number }) {
                       Kaldır
                     </Button>
                   </Stack>
-                )
+                ) : undefined
               }
-            >
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {announcement.title}
-                </Typography>
-                <AnnouncementVisibilityChip visibility={announcement.visibility} />
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                {new Date(announcement.publishedAtUtc).toLocaleString('tr-TR')}
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                {announcement.content}
-              </Typography>
-            </SectionCard>
+            />
           ))}
         </Stack>
       )}

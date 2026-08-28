@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, CardMedia, Chip, Grid, Typography } from '@mui/material'
+import { Box, Card, CardContent, CardMedia, Chip, Grid, Typography, alpha } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../../api/client'
@@ -26,7 +26,7 @@ export function PublicClubsPage() {
 
   return (
     <>
-      <PageHeader title="Kulüpler" description="Kampüsteki aktif toplulukları keşfedin." />
+      <PageHeader title="Kulüpler" description="Kampüsteki aktif toplulukları keşfedin." backTo="/" />
 
       <Box sx={{ mb: 3 }}>
         <SearchField value={search} onChange={setSearch} placeholder="Kulüp ara…" />
@@ -38,31 +38,40 @@ export function PublicClubsPage() {
         <EmptyState icon={GroupsOutlinedIcon} title="Kulüp bulunamadı" description="Arama kriterinizi değiştirmeyi deneyin." />
       )}
 
-      <Grid container spacing={2}>
+      <Grid container spacing={2.5}>
         {items.map((club) => (
           <Grid key={club.id} size={{ xs: 12, sm: 6, md: 4 }}>
             <Card
               variant="outlined"
               component={RouterLink}
               to={`/kulupler/${club.id}`}
-              sx={{ display: 'block', height: '100%', textDecoration: 'none', color: 'inherit' }}
+              sx={{ display: 'flex', flexDirection: 'column', height: '100%', textDecoration: 'none', color: 'inherit' }}
             >
               {club.logoFileId ? (
-                <CardMedia component="img" height={120} image={`/api/files/${club.logoFileId}`} alt="" sx={{ objectFit: 'contain', bgcolor: 'grey.50', p: 2 }} />
+                <CardMedia component="img" height={140} image={`/api/files/${club.logoFileId}`} alt="" sx={{ objectFit: 'contain', bgcolor: 'grey.50', p: 2 }} />
               ) : (
-                <Box sx={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50' }}>
-                  <GroupsOutlinedIcon sx={{ fontSize: 40, color: 'grey.400' }} />
+                <Box
+                  sx={{
+                    height: 140,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: (theme) =>
+                      `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.08)} 0%, ${alpha(theme.palette.primary.main, 0.12)} 100%)`,
+                  }}
+                >
+                  <GroupsOutlinedIcon sx={{ fontSize: 48, color: 'primary.dark' }} />
                 </Box>
               )}
-              <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }} noWrap>
+              <CardContent sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }} noWrap>
                   {club.name}
                 </Typography>
                 {/* A-42: anonim vitrinde kategori FİLTRESİ yok, yalnızca rozet — filtre için
                     /api/public/club-categories açmak gerekirdi ve anonim yüzey dar kalıyor.
                     Backend categoryId parametresini destekliyor; uç sonradan eklenebilir. */}
                 {club.clubCategoryName && (
-                  <Chip size="small" variant="outlined" label={club.clubCategoryName} sx={{ mb: 0.5 }} />
+                  <Chip size="small" variant="outlined" color="primary" label={club.clubCategoryName} sx={{ mb: 1 }} />
                 )}
                 <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {club.description || 'Açıklama eklenmemiş.'}

@@ -14,8 +14,10 @@ import {
   FormControlLabel,
   FormGroup,
   FormLabel,
+  Grid,
   IconButton,
   MenuItem,
+  Paper,
   Skeleton,
   Stack,
   Tab,
@@ -25,8 +27,12 @@ import {
 } from '@mui/material'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { GridColDef } from '@mui/x-data-grid'
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import { useState } from 'react'
 import { Controller, useForm, type Control } from 'react-hook-form'
 import { useParams } from 'react-router-dom'
@@ -39,9 +45,10 @@ import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
+import { DetailHero, DetailMedia } from '../components/ui/DetailHero'
+import { InfoTile } from '../components/ui/InfoTile'
 import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
-import { SectionCard } from '../components/ui/SectionCard'
 import { ClubRoleChip } from '../components/ui/StatusChip'
 import { clubFormSchema, emptyClubFormValues, toCategoryPayload, type ClubFormValues } from '../schemas/clubForm'
 import {
@@ -92,7 +99,11 @@ export function ClubDetailPage() {
 
   return (
     <>
-      <PageHeader title={clubQuery.data?.name ?? 'Topluluk'} description="Topluluk bilgileri, üyelik, etkinlik ve duyuru yönetimi." />
+      <PageHeader
+        title={clubQuery.data?.name ?? 'Topluluk'}
+        description="Topluluk bilgileri, üyelik, etkinlik ve duyuru yönetimi."
+        backTo="/clubs"
+      />
 
       {/* §25.4: hangi yetkiyle işlem yapıldığı belirsiz kalmasın — danışman olmadan yönetiliyor. */}
       {managesAllClubs && (
@@ -102,14 +113,16 @@ export function ClubDetailPage() {
         </Alert>
       )}
 
-      <Tabs value={tab} onChange={(_, value: TabKey) => setTab(value)} sx={{ mb: 2 }}>
-        <Tab label="Genel" value="general" />
-        {canViewMembers && <Tab label="Üyeler" value="members" />}
-        {/* Y-35: sekmeyi gizlemek yetki DEĞİL, kolaylıktır — uç kendi 403'ünü döner. */}
-        {canViewMembers && <Tab label="Roller" value="roles" />}
-        {canViewEvents && <Tab label="Etkinlikler" value="events" />}
-        {canViewAnnouncements && <Tab label="Duyurular" value="announcements" />}
-      </Tabs>
+      <Paper variant="outlined" sx={{ mb: 3, px: { xs: 1, md: 1.5 }, borderRadius: 3 }}>
+        <Tabs value={tab} onChange={(_, value: TabKey) => setTab(value)} variant="scrollable" allowScrollButtonsMobile>
+          <Tab label="Genel" value="general" />
+          {canViewMembers && <Tab label="Üyeler" value="members" />}
+          {/* Y-35: sekmeyi gizlemek yetki DEĞİL, kolaylıktır — uç kendi 403'ünü döner. */}
+          {canViewMembers && <Tab label="Roller" value="roles" />}
+          {canViewEvents && <Tab label="Etkinlikler" value="events" />}
+          {canViewAnnouncements && <Tab label="Duyurular" value="announcements" />}
+        </Tabs>
+      </Paper>
 
       {tab === 'general' && <GeneralTab clubId={clubId} club={clubQuery.data} canManage={canManageClubs} />}
       {tab === 'members' && canViewMembers && <MembersTab clubId={clubId} />}
@@ -182,39 +195,64 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
 
   // §23.2: bomboş ekran yerine iskelet — üst bileşen `club` gelene kadar undefined geçer.
   if (!club) {
-    return <Skeleton variant="rounded" height={180} />
+    return <Skeleton variant="rounded" height={280} />
   }
 
   return (
-    <SectionCard
-      action={
-        canManage && (
-          <Stack direction="row" spacing={1}>
-            <Button size="small" variant="outlined" onClick={openEditDialog}>
-              Düzenle
-            </Button>
-            <Button
-              size="small"
-              color={club.isActive ? 'error' : 'success'}
-              disabled={statusMutation.isPending}
-              onClick={() => statusMutation.mutate(!club.isActive)}
-            >
-              {club.isActive ? 'Pasife Al' : 'Aktifleştir'}
-            </Button>
-          </Stack>
-        )
-      }
-    >
-      <Stack spacing={1.5}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <Chip size="small" label={club.isActive ? 'Aktif' : 'Pasif'} color={club.isActive ? 'success' : 'default'} />
-          {club.clubCategoryName && <Chip size="small" variant="outlined" label={club.clubCategoryName} />}
-          <Typography variant="caption" color="text.secondary">
-            Oluşturulma: {new Date(club.createdAtUtc).toLocaleDateString('tr-TR')}
-          </Typography>
-        </Stack>
-        <Typography variant="body2">{club.description || 'Açıklama eklenmemiş.'}</Typography>
-      </Stack>
+    <>
+      <DetailHero
+        media={
+          <DetailMedia
+            src={club.logoFileId ? `/api/files/${club.logoFileId}` : null}
+            alt=""
+            fallback={<GroupsOutlinedIcon sx={{ fontSize: 48, color: 'primary.dark' }} />}
+          />
+        }
+        chips={
+          <>
+            <Chip size="small" label={club.isActive ? 'Aktif' : 'Pasif'} color={club.isActive ? 'success' : 'default'} />
+            {club.clubCategoryName && <Chip size="small" variant="outlined" color="primary" label={club.clubCategoryName} />}
+          </>
+        }
+        description={club.description}
+        emptyDescription="Bu topluluk için henüz açıklama eklenmemiş."
+        actions={
+          canManage ? (
+            <>
+              <Button variant="outlined" onClick={openEditDialog}>
+                Düzenle
+              </Button>
+              <Button
+                color={club.isActive ? 'error' : 'success'}
+                disabled={statusMutation.isPending}
+                onClick={() => statusMutation.mutate(!club.isActive)}
+              >
+                {club.isActive ? 'Pasife Al' : 'Aktifleştir'}
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        <Grid container spacing={1.5}>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <InfoTile
+              icon={VerifiedOutlinedIcon}
+              label="Durum"
+              value={club.isActive ? 'Aktif' : 'Pasif'}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <InfoTile icon={CategoryOutlinedIcon} label="Kategori" value={club.clubCategoryName ?? 'Kategorisiz'} />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <InfoTile
+              icon={CalendarMonthOutlinedIcon}
+              label="Oluşturulma"
+              value={new Date(club.createdAtUtc).toLocaleDateString('tr-TR')}
+            />
+          </Grid>
+        </Grid>
+      </DetailHero>
 
       <Dialog open={editDialog.open} onClose={editDialog.closeDialog} fullWidth maxWidth="xs">
         <DialogTitle>Topluluğu Düzenle</DialogTitle>
@@ -291,7 +329,7 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
           </Button>
         </DialogActions>
       </Dialog>
-    </SectionCard>
+    </>
   )
 }
 

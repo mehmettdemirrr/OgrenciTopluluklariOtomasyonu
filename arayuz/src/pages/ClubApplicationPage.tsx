@@ -96,6 +96,7 @@ export function ClubApplicationPage() {
       <PageHeader
         title="Yeni Topluluk Kuruluş Başvurusu"
         description="Tüm alanları eksiksiz doldurun. Zorunlu evrakların tamamı PDF olarak yüklenmelidir."
+        backTo="/clubs"
       />
 
       {windowClosed && (

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  Box,
   Button,
   Card,
   CardActions,
@@ -38,6 +39,7 @@ import { useSearchPagedQuery } from '../hooks/useSearchPagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { DataTable } from '../components/ui/DataTable'
 import { CardGridSkeleton } from '../components/ui/CardGridSkeleton'
+import { DateBadge } from '../components/ui/DateBadge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
@@ -133,28 +135,33 @@ function UpcomingTab() {
             <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
               <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardContent sx={{ flex: 1 }}>
-                  <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-                      {event.title}
-                    </Typography>
-                    <Chip size="small" label={event.capacity ? `Kontenjan: ${event.capacity}` : 'Sınırsız'} variant="outlined" />
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', mb: 1.25 }}>
+                    <DateBadge iso={event.startDateUtc} />
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 0.5 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 800 }} noWrap>
+                          {event.title}
+                        </Typography>
+                        <Chip size="small" label={event.capacity ? `Kontenjan: ${event.capacity}` : 'Sınırsız'} variant="outlined" />
+                      </Stack>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
+                        <Typography variant="body2" color="text.secondary" noWrap>
+                          {event.clubName}
+                        </Typography>
+                        {/* K-38: "Katıl" düğmesine basmadan önce üyelik şartını görsün. */}
+                        {event.audience === 'ClubMembers' && <EventAudienceChip audience={event.audience} />}
+                      </Stack>
+                      <Typography variant="body2" sx={{ mb: 0.5 }}>
+                        {new Date(event.startDateUtc).toLocaleString('tr-TR')}
+                      </Typography>
+                      {event.location && (
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
+                          <PlaceOutlinedIcon fontSize="inherit" />
+                          <Typography variant="caption">{event.location}</Typography>
+                        </Stack>
+                      )}
+                    </Box>
                   </Stack>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
-                    <Typography variant="body2" color="text.secondary" noWrap>
-                      {event.clubName}
-                    </Typography>
-                    {/* K-38: "Katıl" düğmesine basmadan önce üyelik şartını görsün. */}
-                    {event.audience === 'ClubMembers' && <EventAudienceChip audience={event.audience} />}
-                  </Stack>
-                  <Typography variant="body2" sx={{ mb: 0.5 }}>
-                    {new Date(event.startDateUtc).toLocaleString('tr-TR')}
-                  </Typography>
-                  {event.location && (
-                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
-                      <PlaceOutlinedIcon fontSize="inherit" />
-                      <Typography variant="caption">{event.location}</Typography>
-                    </Stack>
-                  )}
                 </CardContent>
                 <CardActions sx={{ px: 2, pb: 2, gap: 0.5 }}>
                   <Button size="small" component={RouterLink} to={`/events/${event.id}`}>

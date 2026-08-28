@@ -17,7 +17,7 @@ export function ResultPagination({ pageIndex, pageCount, totalCount, onChange }:
   }
 
   return (
-    <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mt: 3, flexWrap: 'wrap', gap: 1 }}>
+    <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mt: 3.5, flexWrap: 'wrap', gap: 1 }}>
       <Typography variant="body2" color="text.secondary">
         Toplam {totalCount} kayıt
       </Typography>

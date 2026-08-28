@@ -15,7 +15,7 @@ export function CardGridSkeleton({ count = 6, withMedia = false }: CardGridSkele
     <Grid container spacing={2}>
       {Array.from({ length: count }, (_, index) => (
         <Grid key={index} size={{ xs: 12, sm: 6, md: 4 }}>
-          <Card variant="outlined" sx={{ height: '100%' }}>
+          <Card variant="outlined" sx={{ height: '100%', pointerEvents: 'none' }}>
             {withMedia && <Skeleton variant="rectangular" height={120} />}
             <CardContent>
               <Stack spacing={1}>

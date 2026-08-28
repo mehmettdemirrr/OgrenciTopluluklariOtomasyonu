@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import { useState } from 'react'
 import { Controller, useForm, type Control } from 'react-hook-form'
@@ -15,7 +15,7 @@ import { useNotifier } from '../notifications/NotifierProvider'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SearchField } from '../components/ui/SearchField'
-import { SectionCard } from '../components/ui/SectionCard'
+import { AnnouncementCard } from '../components/ui/AnnouncementCard'
 import { AnnouncementVisibilityChip } from '../components/ui/StatusChip'
 import { announcementFormSchema, type AnnouncementFormValues } from '../schemas/announcementForm'
 import type { AnnouncementListItemDto, PagedResult } from '../api/types'
@@ -116,32 +116,23 @@ export function AnnouncementsPage() {
       {!feedQuery.isLoading && items.length === 0 ? (
         <EmptyState icon={CampaignOutlinedIcon} title="Henüz duyuru yok" description="Yeni bir duyuru yayınlandığında burada görünecek." />
       ) : (
-        <Stack spacing={2}>
+        <Stack spacing={1.5}>
           {items.map((announcement) => (
-            <SectionCard
+            <AnnouncementCard
               key={announcement.id}
+              title={announcement.title}
+              content={announcement.content}
+              publishedAtUtc={announcement.publishedAtUtc}
+              meta={`${announcement.clubName ?? 'Sistem Duyurusu'} · ${new Date(announcement.publishedAtUtc).toLocaleString('tr-TR')}`}
+              chip={<AnnouncementVisibilityChip visibility={announcement.visibility} />}
               action={
-                canCreateGlobal &&
-                announcement.clubId === null && (
+                canCreateGlobal && announcement.clubId === null ? (
                   <Button size="small" onClick={() => openEditDialog(announcement)}>
                     Düzenle
                   </Button>
-                )
+                ) : undefined
               }
-            >
-              <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {announcement.title}
-                </Typography>
-                <AnnouncementVisibilityChip visibility={announcement.visibility} />
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                {announcement.clubName ?? 'Sistem Duyurusu'} · {new Date(announcement.publishedAtUtc).toLocaleString('tr-TR')}
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                {announcement.content}
-              </Typography>
-            </SectionCard>
+            />
           ))}
         </Stack>
       )}

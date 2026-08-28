@@ -10,6 +10,7 @@ import {
   FormControl,
   FormControlLabel,
   FormLabel,
+  Grid,
   Radio,
   RadioGroup,
   Skeleton,
@@ -17,6 +18,10 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
+import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined'
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import { z } from 'zod'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -32,6 +37,9 @@ import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
+import { DateBadge } from '../components/ui/DateBadge'
+import { DetailHero, DetailMedia } from '../components/ui/DetailHero'
+import { InfoTile } from '../components/ui/InfoTile'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
@@ -214,7 +222,7 @@ export function EventDetailPage() {
   if (eventQuery.isLoading) {
     return (
       <Stack spacing={2}>
-        <Skeleton variant="text" width={280} height={40} />
+        <PageHeader title="Etkinlik" backTo="/events" />
         <Skeleton variant="rounded" height={180} />
         <Skeleton variant="rounded" height={240} />
       </Stack>
@@ -241,6 +249,7 @@ export function EventDetailPage() {
       <PageHeader
         title={event.title}
         description={event.clubName}
+        backTo="/events"
         action={
           <Stack direction="row" spacing={1}>
             {canUploadPoster && (
@@ -273,43 +282,65 @@ export function EventDetailPage() {
       />
       <input ref={posterInputRef} type="file" accept="image/*" hidden onChange={handlePosterFileChange} />
 
-      <SectionCard sx={{ mb: 3 }}>
-        <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      {/* A-49: iptal gerekçesi kalıcı hata değil ama kalıcı bir durum — snackbar değil sayfa içi Alert. */}
+      {event.status === 'Cancelled' && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Bu etkinlik iptal edildi.{event.cancellationReason ? ` Gerekçe: ${event.cancellationReason}` : ''}
+        </Alert>
+      )}
+
+      <DetailHero
+        sx={{ mb: 3 }}
+        media={<DetailMedia fallback={<DateBadge iso={event.startDateUtc} />} />}
+        chips={
+          <>
             <EventStatusChip status={event.status} />
             <EventAudienceChip audience={event.audience} />
-            <Typography variant="caption" color="text.secondary">
-              {new Date(event.startDateUtc).toLocaleString('tr-TR')} — {new Date(event.endDateUtc).toLocaleString('tr-TR')}
-            </Typography>
-          </Stack>
-          {/* A-49: iptal gerekçesi kalıcı hata değil ama kalıcı bir durum — snackbar değil sayfa içi Alert. */}
-          {event.status === 'Cancelled' && (
-            <Alert severity="error">
-              Bu etkinlik iptal edildi.{event.cancellationReason ? ` Gerekçe: ${event.cancellationReason}` : ''}
-            </Alert>
-          )}
-
-          {event.location && <Typography variant="body2">Yer: {event.location}</Typography>}
-          <Typography variant="body2" color="text.secondary">
-            {event.capacity ? `Kontenjan: ${event.capacity}` : 'Kontenjan sınırsız'}
-          </Typography>
-          <Typography variant="body2">{event.description || 'Açıklama eklenmemiş.'}</Typography>
-
-          {event.status === 'Published' && (
-            <Stack direction="row">
-              {isRegistered ? (
-                <Button variant="outlined" color="error" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate()}>
-                  Kaydımı İptal Et
-                </Button>
-              ) : (
-                <Button variant="contained" disabled={registerMutation.isPending} onClick={() => registerMutation.mutate()}>
-                  Katıl
-                </Button>
-              )}
-            </Stack>
-          )}
-        </Stack>
-      </SectionCard>
+          </>
+        }
+        description={event.description}
+        emptyDescription="Bu etkinlik için henüz açıklama eklenmemiş."
+        actions={
+          event.status === 'Published' ? (
+            isRegistered ? (
+              <Button variant="outlined" color="error" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate()}>
+                Kaydımı İptal Et
+              </Button>
+            ) : (
+              <Button variant="contained" size="large" disabled={registerMutation.isPending} onClick={() => registerMutation.mutate()}>
+                Etkinliğe Katıl
+              </Button>
+            )
+          ) : undefined
+        }
+      >
+        <Grid container spacing={1.5}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <InfoTile
+              icon={CalendarMonthOutlinedIcon}
+              label="Başlangıç"
+              value={new Date(event.startDateUtc).toLocaleString('tr-TR')}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <InfoTile
+              icon={EventAvailableOutlinedIcon}
+              label="Bitiş"
+              value={new Date(event.endDateUtc).toLocaleString('tr-TR')}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <InfoTile icon={PlaceOutlinedIcon} label="Yer" value={event.location || 'Belirtilmedi'} />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <InfoTile
+              icon={GroupsOutlinedIcon}
+              label="Kontenjan"
+              value={event.capacity ? `${event.capacity} kişi` : 'Sınırsız'}
+            />
+          </Grid>
+        </Grid>
+      </DetailHero>
 
       {canManage && (
         <SectionCard title="Katılımcılar">

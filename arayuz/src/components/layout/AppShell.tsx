@@ -9,7 +9,7 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <Box component="nav" sx={{ width: { md: SIDENAV_WIDTH }, flexShrink: { md: 0 } }}>
         <Drawer
           variant="temporary"
@@ -47,7 +47,7 @@ export function AppShell() {
 
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <TopBar onMenuClick={() => setMobileOpen(true)} />
-        <Container maxWidth="lg" sx={{ py: 4, flex: 1 }}>
+        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 }, flex: 1 }}>
           <Outlet />
         </Container>
         <AppFooter />

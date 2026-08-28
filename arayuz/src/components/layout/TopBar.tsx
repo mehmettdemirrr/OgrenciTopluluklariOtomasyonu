@@ -2,6 +2,7 @@ import {
   AppBar,
   Avatar,
   Box,
+  Chip,
   Divider,
   IconButton,
   ListItemIcon,
@@ -9,6 +10,7 @@ import {
   MenuItem,
   Toolbar,
   Typography,
+  alpha,
 } from '@mui/material'
 import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined'
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
@@ -31,9 +33,16 @@ export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?
   const initial = email ? email.charAt(0).toUpperCase() : '?'
 
   return (
-    <AppBar position="sticky" color="inherit" sx={{ bgcolor: 'background.paper' }}>
-      <Toolbar sx={{ gap: 1 }}>
-        <IconButton edge="start" onClick={onMenuClick} sx={{ display: { md: 'none' } }}>
+    <AppBar
+      position="sticky"
+      color="inherit"
+      sx={{
+        bgcolor: (theme) => alpha(theme.palette.background.paper, 0.88),
+        backdropFilter: 'blur(14px)',
+      }}
+    >
+      <Toolbar sx={{ gap: 1, minHeight: 72 }}>
+        <IconButton edge="start" onClick={onMenuClick} sx={{ display: { md: 'none' } }} aria-label="Menü">
           <MenuOutlinedIcon />
         </IconButton>
 
@@ -41,14 +50,37 @@ export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?
           {title}
         </Typography>
 
-        <IconButton onClick={(event) => setAnchorEl(event.currentTarget)} size="small">
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark', fontSize: 14 }}>{initial}</Avatar>
-        </IconButton>
+        <Chip
+          onClick={(event) => setAnchorEl(event.currentTarget)}
+          avatar={<Avatar sx={{ bgcolor: 'primary.dark', fontSize: 13 }}>{initial}</Avatar>}
+          label={
+            <Typography variant="body2" noWrap sx={{ maxWidth: { xs: 88, sm: 180 }, fontWeight: 600 }}>
+              {email ?? 'Hesap'}
+            </Typography>
+          }
+          variant="outlined"
+          sx={{
+            height: 40,
+            pl: 0.25,
+            cursor: 'pointer',
+            bgcolor: 'background.paper',
+            '& .MuiChip-avatar': { width: 28, height: 28, ml: '4px' },
+          }}
+        />
 
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} onClick={() => setAnchorEl(null)}>
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={() => setAnchorEl(null)}
+          onClick={() => setAnchorEl(null)}
+          slotProps={{ paper: { sx: { minWidth: 220, mt: 1 } } }}
+        >
           {email && (
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography variant="body2" noWrap sx={{ maxWidth: 220, fontWeight: 600 }}>
+            <Box sx={{ px: 2, py: 1.25 }}>
+              <Typography variant="caption" color="text.secondary">
+                Oturum
+              </Typography>
+              <Typography variant="body2" noWrap sx={{ maxWidth: 220, fontWeight: 700 }}>
                 {email}
               </Typography>
             </Box>

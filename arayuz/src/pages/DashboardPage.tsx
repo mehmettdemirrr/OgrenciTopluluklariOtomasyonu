@@ -5,10 +5,12 @@ import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined'
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { DateBadge } from '../components/ui/DateBadge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
@@ -89,20 +91,38 @@ export function DashboardPage() {
           <SectionCard
             title="Yaklaşan Etkinlikler"
             action={
-              <Typography component={RouterLink} to="/events" variant="body2" sx={{ color: 'primary.main', textDecoration: 'none' }}>
-                Tümünü Gör
+              <Typography component={RouterLink} to="/events" variant="body2" sx={{ color: 'primary.main', textDecoration: 'none', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                Tümünü Gör <ArrowForwardRoundedIcon sx={{ fontSize: 16 }} />
               </Typography>
             }
           >
             {(upcomingQuery.data?.items.length ?? 0) === 0 ? (
               <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" />
             ) : (
-              <List dense disablePadding>
+              <List disablePadding>
                 {upcomingQuery.data!.items.map((event) => (
-                  <ListItem key={event.id} disableGutters divider>
+                  <ListItem
+                    key={event.id}
+                    disableGutters
+                    sx={{
+                      py: 1.25,
+                      px: 1,
+                      mb: 0.75,
+                      borderRadius: 2,
+                      alignItems: 'flex-start',
+                      gap: 1.5,
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      '&:hover': { bgcolor: 'action.hover' },
+                    }}
+                    component={RouterLink}
+                    to={`/events/${event.id}`}
+                  >
+                    <DateBadge iso={event.startDateUtc} />
                     <ListItemText
                       primary={event.title}
                       secondary={`${event.clubName} · ${new Date(event.startDateUtc).toLocaleString('tr-TR')}`}
+                      slotProps={{ primary: { sx: { fontWeight: 700 } } }}
                     />
                   </ListItem>
                 ))}
@@ -114,20 +134,31 @@ export function DashboardPage() {
             <SectionCard
               title="Bekleyen Üyelik Başvuruları"
               action={
-                <Typography component={RouterLink} to="/review" variant="body2" sx={{ color: 'primary.main', textDecoration: 'none' }}>
-                  Tümünü Gör
+                <Typography component={RouterLink} to="/review" variant="body2" sx={{ color: 'primary.main', textDecoration: 'none', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                  Tümünü Gör <ArrowForwardRoundedIcon sx={{ fontSize: 16 }} />
                 </Typography>
               }
             >
               {(pendingApplicationsQuery.data?.items.length ?? 0) === 0 ? (
                 <EmptyState icon={FactCheckOutlinedIcon} title="Bekleyen başvuru yok" />
               ) : (
-                <List dense disablePadding>
+                <List disablePadding>
                   {pendingApplicationsQuery.data!.items.map((application) => (
-                    <ListItem key={application.id} disableGutters divider>
+                    <ListItem
+                      key={application.id}
+                      disableGutters
+                      sx={{
+                        py: 1.25,
+                        px: 1,
+                        mb: 0.75,
+                        borderRadius: 2,
+                        '&:hover': { bgcolor: 'action.hover' },
+                      }}
+                    >
                       <ListItemText
                         primary={`${application.studentNumber} · ${application.clubName}`}
                         secondary={new Date(application.appliedAtUtc).toLocaleString('tr-TR')}
+                        slotProps={{ primary: { sx: { fontWeight: 700 } } }}
                       />
                     </ListItem>
                   ))}

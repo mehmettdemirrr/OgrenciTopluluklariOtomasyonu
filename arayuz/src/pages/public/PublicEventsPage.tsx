@@ -3,6 +3,7 @@ import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import { apiClient } from '../../api/client'
 import { CardGridSkeleton } from '../../components/ui/CardGridSkeleton'
+import { DateBadge } from '../../components/ui/DateBadge'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { ResultPagination } from '../../components/ui/ResultPagination'
@@ -25,7 +26,7 @@ export function PublicEventsPage() {
 
   return (
     <>
-      <PageHeader title="Etkinlikler" description="Kampüsteki yaklaşan, yayında olan tüm etkinlikler." />
+      <PageHeader title="Etkinlikler" description="Kampüsteki yaklaşan, yayında olan tüm etkinlikler." backTo="/" />
 
       <Box sx={{ mb: 3 }}>
         <SearchField value={search} onChange={setSearch} placeholder="Etkinlik ara…" />
@@ -36,23 +37,26 @@ export function PublicEventsPage() {
       ) : items.length === 0 ? (
         <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" />
       ) : (
-        <Grid container spacing={2}>
+        <Grid container spacing={2.5}>
           {items.map((event) => (
             <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card variant="outlined" sx={{ height: '100%' }}>
+              <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 {event.posterFileId && (
-                  <CardMedia component="img" height={140} image={`/api/files/${event.posterFileId}`} alt="" sx={{ objectFit: 'cover' }} />
+                  <CardMedia component="img" height={160} image={`/api/files/${event.posterFileId}`} alt="" sx={{ objectFit: 'cover' }} />
                 )}
-                <CardContent>
-                  <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-                      {event.title}
-                    </Typography>
-                    {event.capacity && <Chip size="small" label={`Kontenjan: ${event.capacity}`} variant="outlined" />}
+                <CardContent sx={{ flex: 1 }}>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', mb: 1.5 }}>
+                    <DateBadge iso={event.startDateUtc} />
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 800, fontSize: 18 }} noWrap>
+                        {event.title}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {event.clubName}
+                      </Typography>
+                    </Box>
                   </Stack>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                    {event.clubName}
-                  </Typography>
+                  {event.capacity && <Chip size="small" label={`Kontenjan: ${event.capacity}`} variant="outlined" sx={{ mb: 1 }} />}
                   <Typography variant="body2" sx={{ mb: 0.5 }}>
                     {new Date(event.startDateUtc).toLocaleString('tr-TR')}
                   </Typography>

@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react'
 import { Link as RouterLink, useSearchParams } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { BrandMark } from '../components/layout/BrandMark'
+import { AuthFormCard } from '../components/ui/AuthFormCard'
+import { BackButton } from '../components/ui/BackButton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 type Status = 'confirming' | 'success' | 'error'
@@ -36,39 +39,43 @@ export function ConfirmEmailPage() {
   }, [userId, token, paramsMissing])
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
-      <Stack spacing={2} sx={{ width: '100%', maxWidth: 420, textAlign: 'center', alignItems: 'center' }}>
-        {status === 'confirming' && (
-          <>
-            <CircularProgress />
-            <Typography variant="body2" color="text.secondary">
-              E-posta adresiniz doğrulanıyor…
-            </Typography>
-          </>
-        )}
+    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: { xs: 2.5, md: 4 } }}>
+      <AuthFormCard>
+        <Stack spacing={2} sx={{ textAlign: 'center', alignItems: 'center' }}>
+          <BackButton to="/login" />
+          <BrandMark to="/" showSubtitle />
+          {status === 'confirming' && (
+            <>
+              <CircularProgress />
+              <Typography variant="body2" color="text.secondary">
+                E-posta adresiniz doğrulanıyor…
+              </Typography>
+            </>
+          )}
 
-        {status === 'success' && (
-          <>
-            <Alert severity="success" sx={{ width: '100%' }}>
-              {message}
-            </Alert>
-            <Button component={RouterLink} to="/login" variant="contained">
-              Giriş Yap
-            </Button>
-          </>
-        )}
+          {status === 'success' && (
+            <>
+              <Alert severity="success" sx={{ width: '100%' }}>
+                {message}
+              </Alert>
+              <Button component={RouterLink} to="/login" variant="contained">
+                Giriş Yap
+              </Button>
+            </>
+          )}
 
-        {status === 'error' && (
-          <>
-            <Alert severity="error" sx={{ width: '100%' }}>
-              {message}
-            </Alert>
-            <Button component={RouterLink} to="/login" variant="outlined">
-              Giriş sayfasına dön
-            </Button>
-          </>
-        )}
-      </Stack>
+          {status === 'error' && (
+            <>
+              <Alert severity="error" sx={{ width: '100%' }}>
+                {message}
+              </Alert>
+              <Button component={RouterLink} to="/login" variant="outlined">
+                Giriş sayfasına dön
+              </Button>
+            </>
+          )}
+        </Stack>
+      </AuthFormCard>
     </Box>
   )
 }

@@ -43,7 +43,20 @@ export function DataTable<R extends GridValidRowModel>({
         slots={{
           noRowsOverlay: () => <EmptyState title={emptyTitle} description={emptyDescription} />,
         }}
-        sx={{ border: 'none', ...sx }}
+        sx={{
+          border: 'none',
+          '& .MuiDataGrid-columnHeader': {
+            bgcolor: 'grey.50',
+            fontWeight: 700,
+          },
+          '& .MuiDataGrid-row:hover': {
+            bgcolor: (theme) => theme.palette.action.hover,
+          },
+          '& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus': {
+            outline: 'none',
+          },
+          ...sx,
+        }}
         {...gridProps}
         columnVisibilityModel={columnVisibilityModel}
       />

@@ -6,7 +6,10 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
-import logo from '../assets/logo.png'
+import { AuthBrandPanel } from '../components/layout/AuthBrandPanel'
+import { BrandMark } from '../components/layout/BrandMark'
+import { AuthFormCard } from '../components/ui/AuthFormCard'
+import { BackButton } from '../components/ui/BackButton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 // Y-35: yalnızca biçim doğrulanır — "bu e-posta var mı" gibi iş kuralı kararları API'de verilir.
@@ -45,41 +48,18 @@ export function LoginPage() {
 
   return (
     <Box sx={{ flex: 1, display: 'flex' }}>
-      <Box
-        sx={{
-          display: { xs: 'none', md: 'flex' },
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          width: '42%',
-          bgcolor: 'secondary.main',
-          color: 'common.white',
-          p: 6,
-        }}
-      >
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <Box component="img" src={logo} alt="" sx={{ width: 40, height: 40 }} />
-          <Typography variant="h6" sx={{ fontWeight: 800 }}>
-            Öğrenci Toplulukları
-          </Typography>
-        </Stack>
+      <AuthBrandPanel
+        title="Kampüsteki topluluklar, tek yerde."
+        subtitle="Üyelik başvurusundan etkinlik onayına, yetki yönetiminden raporlamaya kadar tüm topluluk süreçlerini buradan yönetin."
+      />
 
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-            Kampüsteki topluluklar, tek yerde.
-          </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.8, maxWidth: 420 }}>
-            Üyelik başvurusundan etkinlik onayına, yetki yönetiminden raporlamaya kadar tüm topluluk
-            süreçlerini buradan yönetin.
-          </Typography>
-        </Box>
-
-        {/* Telif satırı ortak AppFooter'a taşındı (PLAN-V3 §15.2) — burada tekrarlanmaz. */}
-        <Box />
-      </Box>
-
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
-        <Box sx={{ width: '100%', maxWidth: 360 }}>
-          <Typography variant="h5" component="h1" sx={{ fontWeight: 700, mb: 0.5 }}>
+      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: { xs: 2.5, md: 4 } }}>
+        <AuthFormCard>
+          <BackButton to="/" label="Anasayfaya dön" />
+          <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 3, mt: 1 }}>
+            <BrandMark to="/" showSubtitle />
+          </Box>
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 0.75, fontSize: 28 }}>
             Giriş Yap
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -125,7 +105,7 @@ export function LoginPage() {
               Giriş Yap
             </Button>
 
-            <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ justifyContent: 'space-between', gap: 0.5 }}>
               <Button component={RouterLink} to="/register" variant="text" size="small">
                 Hesabınız yok mu? Kayıt olun
               </Button>
@@ -134,7 +114,7 @@ export function LoginPage() {
               </Button>
             </Stack>
           </Box>
-        </Box>
+        </AuthFormCard>
       </Box>
     </Box>
   )

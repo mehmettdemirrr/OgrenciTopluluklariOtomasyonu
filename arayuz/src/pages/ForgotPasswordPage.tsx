@@ -6,6 +6,9 @@ import { Link as RouterLink } from 'react-router-dom'
 import { z } from 'zod'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
+import { BrandMark } from '../components/layout/BrandMark'
+import { AuthFormCard } from '../components/ui/AuthFormCard'
+import { BackButton } from '../components/ui/BackButton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const forgotPasswordSchema = z.object({
@@ -37,9 +40,13 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
-      <Box sx={{ width: '100%', maxWidth: 380 }}>
-        <Typography variant="h5" component="h1" sx={{ fontWeight: 700, mb: 0.5 }}>
+    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: { xs: 2.5, md: 4 } }}>
+      <AuthFormCard>
+        <BackButton to="/login" />
+        <Box sx={{ mb: 3, mt: 1 }}>
+          <BrandMark to="/" showSubtitle />
+        </Box>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 0.75, fontSize: 28 }}>
           Parolamı Unuttum
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -74,7 +81,7 @@ export function ForgotPasswordPage() {
             </Button>
           </Box>
         )}
-      </Box>
+      </AuthFormCard>
     </Box>
   )
 }

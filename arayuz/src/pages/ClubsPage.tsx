@@ -253,10 +253,18 @@ export function ClubsPage() {
             <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               {club.logoFileId ? (
                 // A-36: açık görsel, anonim uçtan doğrudan <img src> ile — tarayıcı önbelleği çalışır.
-                <CardMedia component="img" height={120} image={`/api/files/${club.logoFileId}`} alt="" sx={{ objectFit: 'contain', bgcolor: 'grey.50', p: 2 }} />
+                <CardMedia component="img" height={140} image={`/api/files/${club.logoFileId}`} alt="" sx={{ objectFit: 'contain', bgcolor: 'grey.50', p: 2 }} />
               ) : (
-                <Box sx={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50' }}>
-                  <GroupsOutlinedIcon sx={{ fontSize: 40, color: 'grey.400' }} />
+                <Box
+                  sx={{
+                    height: 140,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: (theme) => theme.palette.action.hover,
+                  }}
+                >
+                  <GroupsOutlinedIcon sx={{ fontSize: 44, color: 'primary.dark' }} />
                 </Box>
               )}
               <CardContent sx={{ flex: 1 }}>

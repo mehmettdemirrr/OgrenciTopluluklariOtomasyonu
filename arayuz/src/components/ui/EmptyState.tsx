@@ -13,26 +13,39 @@ export function EmptyState({ title, description, icon: Icon = InboxOutlinedIcon,
   const theme = useTheme()
 
   return (
-    <Stack spacing={1.5} sx={{ alignItems: 'center', justifyContent: 'center', py: 6, px: 2, textAlign: 'center' }}>
+    <Stack
+      spacing={1.5}
+      sx={{
+        alignItems: 'center',
+        justifyContent: 'center',
+        py: 7,
+        px: 2,
+        textAlign: 'center',
+        borderRadius: 3,
+        border: '1px dashed',
+        borderColor: 'divider',
+        bgcolor: (t) => alpha(t.palette.primary.main, 0.03),
+      }}
+    >
       <Box
         sx={{
-          width: 56,
-          height: 56,
+          width: 64,
+          height: 64,
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          bgcolor: alpha(theme.palette.primary.main, 0.1),
-          color: theme.palette.primary.main,
+          bgcolor: alpha(theme.palette.primary.main, 0.12),
+          color: theme.palette.primary.dark,
         }}
       >
-        <Icon fontSize="medium" />
+        <Icon />
       </Box>
-      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
         {title}
       </Typography>
       {description && (
-        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 380, lineHeight: 1.6 }}>
           {description}
         </Typography>
       )}
