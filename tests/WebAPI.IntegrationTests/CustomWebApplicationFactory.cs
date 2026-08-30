@@ -1,6 +1,7 @@
 using Autofac;
 using Core.Utilities.Email;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -76,9 +77,58 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         base.Dispose(disposing);
 
-        if (disposing && Directory.Exists(FileStorageRootPath))
+        if (!disposing)
+        {
+            return;
+        }
+
+        if (Directory.Exists(FileStorageRootPath))
         {
             Directory.Delete(FileStorageRootPath, recursive: true);
+        }
+
+        DropTestDatabase();
+    }
+
+    /// <summary>
+    /// Y-34 her fixture'a kendi LocalDB veritabanını veriyor, ama Dispose bunu uzun süre
+    /// <b>düşürmedi</b>: geçici dosya klasörü siliniyor, veritabanı kalıyordu. Her `dotnet test`
+    /// koşusu fixture sayısı kadar veritabanı bırakıyor; birikince kullanıcı profilinde onlarca
+    /// GB'lık .mdf/.ldf oluyor (bir kez 79 GB'a ulaştı).
+    ///
+    /// Temizlik <b>en iyi çabadır</b>: hata yutulur. Bir testin sonunda veritabanı düşürülemedi
+    /// diye test koşusunu kırmak, gerçek bir hatayı maskeleyen gürültü olurdu.
+    /// </summary>
+    private void DropTestDatabase()
+    {
+        try
+        {
+            // Havuzdaki açık bağlantılar DROP'u engeller; SINGLE_USER de geri kalanı düşürür.
+            SqlConnection.ClearAllPools();
+
+            using var connection = new SqlConnection(
+                "Server=(localdb)\\mssqllocaldb;Database=master;Trusted_Connection=True;TrustServerCertificate=True;");
+            connection.Open();
+
+            using var command = connection.CreateCommand();
+            // Ad GUID'den üretiliyor ama yine de parametreleştirilemeyen bir tanımlayıcı —
+            // QUOTENAME ile kaçırılır (Y-25'in enjeksiyon tarafı).
+            command.CommandText = """
+                DECLARE @name sysname = @databaseName;
+                IF DB_ID(@name) IS NOT NULL
+                BEGIN
+                    DECLARE @sql nvarchar(max) =
+                        N'ALTER DATABASE ' + QUOTENAME(@name) + N' SET SINGLE_USER WITH ROLLBACK IMMEDIATE;' +
+                        N'DROP DATABASE ' + QUOTENAME(@name) + N';';
+                    EXEC sp_executesql @sql;
+                END
+                """;
+            command.Parameters.Add(new SqlParameter("@databaseName", TestDatabaseName));
+            command.ExecuteNonQuery();
+        }
+        catch (SqlException)
+        {
+            // Yutulur: temizlik testin sonucunu belirlemez.
         }
     }
 
