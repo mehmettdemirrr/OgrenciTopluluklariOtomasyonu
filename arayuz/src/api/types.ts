@@ -276,6 +276,8 @@ export interface EventListItemDto {
   status: EventStatus
   audience: EventAudience
   cancellationReason: string | null
+  /** A-36: afiş görünürlüğü Public — anonim /api/files/{id} ucundan servis edilir. */
+  posterFileId: number | null
   /** null = bu listede hesaplanmadı; yalnızca /events/upcoming doldurur (PLAN-V4 §21.5). */
   isRegistered: boolean | null
 }

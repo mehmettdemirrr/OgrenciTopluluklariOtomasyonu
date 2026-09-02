@@ -212,6 +212,9 @@ public sealed class EventParticipationManager(
             Status = e.Status,
             Audience = e.Audience,
             CancellationReason = e.CancellationReason,
+            // İkinci kurulum yeri: burası atlanırsa "Etkinliklerim" listesindeki afişler
+            // sessizce kaybolur (Faz 30'da Audience ile aynı tuzağa düşülmüştü).
+            PosterFileId = e.PosterFileId,
         }).ToList();
 
         var result = new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize);

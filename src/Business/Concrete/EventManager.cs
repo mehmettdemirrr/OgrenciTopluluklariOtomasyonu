@@ -442,6 +442,7 @@ public sealed class EventManager(
         Status = e.Status,
         Audience = e.Audience,
         CancellationReason = e.CancellationReason,
+        PosterFileId = e.PosterFileId,
     };
 
     private async Task<List<EventListItemDto>> MapWithClubNamesAsync(PagedResult<Event> paged, List<int> clubIds, CancellationToken cancellationToken)

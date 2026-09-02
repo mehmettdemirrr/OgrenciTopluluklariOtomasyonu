@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -164,7 +165,11 @@ export function EventDetailPage() {
       formData.append('file', file)
       await apiClient.post(`/events/${eventId}/poster`, formData)
     },
-    onSuccess: () => notify({ message: 'Afiş güncellendi.', severity: 'success' }),
+    onSuccess: () => {
+      notify({ message: 'Afiş güncellendi.', severity: 'success' })
+      // Tazeleme olmadan yeni afiş ekranda görünmez: posterFileId eski sorgu sonucunda kalır.
+      invalidateEvent()
+    },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Afiş yüklenemedi.'), severity: 'error' }),
   })
 
@@ -291,7 +296,39 @@ export function EventDetailPage() {
 
       <DetailHero
         sx={{ mb: 3 }}
-        media={<DetailMedia fallback={<DateBadge iso={event.startDateUtc} />} />}
+        media={
+          /* Afiş varsa gerçek boyutuyla gösterilir; DetailMedia'nın 120px'lik karesi bir afişi
+             okunur kılmaz. Afiş yoksa bugünkü tarih rozeti davranışı aynen sürer. */
+          event.posterFileId ? (
+            <Box
+              component="a"
+              href={`/api/files/${event.posterFileId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Afişi tam boyutta aç"
+              sx={{
+                display: 'block',
+                width: { xs: '100%', sm: 200, md: 240 },
+                flexShrink: 0,
+                borderRadius: 3,
+                overflow: 'hidden',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                lineHeight: 0,
+              }}
+            >
+              <Box
+                component="img"
+                src={`/api/files/${event.posterFileId}`}
+                alt={`${event.title} afişi`}
+                sx={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+            </Box>
+          ) : (
+            <DetailMedia fallback={<DateBadge iso={event.startDateUtc} />} />
+          )
+        }
         chips={
           <>
             <EventStatusChip status={event.status} />

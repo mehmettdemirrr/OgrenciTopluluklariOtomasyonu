@@ -31,6 +31,12 @@ public sealed class EventListItemDto
     public string? CancellationReason { get; set; }
 
     /// <summary>
+    /// docs/MIMARI.md · A-36: etkinlik afişi. Görünürlüğü `Public` olduğu için anonim
+    /// `GET /api/files/{id}` ucundan servis edilir; DTO yalnızca kimliği taşır.
+    /// </summary>
+    public int? PosterFileId { get; set; }
+
+    /// <summary>
     /// docs/PLAN-V4.md §21.5 (Y-62): giriş yapmış öğrencinin bu etkinliğe kaydı var mı.
     /// <b>null</b> = bu listede hesaplanmadı — arayüz "kayıtlı değil" ile karıştırmasın diye
     /// bilinçli olarak `bool?`. Yalnızca `/api/events/upcoming` doldurur.
