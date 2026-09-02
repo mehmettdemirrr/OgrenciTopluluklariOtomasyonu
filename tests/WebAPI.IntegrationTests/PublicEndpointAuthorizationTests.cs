@@ -49,6 +49,7 @@ public sealed class PublicEndpointAuthorizationTests : IClassFixture<CustomWebAp
     [InlineData("/api/public/clubs")]
     [InlineData("/api/public/events")]
     [InlineData("/api/public/announcements")]
+    [InlineData("/api/public/stats")]
     public async Task PublicEndpoint_WithoutToken_ReturnsOk(string path)
     {
         var response = await _client.GetAsync(path);

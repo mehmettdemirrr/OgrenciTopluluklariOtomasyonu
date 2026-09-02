@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
-
-const SUFFIX = 'Malatya Turgut Özal Üniversitesi Öğrenci Toplulukları'
+import { useLocale } from '../i18n/LocaleContext'
 
 /**
  * docs/MIMARI.md · A-52: her sayfa kendi sekme başlığını yazar.
@@ -8,11 +7,14 @@ const SUFFIX = 'Malatya Turgut Özal Üniversitesi Öğrenci Toplulukları'
  * "undefined" yazmaz. Bileşen sökülünce başlık kuruma geri döner.
  */
 export function useDocumentTitle(title: string | null | undefined) {
+  const { t } = useLocale()
+  const suffix = `${t('brand.university')} ${t('brand.name')}`
+
   useEffect(() => {
-    document.title = title ? `${title} · ${SUFFIX}` : SUFFIX
+    document.title = title ? `${title} · ${suffix}` : suffix
 
     return () => {
-      document.title = SUFFIX
+      document.title = suffix
     }
-  }, [title])
+  }, [title, suffix])
 }

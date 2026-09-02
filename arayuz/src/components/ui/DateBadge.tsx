@@ -1,9 +1,11 @@
 import { Box, Typography, alpha } from '@mui/material'
+import { useLocale } from '../../i18n/LocaleContext'
 
 export function DateBadge({ iso }: { iso: string }) {
+  const { dateLocale } = useLocale()
   const date = new Date(iso)
-  const day = date.toLocaleDateString('tr-TR', { day: '2-digit' })
-  const month = date.toLocaleDateString('tr-TR', { month: 'short' })
+  const day = date.toLocaleDateString(dateLocale, { day: '2-digit' })
+  const month = date.toLocaleDateString(dateLocale, { month: 'short' })
 
   return (
     <Box

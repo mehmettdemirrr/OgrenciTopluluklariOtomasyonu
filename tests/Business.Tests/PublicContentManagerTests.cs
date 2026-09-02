@@ -21,6 +21,7 @@ public class PublicContentManagerTests
     private readonly Mock<IEntityRepository<Event>> _eventRepository = new();
     private readonly Mock<IEntityRepository<Announcement>> _announcementRepository = new();
     private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
+    private readonly Mock<IEntityRepository<Student>> _studentRepository = new();
     private readonly Mock<IClock> _clock = new();
     private readonly PublicContentManager _sut;
 
@@ -29,7 +30,7 @@ public class PublicContentManagerTests
         _clock.Setup(c => c.UtcNow).Returns(FixedNow);
         _sut = new PublicContentManager(
             _clubRepository.Object, _eventRepository.Object, _announcementRepository.Object,
-            _clubCategoryRepository.Object, _clock.Object);
+            _clubCategoryRepository.Object, _studentRepository.Object, _clock.Object);
     }
 
     [Fact(DisplayName = "GetClubsAsync: yalnızca IsActive=true kulüpler döner, pasif kulüp listede yok")]
@@ -189,6 +190,45 @@ public class PublicContentManagerTests
         Assert.Equal("Herkese Açık", item.Title);
     }
 
+    [Fact(DisplayName = "GetStatsAsync: aktif/pasif kulüp, öğrenci ve yaklaşan herkese açık etkinlik sayılır")]
+    public async Task GetStatsAsync_CountsActiveInactiveClubsStudentsAndUpcomingPublicEvents()
+    {
+        var active = new Club { Id = 1, Name = "Aktif", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
+        var inactive = new Club { Id = 2, Name = "Pasif", AdvisorId = 1, IsActive = false, CreatedAtUtc = FixedNow };
+        SetupCountFilter(_clubRepository, [active, inactive]);
+
+        SetupCountFilter(_studentRepository, [
+            new Student { Id = 1, ApplicationUserId = 10, StudentNumber = "1", DepartmentId = 1, EnrollmentYear = 2024 },
+            new Student { Id = 2, ApplicationUserId = 11, StudentNumber = "2", DepartmentId = 1, EnrollmentYear = 2025 },
+            new Student { Id = 3, ApplicationUserId = 12, StudentNumber = "3", DepartmentId = 1, EnrollmentYear = 2026 },
+        ]);
+
+        var upcomingPublic = new Event
+        {
+            Id = 1, ClubId = 1, Title = "Yaklaşan", StartDateUtc = FixedNow.AddDays(2), EndDateUtc = FixedNow.AddDays(2).AddHours(2),
+            Status = EventStatus.Published, Audience = EventAudience.Public, CreatedAtUtc = FixedNow,
+        };
+        var pastPublic = new Event
+        {
+            Id = 2, ClubId = 1, Title = "Geçmiş", StartDateUtc = FixedNow.AddDays(-2), EndDateUtc = FixedNow.AddDays(-2).AddHours(2),
+            Status = EventStatus.Published, Audience = EventAudience.Public, CreatedAtUtc = FixedNow,
+        };
+        var membersOnly = new Event
+        {
+            Id = 3, ClubId = 1, Title = "Üye", StartDateUtc = FixedNow.AddDays(2), EndDateUtc = FixedNow.AddDays(2).AddHours(2),
+            Status = EventStatus.Published, Audience = EventAudience.ClubMembers, CreatedAtUtc = FixedNow,
+        };
+        SetupCountFilter(_eventRepository, [upcomingPublic, pastPublic, membersOnly]);
+
+        var result = await _sut.GetStatsAsync();
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, result.Data!.ClubCount);
+        Assert.Equal(1, result.Data.ActiveClubCount);
+        Assert.Equal(3, result.Data.StudentCount);
+        Assert.Equal(1, result.Data.UpcomingEventCount);
+    }
+
     /// <summary>
     /// Y-64: sıralı aşırı yükleme taklit edilir ve sıralama <b>gerçekten uygulanır</b> — böylece test
     /// hem filtreyi hem sırayı LINQ-to-Objects üzerinde doğrular, Moq salt-geçiş olmaz.
@@ -212,6 +252,21 @@ public class PublicContentManagerTests
 
                 var matched = ordered.ToList();
                 return new PagedResult<T>(matched, matched.Count, pageIndex, pageSize);
+            });
+    }
+
+    private static void SetupCountFilter<T>(Mock<IEntityRepository<T>> repository, T[] all) where T : class, Core.Entities.IEntity
+    {
+        repository
+            .Setup(r => r.GetListPagedAsync(
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<Expression<Func<T, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int pageIndex, int pageSize, Expression<Func<T, bool>>? filter, CancellationToken _) =>
+            {
+                var matched = filter is null ? all.ToList() : all.AsQueryable().Where(filter).ToList();
+                return new PagedResult<T>(matched.Take(Math.Max(pageSize, 0)).ToList(), matched.Count, pageIndex, pageSize);
             });
     }
 }

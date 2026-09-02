@@ -1,6 +1,7 @@
 import { Button } from '@mui/material'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import { Link as RouterLink } from 'react-router-dom'
+import { useLocale } from '../../i18n/LocaleContext'
 
 interface BackButtonProps {
   /** Gidilecek rota — geçmişe bakılmaz, her zaman buraya gider. */
@@ -8,7 +9,9 @@ interface BackButtonProps {
   label?: string
 }
 
-export function BackButton({ to, label = 'Geri dön' }: BackButtonProps) {
+export function BackButton({ to, label }: BackButtonProps) {
+  const { t } = useLocale()
+  const text = label ?? t('common.back')
   return (
     <Button
       component={RouterLink}
@@ -26,7 +29,7 @@ export function BackButton({ to, label = 'Geri dön' }: BackButtonProps) {
         '&:hover': { color: 'primary.dark', bgcolor: 'transparent' },
       }}
     >
-      {label}
+      {text}
     </Button>
   )
 }

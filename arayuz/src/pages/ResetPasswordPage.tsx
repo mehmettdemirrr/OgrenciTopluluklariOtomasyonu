@@ -10,17 +10,19 @@ import { BrandMark } from '../components/layout/BrandMark'
 import { AuthFormCard } from '../components/ui/AuthFormCard'
 import { BackButton } from '../components/ui/BackButton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLocale } from '../i18n/LocaleContext'
 
 const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{6,}$/
 
-const resetPasswordSchema = z.object({
-  newPassword: z.string().regex(strongPasswordRegex, 'Parola en az 6 karakter olmalı; büyük harf, küçük harf, rakam ve alfanumerik olmayan bir karakter içermelidir.'),
-})
-
-type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>
+type ResetPasswordFormValues = { newPassword: string }
 
 export function ResetPasswordPage() {
-  useDocumentTitle('Şifre Sıfırlama')
+  const { t } = useLocale()
+  useDocumentTitle(t('auth.resetDocTitle'))
+
+  const resetPasswordSchema = z.object({
+    newPassword: z.string().regex(strongPasswordRegex, t('validation.passwordStrong')),
+  })
 
   const [searchParams] = useSearchParams()
   const userId = searchParams.get('userId')
@@ -37,7 +39,7 @@ export function ResetPasswordPage() {
 
   const onSubmit = async (values: ResetPasswordFormValues) => {
     if (!userId || !token) {
-      setServerError('Bağlantı eksik veya geçersiz.')
+      setServerError(t('auth.linkInvalid'))
       return
     }
 
@@ -46,9 +48,9 @@ export function ResetPasswordPage() {
       const response = await apiClient.post<{ message?: string }>('/auth/reset-password', {
         userId: Number(userId), token, newPassword: values.newPassword,
       })
-      setSuccessMessage(response.data.message ?? 'Parolanız güncellendi.')
+      setSuccessMessage(response.data.message ?? t('auth.resetOk'))
     } catch (error) {
-      setServerError(extractErrorMessage(error, 'Parola sıfırlanamadı.'))
+      setServerError(extractErrorMessage(error, t('auth.resetFail')))
     }
   }
 
@@ -60,35 +62,35 @@ export function ResetPasswordPage() {
           <BrandMark to="/" showSubtitle />
         </Box>
         <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 0.75, fontSize: 28 }}>
-          Yeni Parola Belirle
+          {t('auth.resetTitle')}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Hesabınız için yeni bir parola girin.
+          {t('auth.resetLead')}
         </Typography>
 
         {successMessage ? (
           <Stack spacing={2}>
             <Alert severity="success">{successMessage}</Alert>
             <Button component={RouterLink} to="/login" variant="contained">
-              Giriş Yap
+              {t('common.login')}
             </Button>
           </Stack>
         ) : !userId || !token ? (
-          <Alert severity="error">Bağlantı eksik veya geçersiz. E-postanızdaki bağlantıyı tekrar kullanmayı deneyin.</Alert>
+          <Alert severity="error">{t('auth.linkInvalidLong')}</Alert>
         ) : (
           <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Controller
               name="newPassword"
               control={control}
               render={({ field, fieldState }) => (
-                <TextField {...field} label="Yeni Parola" type="password" autoComplete="new-password" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                <TextField {...field} label={t('auth.newPassword')} type="password" autoComplete="new-password" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
               )}
             />
 
             {serverError && <Alert severity="error">{serverError}</Alert>}
 
             <Button type="submit" variant="contained" disabled={isSubmitting} size="large">
-              Parolayı Güncelle
+              {t('auth.updatePassword')}
             </Button>
           </Box>
         )}

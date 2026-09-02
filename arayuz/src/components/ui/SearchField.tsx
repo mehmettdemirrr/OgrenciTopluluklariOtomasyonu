@@ -1,5 +1,6 @@
 import { InputAdornment, TextField } from '@mui/material'
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
+import { useLocale } from '../../i18n/LocaleContext'
 
 interface SearchFieldProps {
   value: string
@@ -10,10 +11,11 @@ interface SearchFieldProps {
 }
 
 /** docs/MIMARI.md · A-50: arama kutusu; metin debounce'lanıp sunucuya `search=` olarak gider (Y-62). */
-export function SearchField({ value, onChange, placeholder = 'Ara…', disabled }: SearchFieldProps) {
+export function SearchField({ value, onChange, placeholder, disabled }: SearchFieldProps) {
+  const { t } = useLocale()
   return (
     <TextField
-      placeholder={placeholder}
+      placeholder={placeholder ?? t('common.search')}
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}

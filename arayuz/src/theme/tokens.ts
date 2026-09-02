@@ -8,3 +8,19 @@ export const brand = {
   grey: '#A0A0A0', // kaynak belgedeki RGB 160·160·160; basılı hex #727271 ile tutarsız — RGB kanonik kabul edildi
   greyDark: '#727271', // PLAN-V2: text.secondary
 } as const
+
+/** Y-56: yüzey ve metin renkleri de yalnızca burada. */
+export const surfaces = {
+  light: {
+    default: '#F4F6FA',
+    paper: '#ffffff',
+    text: brand.navy,
+    textMuted: brand.greyDark,
+  },
+  dark: {
+    default: '#12162A',
+    paper: '#1B2140',
+    text: '#E8EAF4',
+    textMuted: '#A8ADC2',
+  },
+} as const

@@ -20,11 +20,13 @@ import { AnnouncementVisibilityChip } from '../components/ui/StatusChip'
 import { announcementFormSchema, type AnnouncementFormValues } from '../schemas/announcementForm'
 import type { AnnouncementListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLocale } from '../i18n/LocaleContext'
 
 const emptyAnnouncementFormValues: AnnouncementFormValues = { title: '', content: '', visibility: 'Public' }
 
 export function AnnouncementsPage() {
-  useDocumentTitle('Duyurular')
+  const { t } = useLocale()
+  useDocumentTitle(t('pages.announcements'))
 
   const queryClient = useQueryClient()
   const notify = useNotifier()
@@ -91,8 +93,8 @@ export function AnnouncementsPage() {
   return (
     <>
       <PageHeader
-        title="Duyurular"
-        description="Topluluk ve sistem duyurularının akışı."
+        title={t('pages.announcements')}
+        description={t('pages.announcementsLead')}
         action={
           canCreateGlobal && (
             <Button variant="contained" onClick={createDialog.openDialog}>

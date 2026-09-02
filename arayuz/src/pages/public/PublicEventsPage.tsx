@@ -11,9 +11,11 @@ import { SearchField } from '../../components/ui/SearchField'
 import { useSearchPagedQuery } from '../../hooks/useSearchPagedQuery'
 import type { PagedResult, PublicEventListItemDto } from '../../api/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { useLocale } from '../../i18n/LocaleContext'
 
 export function PublicEventsPage() {
-  useDocumentTitle('Etkinlikler')
+  const { t, dateLocale } = useLocale()
+  useDocumentTitle(t('public.eventsTitle'))
 
   const { search, setSearch, items, pageIndex, setPageIndex, pageCount, totalCount, query } =
     useSearchPagedQuery<PublicEventListItemDto>({
@@ -26,16 +28,16 @@ export function PublicEventsPage() {
 
   return (
     <>
-      <PageHeader title="Etkinlikler" description="Kampüsteki yaklaşan, yayında olan tüm etkinlikler." backTo="/" />
+      <PageHeader title={t('public.eventsTitle')} description={t('public.eventsLead')} backTo="/" />
 
       <Box sx={{ mb: 3 }}>
-        <SearchField value={search} onChange={setSearch} placeholder="Etkinlik ara…" />
+        <SearchField value={search} onChange={setSearch} placeholder={t('common.searchEvents')} />
       </Box>
 
       {query.isLoading ? (
         <CardGridSkeleton withMedia />
       ) : items.length === 0 ? (
-        <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" />
+        <EmptyState icon={EventOutlinedIcon} title={t('home.noEvents')} />
       ) : (
         <Grid container spacing={2.5}>
           {items.map((event) => (
@@ -56,9 +58,9 @@ export function PublicEventsPage() {
                       </Typography>
                     </Box>
                   </Stack>
-                  {event.capacity && <Chip size="small" label={`Kontenjan: ${event.capacity}`} variant="outlined" sx={{ mb: 1 }} />}
+                  {event.capacity && <Chip size="small" label={t('common.capacity', { count: event.capacity })} variant="outlined" sx={{ mb: 1 }} />}
                   <Typography variant="body2" sx={{ mb: 0.5 }}>
-                    {new Date(event.startDateUtc).toLocaleString('tr-TR')}
+                    {new Date(event.startDateUtc).toLocaleString(dateLocale)}
                   </Typography>
                   {event.location && (
                     <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>

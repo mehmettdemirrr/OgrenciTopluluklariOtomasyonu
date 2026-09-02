@@ -1,22 +1,43 @@
 import { useQuery } from '@tanstack/react-query'
-import { Box, Button, Card, CardContent, CardMedia, Chip, Grid, Stack, Typography, alpha } from '@mui/material'
+import { Box, Button, Card, CardContent, CardMedia, Chip, Grid, Stack, ToggleButton, ToggleButtonGroup, Typography, alpha, type SvgIconProps } from '@mui/material'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
-import { Link as RouterLink } from 'react-router-dom'
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
+import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
+import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
+import { useEffect, useState, type ComponentType } from 'react'
+import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { DateBadge } from '../../components/ui/DateBadge'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { AnnouncementCard } from '../../components/ui/AnnouncementCard'
 import { SectionCard } from '../../components/ui/SectionCard'
-import type { PagedResult, PublicAnnouncementListItemDto, PublicClubListItemDto, PublicEventListItemDto } from '../../api/types'
+import type { PagedResult, PublicAnnouncementListItemDto, PublicClubListItemDto, PublicEventListItemDto, PublicStatsDto } from '../../api/types'
+import { campuses, mapsEmbedUrl, mapsSearchUrl, type CampusId } from '../../data/campuses'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { useLocale } from '../../i18n/LocaleContext'
+import universityLogo from '../../assets/logo.png'
 import ozelPortrait from '../../assets/turgut-ozal-portrait.webp'
 
 export function HomePage() {
-  useDocumentTitle('Ana Sayfa')
+  const { t, dateLocale } = useLocale()
+  const { hash } = useLocation()
+  useDocumentTitle(t('home.title'))
+  const [campusId, setCampusId] = useState<CampusId>('yesilyurt')
+
+  useEffect(() => {
+    if (hash !== '#kampusler') {
+      return
+    }
+    window.setTimeout(() => {
+      document.getElementById('kampusler')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }, [hash])
+  const selectedCampus = campuses.find((campus) => campus.id === campusId) ?? campuses[0]
 
   const { isAuthenticated } = useAuth()
 
@@ -36,8 +57,34 @@ export function HomePage() {
     queryFn: async () => (await apiClient.get<PagedResult<PublicClubListItemDto>>('/public/clubs', { params: { pageIndex: 0, pageSize: 6 } })).data,
   })
 
+  const statsQuery = useQuery({
+    queryKey: ['public-stats'],
+    queryFn: async () => (await apiClient.get<PublicStatsDto>('/public/stats')).data,
+  })
+
   return (
-    <Stack spacing={5}>
+    <Box sx={{ position: 'relative' }}>
+      <Box
+        component="img"
+        src={universityLogo}
+        alt=""
+        aria-hidden
+        sx={{
+          position: 'absolute',
+          left: '50%',
+          top: { xs: 220, md: 280 },
+          transform: 'translateX(-50%)',
+          width: { xs: 280, md: 560 },
+          maxWidth: '88%',
+          opacity: 0.1,
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 0,
+          filter: (theme) =>
+            `drop-shadow(0 28px 48px ${alpha(theme.palette.secondary.main, 0.55)}) drop-shadow(0 8px 18px ${alpha(theme.palette.common.black, 0.28)})`,
+        }}
+      />
+    <Stack spacing={5} sx={{ position: 'relative', zIndex: 1 }}>
       <Box
         sx={{
           position: 'relative',
@@ -72,11 +119,30 @@ export function HomePage() {
             userSelect: 'none',
             opacity: { xs: 0.22, md: 0.42 },
             mixBlendMode: 'luminosity',
-            filter: 'grayscale(0.2) contrast(1.12) brightness(1.08)',
+            filter: (theme) =>
+              `grayscale(0.2) contrast(1.12) brightness(1.08) drop-shadow(0 24px 40px ${alpha(theme.palette.common.black, 0.35)})`,
             WebkitMaskImage: (theme) =>
               `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.common.black, 0.2)} 22%, ${alpha(theme.palette.common.black, 0.85)} 52%, ${theme.palette.common.black} 100%)`,
             maskImage: (theme) =>
               `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.common.black, 0.2)} 22%, ${alpha(theme.palette.common.black, 0.85)} 52%, ${theme.palette.common.black} 100%)`,
+          }}
+        />
+        <Box
+          component="img"
+          src={universityLogo}
+          alt=""
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            left: { xs: '52%', md: '36%' },
+            top: '48%',
+            transform: 'translate(-50%, -50%)',
+            width: { xs: 240, md: 420 },
+            opacity: { xs: 0.2, md: 0.28 },
+            pointerEvents: 'none',
+            userSelect: 'none',
+            filter: (theme) =>
+              `drop-shadow(0 22px 36px ${alpha(theme.palette.common.black, 0.55)}) drop-shadow(0 0 28px ${alpha(theme.palette.secondary.main, 0.45)})`,
           }}
         />
         <Box
@@ -89,7 +155,7 @@ export function HomePage() {
           }}
         />
         <Chip
-          label="Malatya Turgut Özal Üniversitesi"
+          label={t('brand.university')}
           sx={{
             alignSelf: 'flex-start',
             bgcolor: (theme) => alpha(theme.palette.common.white, 0.12),
@@ -99,15 +165,15 @@ export function HomePage() {
           }}
         />
         <Typography variant="h3" sx={{ fontWeight: 800, maxWidth: 680, fontSize: { xs: 32, md: 46 }, position: 'relative' }}>
-          Kampüsteki topluluklar, tek yerde.
+          {t('home.headline')}
         </Typography>
         <Typography variant="body1" sx={{ opacity: 0.88, maxWidth: 560, lineHeight: 1.7, position: 'relative' }}>
-          Kulüpleri keşfedin, yaklaşan etkinlikleri görün, duyuruları takip edin — üye olmak için kayıt olmanız yeterli.
+          {t('home.lead')}
         </Typography>
         {!isAuthenticated && (
           <Stack direction="row" spacing={2} sx={{ mt: 1, position: 'relative', flexWrap: 'wrap' }}>
             <Button component={RouterLink} to="/register" variant="contained" size="large">
-              Kayıt Ol
+              {t('common.register')}
             </Button>
             <Button
               component={RouterLink}
@@ -116,20 +182,32 @@ export function HomePage() {
               size="large"
               sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.55) }}
             >
-              Giriş Yap
+              {t('common.login')}
             </Button>
           </Stack>
         )}
         <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', position: 'relative' }}>
-          <Chip icon={<GroupsRoundedIcon />} label="Kulüp keşfi" variant="outlined" sx={{ color: 'common.white', borderColor: (t) => alpha(t.palette.common.white, 0.35) }} />
-          <Chip icon={<EventOutlinedIcon />} label="Etkinlik takvimi" variant="outlined" sx={{ color: 'common.white', borderColor: (t) => alpha(t.palette.common.white, 0.35) }} />
-          <Chip icon={<CampaignOutlinedIcon />} label="Duyurular" variant="outlined" sx={{ color: 'common.white', borderColor: (t) => alpha(t.palette.common.white, 0.35) }} />
+          <Chip icon={<GroupsRoundedIcon />} label={t('home.chipClubs')} variant="outlined" sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.35) }} />
+          <Chip icon={<EventOutlinedIcon />} label={t('home.chipEvents')} variant="outlined" sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.35) }} />
+          <Chip icon={<CampaignOutlinedIcon />} label={t('home.chipNews')} variant="outlined" sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.35) }} />
         </Stack>
       </Box>
 
-      <SectionCard title="Duyurular">
+      <SectionCard title={t('home.statsTitle')}>
+        <HomeStatsBoxes
+          items={[
+            { key: 'clubs', label: t('home.statClubs'), value: statsQuery.data?.clubCount ?? clubsQuery.data?.totalCount ?? 0, icon: GroupsRoundedIcon, to: '/kulupler' },
+            { key: 'active', label: t('home.statActive'), value: statsQuery.data?.activeClubCount ?? clubsQuery.data?.totalCount ?? 0, icon: VerifiedOutlinedIcon, to: '/kulupler' },
+            { key: 'students', label: t('home.statStudents'), value: statsQuery.data?.studentCount ?? 0, icon: SchoolOutlinedIcon },
+            { key: 'events', label: t('home.statEvents'), value: statsQuery.data?.upcomingEventCount ?? eventsQuery.data?.totalCount ?? 0, icon: EventOutlinedIcon, to: '/etkinlikler' },
+          ]}
+          dateLocale={dateLocale}
+        />
+      </SectionCard>
+
+      <SectionCard title={t('home.announcements')}>
         {(announcementsQuery.data?.items.length ?? 0) === 0 ? (
-          <EmptyState title="Henüz herkese açık bir duyuru yok" />
+          <EmptyState title={t('home.noAnnouncements')} />
         ) : (
           <Stack spacing={1.5}>
             {announcementsQuery.data!.items.map((announcement) => (
@@ -146,15 +224,15 @@ export function HomePage() {
       </SectionCard>
 
       <SectionCard
-        title="Yaklaşan Etkinlikler"
+        title={t('home.upcoming')}
         action={
           <Button component={RouterLink} to="/etkinlikler" size="small" endIcon={<ArrowForwardRoundedIcon />}>
-            Tümünü Gör
+            {t('common.seeAll')}
           </Button>
         }
       >
         {(eventsQuery.data?.items.length ?? 0) === 0 ? (
-          <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" />
+          <EmptyState icon={EventOutlinedIcon} title={t('home.noEvents')} />
         ) : (
           <Grid container spacing={2.5}>
             {eventsQuery.data!.items.map((event) => (
@@ -174,7 +252,7 @@ export function HomePage() {
                           {event.clubName}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {new Date(event.startDateUtc).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(event.startDateUtc).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
                         </Typography>
                       </Box>
                     </Stack>
@@ -187,15 +265,15 @@ export function HomePage() {
       </SectionCard>
 
       <SectionCard
-        title="Kulüpler"
+        title={t('home.clubs')}
         action={
           <Button component={RouterLink} to="/kulupler" size="small" endIcon={<ArrowForwardRoundedIcon />}>
-            Tümünü Gör
+            {t('common.seeAll')}
           </Button>
         }
       >
         {(clubsQuery.data?.items.length ?? 0) === 0 ? (
-          <EmptyState icon={GroupsRoundedIcon} title="Henüz aktif bir kulüp yok" />
+          <EmptyState icon={GroupsRoundedIcon} title={t('home.noClubs')} />
         ) : (
           <Grid container spacing={2.5}>
             {clubsQuery.data!.items.map((club) => (
@@ -235,6 +313,166 @@ export function HomePage() {
           </Grid>
         )}
       </SectionCard>
+
+      <Box id="kampusler" sx={{ scrollMarginTop: 96 }}>
+      <SectionCard title={t('home.campuses')}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {t('home.campusLead')}
+        </Typography>
+        <ToggleButtonGroup
+          exclusive
+          fullWidth
+          value={campusId}
+          onChange={(_, value: CampusId | null) => {
+            if (value) setCampusId(value)
+          }}
+          sx={{
+            mb: 2.5,
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+            gap: 1.5,
+            '& .MuiToggleButtonGroup-grouped': {
+              border: 0,
+              borderRadius: '12px !important',
+              mx: 0,
+            },
+          }}
+        >
+          {campuses.map((campus) => (
+            <ToggleButton
+              key={campus.id}
+              value={campus.id}
+              sx={{
+                py: 1.5,
+                px: 2,
+                justifyContent: 'flex-start',
+                gap: 1,
+                textTransform: 'none',
+                fontWeight: 800,
+                color: 'text.primary',
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
+                '&.Mui-selected': {
+                  color: 'primary.dark',
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                  borderColor: 'primary.main',
+                },
+              }}
+            >
+              <PlaceOutlinedIcon fontSize="small" />
+              {t(campus.nameKey)}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+
+        <Box
+          sx={{
+            borderRadius: 3,
+            overflow: 'hidden',
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Box
+            component="iframe"
+            title={t(selectedCampus.nameKey)}
+            src={mapsEmbedUrl(selectedCampus.query)}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            sx={{ display: 'block', width: '100%', height: { xs: 220, md: 280 }, border: 0 }}
+          />
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', p: 2 }}
+          >
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                {t(selectedCampus.nameKey)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {t(selectedCampus.addressKey)}
+              </Typography>
+            </Box>
+            <Button
+              href={mapsSearchUrl(selectedCampus.query)}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="contained"
+              endIcon={<OpenInNewOutlinedIcon />}
+              sx={{ flexShrink: 0 }}
+            >
+              {t('home.openMap')}
+            </Button>
+          </Stack>
+        </Box>
+      </SectionCard>
+      </Box>
     </Stack>
+    </Box>
+  )
+}
+
+function HomeStatsBoxes({
+  items,
+  dateLocale,
+}: {
+  items: { key: string; label: string; value: number; icon: ComponentType<SvgIconProps>; to?: string }[]
+  dateLocale: string
+}) {
+  return (
+    <Grid container spacing={2}>
+      {items.map((item) => {
+        const Icon = item.icon
+        return (
+          <Grid key={item.key} size={{ xs: 6, md: 3 }}>
+            <Box
+              {...(item.to ? { component: RouterLink, to: item.to } : {})}
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1.25,
+                height: '100%',
+                p: 2,
+                borderRadius: 2.5,
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                textDecoration: 'none',
+                color: 'inherit',
+                transition: 'border-color 160ms ease, box-shadow 160ms ease',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  boxShadow: (theme) => `0 10px 24px ${alpha(theme.palette.secondary.main, 0.08)}`,
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                  color: 'primary.dark',
+                }}
+              >
+                <Icon fontSize="small" />
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums' }}>
+                {item.value.toLocaleString(dateLocale)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>
+                {item.label}
+              </Typography>
+            </Box>
+          </Grid>
+        )
+      })}
+    </Grid>
   )
 }

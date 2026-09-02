@@ -18,9 +18,12 @@ import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
+import { useLocale } from '../../i18n/LocaleContext'
+import { PreferenceControls } from '../ui/PreferenceControls'
 
 export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?: string }) {
   const { email, logout } = useAuth()
+  const { t } = useLocale()
   const navigate = useNavigate()
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
@@ -42,7 +45,7 @@ export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?
       }}
     >
       <Toolbar sx={{ gap: 1, minHeight: 72 }}>
-        <IconButton edge="start" onClick={onMenuClick} sx={{ display: { md: 'none' } }} aria-label="Menü">
+        <IconButton edge="start" onClick={onMenuClick} sx={{ display: { md: 'none' } }} aria-label={t('common.menu')}>
           <MenuOutlinedIcon />
         </IconButton>
 
@@ -50,12 +53,14 @@ export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?
           {title}
         </Typography>
 
+        <PreferenceControls />
+
         <Chip
           onClick={(event) => setAnchorEl(event.currentTarget)}
           avatar={<Avatar sx={{ bgcolor: 'primary.dark', fontSize: 13 }}>{initial}</Avatar>}
           label={
             <Typography variant="body2" noWrap sx={{ maxWidth: { xs: 88, sm: 180 }, fontWeight: 600 }}>
-              {email ?? 'Hesap'}
+              {email ?? t('common.account')}
             </Typography>
           }
           variant="outlined"
@@ -78,7 +83,7 @@ export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?
           {email && (
             <Box sx={{ px: 2, py: 1.25 }}>
               <Typography variant="caption" color="text.secondary">
-                Oturum
+                {t('common.session')}
               </Typography>
               <Typography variant="body2" noWrap sx={{ maxWidth: 220, fontWeight: 700 }}>
                 {email}
@@ -90,13 +95,13 @@ export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?
             <ListItemIcon>
               <PersonOutlineOutlinedIcon fontSize="small" />
             </ListItemIcon>
-            Profilim
+            {t('common.profile')}
           </MenuItem>
           <MenuItem onClick={handleLogout}>
             <ListItemIcon>
               <LogoutOutlinedIcon fontSize="small" />
             </ListItemIcon>
-            Çıkış Yap
+            {t('common.logout')}
           </MenuItem>
         </Menu>
       </Toolbar>

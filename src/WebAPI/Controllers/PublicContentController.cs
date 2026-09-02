@@ -57,4 +57,11 @@ public sealed class PublicContentController(IPublicContentService publicContentS
         var result = await publicContentService.GetAnnouncementsAsync(clubId, pageIndex, pageSize, search, cancellationToken);
         return result.ToActionResult();
     }
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats(CancellationToken cancellationToken = default)
+    {
+        var result = await publicContentService.GetStatsAsync(cancellationToken);
+        return result.ToActionResult();
+    }
 }

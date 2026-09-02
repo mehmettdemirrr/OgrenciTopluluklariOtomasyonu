@@ -10,15 +10,17 @@ import { BrandMark } from '../components/layout/BrandMark'
 import { AuthFormCard } from '../components/ui/AuthFormCard'
 import { BackButton } from '../components/ui/BackButton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLocale } from '../i18n/LocaleContext'
 
-const forgotPasswordSchema = z.object({
-  email: z.string().min(1, 'E-posta gerekli.').email('Geçerli bir e-posta girin.'),
-})
-
-type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
+type ForgotPasswordFormValues = { email: string }
 
 export function ForgotPasswordPage() {
-  useDocumentTitle('Şifremi Unuttum')
+  const { t } = useLocale()
+  useDocumentTitle(t('auth.forgotTitle'))
+
+  const forgotPasswordSchema = z.object({
+    email: z.string().min(1, t('validation.emailRequired')).email(t('validation.emailInvalid')),
+  })
 
   const [serverError, setServerError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -33,9 +35,9 @@ export function ForgotPasswordPage() {
     setServerError(null)
     try {
       const response = await apiClient.post<{ message?: string }>('/auth/forgot-password', values)
-      setSuccessMessage(response.data.message ?? 'E-postanız sistemde kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.')
+      setSuccessMessage(response.data.message ?? t('auth.forgotOk'))
     } catch (error) {
-      setServerError(extractErrorMessage(error, 'İşlem gerçekleştirilemedi.'))
+      setServerError(extractErrorMessage(error, t('auth.forgotFail')))
     }
   }
 
@@ -47,17 +49,17 @@ export function ForgotPasswordPage() {
           <BrandMark to="/" showSubtitle />
         </Box>
         <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 0.75, fontSize: 28 }}>
-          Parolamı Unuttum
+          {t('auth.forgotTitle')}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          E-posta adresinize bir sıfırlama bağlantısı gönderelim.
+          {t('auth.forgotLead')}
         </Typography>
 
         {successMessage ? (
           <Stack spacing={2}>
             <Alert severity="success">{successMessage}</Alert>
             <Button component={RouterLink} to="/login" variant="outlined">
-              Giriş sayfasına dön
+              {t('common.backLogin')}
             </Button>
           </Stack>
         ) : (
@@ -66,18 +68,18 @@ export function ForgotPasswordPage() {
               name="email"
               control={control}
               render={({ field, fieldState }) => (
-                <TextField {...field} label="E-posta" type="email" autoComplete="username" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                <TextField {...field} label={t('auth.email')} type="email" autoComplete="username" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
               )}
             />
 
             {serverError && <Alert severity="error">{serverError}</Alert>}
 
             <Button type="submit" variant="contained" disabled={isSubmitting} size="large">
-              Sıfırlama Bağlantısı Gönder
+              {t('auth.forgotSend')}
             </Button>
 
             <Button component={RouterLink} to="/login" variant="text" size="small">
-              Giriş sayfasına dön
+              {t('common.backLogin')}
             </Button>
           </Box>
         )}

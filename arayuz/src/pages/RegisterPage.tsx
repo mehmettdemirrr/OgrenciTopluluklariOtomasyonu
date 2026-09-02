@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Autocomplete, Box, Button, Stack, TextField, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router-dom'
 import { z } from 'zod'
@@ -13,6 +13,7 @@ import { BrandMark } from '../components/layout/BrandMark'
 import { AuthFormCard } from '../components/ui/AuthFormCard'
 import { BackButton } from '../components/ui/BackButton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLocale } from '../i18n/LocaleContext'
 
 const currentYear = new Date().getFullYear()
 
@@ -20,21 +21,33 @@ const currentYear = new Date().getFullYear()
 // (en az 6 karakter, büyük/küçük harf, rakam, alfanumerik olmayan bir karakter).
 const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{6,}$/
 
-const registerSchema = z.object({
-  // A-56: ad soyad zorunlu DEĞİL — mevcut hesaplarla tutarlı kalsın diye (bkz. PLAN-V5 O-15).
-  firstName: z.string().max(100, 'En fazla 100 karakter.'),
-  lastName: z.string().max(100, 'En fazla 100 karakter.'),
-  email: z.string().min(1, 'E-posta gerekli.').email('Geçerli bir e-posta girin.'),
-  password: z.string().regex(strongPasswordRegex, 'Parola en az 6 karakter olmalı; büyük harf, küçük harf, rakam ve alfanumerik olmayan bir karakter içermelidir.'),
-  studentNumber: z.string().min(1, 'Öğrenci numarası gerekli.'),
-  departmentId: z.number({ error: 'Bölüm seçin.' }).int().positive('Bölüm seçin.'),
-  enrollmentYear: z.number().int().min(2000).max(currentYear + 1),
-})
-
-type RegisterFormValues = z.infer<typeof registerSchema>
+type RegisterFormValues = {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+  studentNumber: string
+  departmentId: number
+  enrollmentYear: number
+}
 
 export function RegisterPage() {
-  useDocumentTitle('Kayıt Ol')
+  const { t } = useLocale()
+  useDocumentTitle(t('auth.registerTitle'))
+
+  const registerSchema = useMemo(
+    () =>
+      z.object({
+        firstName: z.string().max(100, t('validation.maxChars')),
+        lastName: z.string().max(100, t('validation.maxChars')),
+        email: z.string().min(1, t('validation.emailRequired')).email(t('validation.emailInvalid')),
+        password: z.string().regex(strongPasswordRegex, t('validation.passwordStrong')),
+        studentNumber: z.string().min(1, t('validation.studentNumber')),
+        departmentId: z.number({ error: t('validation.department') }).int().positive(t('validation.department')),
+        enrollmentYear: z.number().int().min(2000).max(currentYear + 1),
+      }),
+    [t],
+  )
 
   const [serverError, setServerError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -58,39 +71,39 @@ export function RegisterPage() {
     setServerError(null)
     try {
       const response = await apiClient.post<{ message?: string }>('/auth/register', values)
-      setSuccessMessage(response.data.message ?? 'Kaydınız alındı. E-postanızı kontrol edin.')
+      setSuccessMessage(response.data.message ?? t('auth.registerOk'))
       reset()
     } catch (error) {
-      setServerError(extractErrorMessage(error, 'Kayıt oluşturulamadı.'))
+      setServerError(extractErrorMessage(error, t('auth.registerFail')))
     }
   }
 
   return (
     <Box sx={{ flex: 1, display: 'flex' }}>
       <AuthBrandPanel
-        title="Topluluğuna katıl."
-        subtitle="Hesabını oluştur, e-postanı doğrula ve kampüsteki topluluklara üye ol."
+        title={t('auth.registerPanelTitle')}
+        subtitle={t('auth.registerPanelLead')}
       />
 
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: { xs: 2.5, md: 4 }, overflowY: 'auto' }}>
         <Box sx={{ width: '100%', maxWidth: 440, py: 2 }}>
           <AuthFormCard>
-          <BackButton to="/" label="Anasayfaya dön" />
+          <BackButton to="/" label={t('common.backHome')} />
           <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 3, mt: 1 }}>
             <BrandMark to="/" showSubtitle />
           </Box>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 0.75, fontSize: 28 }}>
-            Kayıt Ol
+            {t('auth.registerTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Öğrenci hesabınızı oluşturun.
+            {t('auth.registerLead')}
           </Typography>
 
           {successMessage ? (
             <Stack spacing={2}>
               <Alert severity="success">{successMessage}</Alert>
               <Button component={RouterLink} to="/login" variant="outlined">
-                Giriş sayfasına dön
+                {t('common.backLogin')}
               </Button>
             </Stack>
           ) : (
@@ -100,14 +113,14 @@ export function RegisterPage() {
                   name="firstName"
                   control={control}
                   render={({ field, fieldState }) => (
-                    <TextField {...field} label="Ad" autoComplete="given-name" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                    <TextField {...field} label={t('auth.firstName')} autoComplete="given-name" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
                   )}
                 />
                 <Controller
                   name="lastName"
                   control={control}
                   render={({ field, fieldState }) => (
-                    <TextField {...field} label="Soyad" autoComplete="family-name" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                    <TextField {...field} label={t('auth.lastName')} autoComplete="family-name" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
                   )}
                 />
               </Stack>
@@ -116,7 +129,7 @@ export function RegisterPage() {
                 name="email"
                 control={control}
                 render={({ field, fieldState }) => (
-                  <TextField {...field} label="E-posta" type="email" autoComplete="username" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                  <TextField {...field} label={t('auth.email')} type="email" autoComplete="username" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
                 )}
               />
 
@@ -124,7 +137,7 @@ export function RegisterPage() {
                 name="password"
                 control={control}
                 render={({ field, fieldState }) => (
-                  <TextField {...field} label="Parola" type="password" autoComplete="new-password" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                  <TextField {...field} label={t('auth.password')} type="password" autoComplete="new-password" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
                 )}
               />
 
@@ -132,7 +145,7 @@ export function RegisterPage() {
                 name="studentNumber"
                 control={control}
                 render={({ field, fieldState }) => (
-                  <TextField {...field} label="Öğrenci Numarası" error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
+                  <TextField {...field} label={t('auth.studentNumber')} error={!!fieldState.error} helperText={fieldState.error?.message} fullWidth />
                 )}
               />
 
@@ -149,8 +162,8 @@ export function RegisterPage() {
                   <Autocomplete
                     options={departmentsQuery.data ?? []}
                     loading={departmentsQuery.isPending}
-                    loadingText="Bölümler yükleniyor…"
-                    noOptionsText="Bölüm bulunamadı."
+                    loadingText={t('auth.departmentsLoading')}
+                    noOptionsText={t('auth.departmentsEmpty')}
                     groupBy={(option) => option.facultyName}
                     getOptionLabel={(option) => option.name}
                     isOptionEqualToValue={(option, selected) => option.id === selected.id}
@@ -160,7 +173,7 @@ export function RegisterPage() {
                     renderInput={(params) => (
                       <TextField
                         {...params}
-                        label="Bölüm"
+                        label={t('auth.department')}
                         error={!!fieldState.error}
                         helperText={fieldState.error?.message}
                       />
@@ -177,7 +190,7 @@ export function RegisterPage() {
                   <TextField
                     {...field}
                     type="number"
-                    label="Kayıt Yılı"
+                    label={t('auth.enrollmentYear')}
                     onChange={(event) => field.onChange(Number(event.target.value))}
                     error={!!fieldState.error}
                     helperText={fieldState.error?.message}
@@ -189,11 +202,11 @@ export function RegisterPage() {
               {serverError && <Alert severity="error">{serverError}</Alert>}
 
               <Button type="submit" variant="contained" disabled={isSubmitting} size="large">
-                Kayıt Ol
+                {t('auth.registerTitle')}
               </Button>
 
               <Button component={RouterLink} to="/login" variant="text" size="small">
-                Zaten hesabınız var mı? Giriş yapın
+                {t('auth.alreadyAccount')}
               </Button>
             </Box>
           )}

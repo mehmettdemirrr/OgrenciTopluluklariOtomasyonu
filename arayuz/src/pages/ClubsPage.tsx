@@ -47,11 +47,13 @@ import type {
   PagedResult,
 } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLocale } from '../i18n/LocaleContext'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 
 export function ClubsPage() {
-  useDocumentTitle('Kulüpler')
+  const { t } = useLocale()
+  useDocumentTitle(t('pages.clubs'))
 
   const queryClient = useQueryClient()
   const notify = useNotifier()
@@ -166,8 +168,8 @@ export function ClubsPage() {
   return (
     <>
       <PageHeader
-        title="Kulüpler"
-        description="Kampüsteki tüm öğrenci topluluklarını keşfedin ve üyelik başvurusu yapın."
+        title={t('pages.clubs')}
+        description={t('pages.clubsLead')}
         action={
           <Stack direction="row" spacing={1}>
             {/* Y-35: düğmeyi pasifleştirmek bir KOLAYLIK, yetki değil — API muhafızı her hâlükârda

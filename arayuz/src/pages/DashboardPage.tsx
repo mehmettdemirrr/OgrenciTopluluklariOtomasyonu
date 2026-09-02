@@ -18,9 +18,11 @@ import { StatCard } from '../components/ui/StatCard'
 import { brand } from '../theme/tokens'
 import type { DashboardSummaryDto, EventListItemDto, MembershipApplicationListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLocale } from '../i18n/LocaleContext'
 
 export function DashboardPage() {
-  useDocumentTitle('Panel')
+  const { t, dateLocale } = useLocale()
+  useDocumentTitle(t('dashboard.title'))
 
   const { hasPermission } = useAuth()
   const canReviewApplications = hasPermission(Permissions.MembershipsWrite)
@@ -48,56 +50,56 @@ export function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Panel" description="Topluluk etkinliğinize dair kişisel özetiniz ve yönetim kapsamınız." />
+      <PageHeader title={t('dashboard.title')} description={t('dashboard.lead')} />
 
       {summary && (
         <Stack spacing={3}>
           <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
-            <StatCard label="Kulüplerim" value={summary.personal.myClubCount} icon={GroupsOutlinedIcon} />
-            <StatCard label="Bekleyen Başvurularım" value={summary.personal.myPendingApplicationCount} icon={PendingActionsOutlinedIcon} />
-            <StatCard label="Yaklaşan Etkinliklerim" value={summary.personal.myUpcomingEventCount} icon={EventOutlinedIcon} />
+            <StatCard label={t('dashboard.myClubs')} value={summary.personal.myClubCount} icon={GroupsOutlinedIcon} />
+            <StatCard label={t('dashboard.myPending')} value={summary.personal.myPendingApplicationCount} icon={PendingActionsOutlinedIcon} />
+            <StatCard label={t('dashboard.myUpcoming')} value={summary.personal.myUpcomingEventCount} icon={EventOutlinedIcon} />
           </Stack>
 
           {management && (
             <SectionCard
-              title="Yönetim Kapsamım"
-              action={management.allClubs ? <Chip size="small" label="Tüm topluluklar" color="primary" variant="outlined" /> : undefined}
+              title={t('dashboard.scope')}
+              action={management.allClubs ? <Chip size="small" label={t('dashboard.allClubs')} color="primary" variant="outlined" /> : undefined}
             >
               <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
-                <StatCard label="Kapsamdaki Topluluk" value={management.scopeClubCount} icon={GroupsOutlinedIcon} color={brand.navy} />
-                <StatCard label="Kapsamdaki Üye" value={management.scopeMemberCount} icon={GroupsOutlinedIcon} color={brand.navy} />
-                <StatCard label="Bekleyen Başvuru" value={management.scopePendingApplicationCount} icon={FactCheckOutlinedIcon} color={brand.orange} />
-                <StatCard label="Yaklaşan Etkinlik" value={management.scopeUpcomingEventCount} icon={EventOutlinedIcon} color={brand.turquoiseDark} />
+                <StatCard label={t('dashboard.scopeClubs')} value={management.scopeClubCount} icon={GroupsOutlinedIcon} color={brand.navy} />
+                <StatCard label={t('dashboard.scopeMembers')} value={management.scopeMemberCount} icon={GroupsOutlinedIcon} color={brand.navy} />
+                <StatCard label={t('dashboard.scopePending')} value={management.scopePendingApplicationCount} icon={FactCheckOutlinedIcon} color={brand.orange} />
+                <StatCard label={t('dashboard.scopeEvents')} value={management.scopeUpcomingEventCount} icon={EventOutlinedIcon} color={brand.turquoiseDark} />
               </Stack>
             </SectionCard>
           )}
 
           {termTrend.length > 1 && (
-            <SectionCard title="Dönemlere göre kapsam trendi">
+            <SectionCard title={t('dashboard.trend')}>
               <BarChart
                 height={260}
                 dataset={termTrend.map((row) => ({ ...row }))}
                 xAxis={[{ dataKey: 'termName', scaleType: 'band' }]}
                 colors={[brand.turquoise, brand.gold, brand.orange]}
                 series={[
-                  { dataKey: 'clubCount', label: 'Kulüp' },
-                  { dataKey: 'memberCount', label: 'Üye' },
-                  { dataKey: 'eventCount', label: 'Etkinlik' },
+                  { dataKey: 'clubCount', label: t('dashboard.club') },
+                  { dataKey: 'memberCount', label: t('dashboard.member') },
+                  { dataKey: 'eventCount', label: t('dashboard.event') },
                 ]}
               />
             </SectionCard>
           )}
 
           <SectionCard
-            title="Yaklaşan Etkinlikler"
+            title={t('home.upcoming')}
             action={
               <Typography component={RouterLink} to="/events" variant="body2" sx={{ color: 'primary.main', textDecoration: 'none', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                Tümünü Gör <ArrowForwardRoundedIcon sx={{ fontSize: 16 }} />
+                {t('common.seeAll')} <ArrowForwardRoundedIcon sx={{ fontSize: 16 }} />
               </Typography>
             }
           >
             {(upcomingQuery.data?.items.length ?? 0) === 0 ? (
-              <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" />
+              <EmptyState icon={EventOutlinedIcon} title={t('home.noEvents')} />
             ) : (
               <List disablePadding>
                 {upcomingQuery.data!.items.map((event) => (
@@ -121,7 +123,7 @@ export function DashboardPage() {
                     <DateBadge iso={event.startDateUtc} />
                     <ListItemText
                       primary={event.title}
-                      secondary={`${event.clubName} · ${new Date(event.startDateUtc).toLocaleString('tr-TR')}`}
+                      secondary={`${event.clubName} · ${new Date(event.startDateUtc).toLocaleString(dateLocale)}`}
                       slotProps={{ primary: { sx: { fontWeight: 700 } } }}
                     />
                   </ListItem>
@@ -132,15 +134,15 @@ export function DashboardPage() {
 
           {canReviewApplications && (
             <SectionCard
-              title="Bekleyen Üyelik Başvuruları"
+              title={t('dashboard.pendingMemberships')}
               action={
                 <Typography component={RouterLink} to="/review" variant="body2" sx={{ color: 'primary.main', textDecoration: 'none', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                  Tümünü Gör <ArrowForwardRoundedIcon sx={{ fontSize: 16 }} />
+                  {t('common.seeAll')} <ArrowForwardRoundedIcon sx={{ fontSize: 16 }} />
                 </Typography>
               }
             >
               {(pendingApplicationsQuery.data?.items.length ?? 0) === 0 ? (
-                <EmptyState icon={FactCheckOutlinedIcon} title="Bekleyen başvuru yok" />
+                <EmptyState icon={FactCheckOutlinedIcon} title={t('dashboard.noPending')} />
               ) : (
                 <List disablePadding>
                   {pendingApplicationsQuery.data!.items.map((application) => (
@@ -157,7 +159,7 @@ export function DashboardPage() {
                     >
                       <ListItemText
                         primary={`${application.studentNumber} · ${application.clubName}`}
-                        secondary={new Date(application.appliedAtUtc).toLocaleString('tr-TR')}
+                        secondary={new Date(application.appliedAtUtc).toLocaleString(dateLocale)}
                         slotProps={{ primary: { sx: { fontWeight: 700 } } }}
                       />
                     </ListItem>

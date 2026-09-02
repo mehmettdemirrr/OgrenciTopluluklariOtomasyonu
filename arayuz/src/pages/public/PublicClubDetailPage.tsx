@@ -13,9 +13,11 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { InfoTile } from '../../components/ui/InfoTile'
 import { SectionCard } from '../../components/ui/SectionCard'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { useLocale } from '../../i18n/LocaleContext'
 import type { PagedResult, PublicAnnouncementListItemDto, PublicClubDetailDto, PublicEventListItemDto } from '../../api/types'
 
 export function PublicClubDetailPage() {
+  const { t, dateLocale } = useLocale()
   const { id } = useParams<{ id: string }>()
   const clubId = Number(id)
 
@@ -53,7 +55,7 @@ export function PublicClubDetailPage() {
     return (
       <Stack spacing={2}>
         <BackButton to="/kulupler" />
-        <EmptyState icon={GroupsOutlinedIcon} title="Kulüp bulunamadı" description="Bu kulüp mevcut değil ya da artık aktif değil." />
+        <EmptyState icon={GroupsOutlinedIcon} title={t('public.clubMissing')} description={t('public.clubMissingLead')} />
       </Stack>
     )
   }
@@ -80,17 +82,17 @@ export function PublicClubDetailPage() {
       >
         <Grid container spacing={1.5}>
           <Grid size={{ xs: 12, sm: 6 }}>
-            <InfoTile icon={EventOutlinedIcon} label="Etkinlik" value={`${eventCount} yaklaşan`} />
+            <InfoTile icon={EventOutlinedIcon} label={t('public.eventLabel')} value={t('public.eventsCount', { count: eventCount })} />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
-            <InfoTile icon={CampaignOutlinedIcon} label="Duyuru" value={`${announcementCount} herkese açık`} />
+            <InfoTile icon={CampaignOutlinedIcon} label={t('public.announcementLabel')} value={t('public.announcementsCount', { count: announcementCount })} />
           </Grid>
         </Grid>
       </DetailHero>
 
-      <SectionCard title="Etkinlikler">
+      <SectionCard title={t('pages.events')}>
         {(eventsQuery.data?.items.length ?? 0) === 0 ? (
-          <EmptyState icon={EventOutlinedIcon} title="Yaklaşan etkinlik yok" />
+          <EmptyState icon={EventOutlinedIcon} title={t('home.noEvents')} />
         ) : (
           <Grid container spacing={2}>
             {eventsQuery.data!.items.map((event) => (
@@ -107,7 +109,7 @@ export function PublicClubDetailPage() {
                           {event.title}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.6 }}>
-                          {new Date(event.startDateUtc).toLocaleString('tr-TR')}
+                          {new Date(event.startDateUtc).toLocaleString(dateLocale)}
                           {event.location ? ` · ${event.location}` : ''}
                         </Typography>
                       </Box>
@@ -120,9 +122,9 @@ export function PublicClubDetailPage() {
         )}
       </SectionCard>
 
-      <SectionCard title="Duyurular">
+      <SectionCard title={t('pages.announcements')}>
         {(announcementsQuery.data?.items.length ?? 0) === 0 ? (
-          <EmptyState title="Herkese açık duyuru yok" />
+          <EmptyState title={t('public.noPublicAnnouncements')} />
         ) : (
           <Stack spacing={1.5}>
             {announcementsQuery.data!.items.map((announcement) => (

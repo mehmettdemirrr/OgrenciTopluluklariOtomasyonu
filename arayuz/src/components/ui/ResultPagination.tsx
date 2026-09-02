@@ -1,4 +1,5 @@
 import { Pagination, Stack, Typography } from '@mui/material'
+import { useLocale } from '../../i18n/LocaleContext'
 
 interface ResultPaginationProps {
   pageIndex: number
@@ -12,6 +13,7 @@ interface ResultPaginationProps {
  * `totalCount`'tur — "gördüğün kadarı var" yanılsaması bilinçli olarak kaldırılmıştır.
  */
 export function ResultPagination({ pageIndex, pageCount, totalCount, onChange }: ResultPaginationProps) {
+  const { t } = useLocale()
   if (totalCount === 0) {
     return null
   }
@@ -19,7 +21,7 @@ export function ResultPagination({ pageIndex, pageCount, totalCount, onChange }:
   return (
     <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mt: 3.5, flexWrap: 'wrap', gap: 1 }}>
       <Typography variant="body2" color="text.secondary">
-        Toplam {totalCount} kayıt
+        {t('common.totalRecords', { count: totalCount })}
       </Typography>
       {pageCount > 1 && (
         <Pagination

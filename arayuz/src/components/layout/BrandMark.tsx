@@ -1,6 +1,7 @@
 import { Box, Stack, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import logo from '../../assets/logo.png'
+import { useLocale } from '../../i18n/LocaleContext'
 
 interface BrandMarkProps {
   light?: boolean
@@ -10,6 +11,7 @@ interface BrandMarkProps {
 }
 
 export function BrandMark({ light = false, to, showSubtitle = false, size = 'sm' }: BrandMarkProps) {
+  const { t } = useLocale()
   const logoSize = size === 'md' ? 40 : 32
 
   return (
@@ -32,12 +34,12 @@ export function BrandMark({ light = false, to, showSubtitle = false, size = 'sm'
           noWrap
           sx={{
             fontWeight: 800,
-            color: light ? 'common.white' : 'secondary.main',
+            color: light ? 'common.white' : 'text.primary',
             lineHeight: 1.2,
             letterSpacing: '-0.02em',
           }}
         >
-          Öğrenci Toplulukları
+          {t('brand.name')}
         </Typography>
         {showSubtitle && (
           <Typography
@@ -50,7 +52,7 @@ export function BrandMark({ light = false, to, showSubtitle = false, size = 'sm'
               lineHeight: 1.2,
             }}
           >
-            Malatya Turgut Özal Üniversitesi
+            {t('brand.university')}
           </Typography>
         )}
       </Box>

@@ -1,4 +1,4 @@
-import { CssBaseline, ThemeProvider } from '@mui/material'
+import { CssBaseline } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
@@ -8,7 +8,8 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './auth/AuthContext'
 import { Permissions } from './auth/permissions'
 import { NotifierProvider } from './notifications/NotifierProvider'
-import { theme } from './theme'
+import { LocaleProvider } from './i18n/LocaleContext'
+import { ThemeModeProvider } from './theme'
 import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { AuditLogPage } from './pages/AuditLogPage'
 import { RolesPage } from './pages/RolesPage'
@@ -41,12 +42,13 @@ const queryClient = new QueryClient()
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <QueryClientProvider client={queryClient}>
-        <NotifierProvider>
-          <BrowserRouter>
-            <AuthProvider>
+    <LocaleProvider>
+      <ThemeModeProvider>
+        <CssBaseline />
+        <QueryClientProvider client={queryClient}>
+          <NotifierProvider>
+            <BrowserRouter>
+              <AuthProvider>
               <Routes>
                 <Route element={<AuthLayout />}>
                   <Route path="/login" element={<LoginPage />} />
@@ -180,11 +182,12 @@ function App() {
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-            </AuthProvider>
-          </BrowserRouter>
-        </NotifierProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+              </AuthProvider>
+            </BrowserRouter>
+          </NotifierProvider>
+        </QueryClientProvider>
+      </ThemeModeProvider>
+    </LocaleProvider>
   )
 }
 

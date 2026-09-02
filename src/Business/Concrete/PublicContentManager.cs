@@ -15,6 +15,7 @@ public sealed class PublicContentManager(
     IEntityRepository<Event> eventRepository,
     IEntityRepository<Announcement> announcementRepository,
     IEntityRepository<ClubCategory> clubCategoryRepository,
+    IEntityRepository<Student> studentRepository,
     IClock clock) : IPublicContentService
 {
     private const int DefaultPageSize = 20;
@@ -172,6 +173,32 @@ public sealed class PublicContentManager(
 
         return DataResult<PagedResult<PublicAnnouncementListItemDto>>.Success(
             new PagedResult<PublicAnnouncementListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<PublicStatsDto>> GetStatsAsync(CancellationToken cancellationToken = default)
+    {
+        var now = clock.UtcNow;
+
+        // Y-42: sayım GetListPagedAsync TotalCount üzerinden SQL'de yapılır; sayfa boyutu 1
+        // yalnızca mevcut sözleşmeyi kullanmak içindir, satırlar bellekte toplanmaz.
+        var clubsTask = clubRepository.GetListPagedAsync(0, 1, null, cancellationToken);
+        var activeClubsTask = clubRepository.GetListPagedAsync(0, 1, c => c.IsActive, cancellationToken);
+        var studentsTask = studentRepository.GetListPagedAsync(0, 1, null, cancellationToken);
+        var eventsTask = eventRepository.GetListPagedAsync(
+            0,
+            1,
+            e => e.Status == EventStatus.Published && e.Audience == EventAudience.Public && e.StartDateUtc >= now,
+            cancellationToken);
+
+        await Task.WhenAll(clubsTask, activeClubsTask, studentsTask, eventsTask).ConfigureAwait(false);
+
+        return DataResult<PublicStatsDto>.Success(new PublicStatsDto
+        {
+            ClubCount = clubsTask.Result.TotalCount,
+            ActiveClubCount = activeClubsTask.Result.TotalCount,
+            StudentCount = studentsTask.Result.TotalCount,
+            UpcomingEventCount = eventsTask.Result.TotalCount,
+        });
     }
 
     private static int ClampPageSize(int pageSize) =>

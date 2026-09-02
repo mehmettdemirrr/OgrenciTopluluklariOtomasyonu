@@ -76,6 +76,24 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
         AssertNoPii(body, scenario);
     }
 
+    [Fact(DisplayName = "Anonim ziyaretçi: /api/public/stats yalnızca sayılar döner, e-posta ve öğrenci no sızmaz")]
+    public async Task GetPublicStats_Anonymous_ReturnsCountsWithoutPii()
+    {
+        var scenario = await SeedScenarioAsync("stats");
+
+        var response = await _client.GetAsync("/api/public/stats");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("clubCount", body, StringComparison.Ordinal);
+        Assert.Contains("activeClubCount", body, StringComparison.Ordinal);
+        Assert.Contains("studentCount", body, StringComparison.Ordinal);
+        Assert.Contains("upcomingEventCount", body, StringComparison.Ordinal);
+        Assert.DoesNotContain(scenario.ActiveClubName, body);
+        Assert.DoesNotContain(scenario.PublishedEventTitle, body);
+        AssertNoPii(body, scenario);
+    }
+
     private static void AssertNoPii(string body, Scenario scenario)
     {
         Assert.DoesNotContain(scenario.AdvisorEmail, body);

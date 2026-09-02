@@ -1,5 +1,6 @@
 import { Box, alpha } from '@mui/material'
 import { Outlet } from 'react-router-dom'
+import { PreferenceControls } from '../ui/PreferenceControls'
 import { AppFooter } from './AppFooter'
 
 /**
@@ -13,6 +14,7 @@ export function AuthLayout() {
     <Box
       sx={{
         minHeight: '100vh',
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: 'background.default',
@@ -20,7 +22,12 @@ export function AuthLayout() {
           `radial-gradient(ellipse at 0% 0%, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 46%), radial-gradient(ellipse at 100% 100%, ${alpha(theme.palette.secondary.main, 0.08)} 0%, transparent 42%)`,
       }}
     >
-      <Outlet />
+      <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 2 }}>
+        <PreferenceControls />
+      </Box>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', pt: { xs: 6, md: 0 } }}>
+        <Outlet />
+      </Box>
       <AppFooter />
     </Box>
   )

@@ -28,4 +28,7 @@ public interface IPublicContentService
     [CacheAspect(durationMinutes: 10)]
     Task<IDataResult<PagedResult<PublicAnnouncementListItemDto>>> GetAnnouncementsAsync(
         int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
+
+    [CacheAspect(durationMinutes: 10)]
+    Task<IDataResult<PublicStatsDto>> GetStatsAsync(CancellationToken cancellationToken = default);
 }

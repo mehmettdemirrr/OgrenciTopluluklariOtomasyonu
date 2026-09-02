@@ -10,9 +10,11 @@ import { SearchField } from '../../components/ui/SearchField'
 import { useSearchPagedQuery } from '../../hooks/useSearchPagedQuery'
 import type { PagedResult, PublicClubListItemDto } from '../../api/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
+import { useLocale } from '../../i18n/LocaleContext'
 
 export function PublicClubsPage() {
-  useDocumentTitle('Kulüpler')
+  const { t } = useLocale()
+  useDocumentTitle(t('public.clubsTitle'))
 
   // A-50/Y-62: arama sunucuda. Önceden 200 istenip 100 alınıyor ve gerisi istemcide ayıklanıyordu.
   const { search, setSearch, items, pageIndex, setPageIndex, pageCount, totalCount, query } =
@@ -26,16 +28,16 @@ export function PublicClubsPage() {
 
   return (
     <>
-      <PageHeader title="Kulüpler" description="Kampüsteki aktif toplulukları keşfedin." backTo="/" />
+      <PageHeader title={t('public.clubsTitle')} description={t('public.clubsLead')} backTo="/" />
 
       <Box sx={{ mb: 3 }}>
-        <SearchField value={search} onChange={setSearch} placeholder="Kulüp ara…" />
+        <SearchField value={search} onChange={setSearch} placeholder={t('common.searchClubs')} />
       </Box>
 
       {query.isLoading && <CardGridSkeleton withMedia />}
 
       {!query.isLoading && items.length === 0 && (
-        <EmptyState icon={GroupsOutlinedIcon} title="Kulüp bulunamadı" description="Arama kriterinizi değiştirmeyi deneyin." />
+        <EmptyState icon={GroupsOutlinedIcon} title={t('public.clubsEmpty')} description={t('public.clubsEmptyLead')} />
       )}
 
       <Grid container spacing={2.5}>
@@ -48,7 +50,7 @@ export function PublicClubsPage() {
               sx={{ display: 'flex', flexDirection: 'column', height: '100%', textDecoration: 'none', color: 'inherit' }}
             >
               {club.logoFileId ? (
-                <CardMedia component="img" height={140} image={`/api/files/${club.logoFileId}`} alt="" sx={{ objectFit: 'contain', bgcolor: 'grey.50', p: 2 }} />
+                <CardMedia component="img" height={140} image={`/api/files/${club.logoFileId}`} alt="" sx={{ objectFit: 'contain', bgcolor: 'background.default', p: 2 }} />
               ) : (
                 <Box
                   sx={{
@@ -74,7 +76,7 @@ export function PublicClubsPage() {
                   <Chip size="small" variant="outlined" color="primary" label={club.clubCategoryName} sx={{ mb: 1 }} />
                 )}
                 <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {club.description || 'Açıklama eklenmemiş.'}
+                  {club.description || t('common.noDescription')}
                 </Typography>
               </CardContent>
             </Card>

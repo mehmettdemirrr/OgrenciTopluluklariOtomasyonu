@@ -276,7 +276,10 @@ public class RoleAdminManagerTests
         var result = await _sut.CreateUserAsync(new CreateUserRequestDto { Email = "new@test.local", Password = "Str0ng!Pass", RoleNames = ["Hayalet"] });
 
         Assert.False(result.IsSuccess);
-        _identityAdminGateway.Verify(g => g.CreateUserAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>()), Times.Never);
+        _identityAdminGateway.Verify(
+            g => g.CreateUserAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<string?>(), It.IsAny<string?>()),
+            Times.Never);
     }
 
     [Fact(DisplayName = "SetLockout: başka bir kullanıcı kilitlenebilir")]

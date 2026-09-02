@@ -30,10 +30,11 @@ import type { SvgIconProps } from '@mui/material'
 import { useAuth } from '../../auth/AuthContext'
 import { Permissions } from '../../auth/permissions'
 import { getSession } from '../../auth/tokenStore'
+import { useLocale } from '../../i18n/LocaleContext'
 import { BrandMark } from './BrandMark'
 
 interface NavItem {
-  label: string
+  labelKey: string
   to: string
   icon: ComponentType<SvgIconProps>
   permission?: string
@@ -42,7 +43,7 @@ interface NavItem {
 
 interface NavGroup {
   /** null = başlıksız (yalnızca Panel). */
-  label: string | null
+  labelKey: string | null
   items: NavItem[]
 }
 
@@ -50,40 +51,40 @@ interface NavGroup {
 // kavramı (keşif / kişisel / inceleme) karıştırıyordu. Beş gruba bölündü, her biri 3-4 öğe.
 const navGroups: NavGroup[] = [
   {
-    label: null,
-    items: [{ label: 'Panel', to: '/panel', icon: SpaceDashboardOutlinedIcon }],
+    labelKey: null,
+    items: [{ labelKey: 'nav.panel', to: '/panel', icon: SpaceDashboardOutlinedIcon }],
   },
   {
-    label: 'Keşfet',
+    labelKey: 'nav.explore',
     items: [
-      { label: 'Kulüpler', to: '/clubs', icon: GroupsOutlinedIcon },
-      { label: 'Etkinlikler', to: '/events', icon: EventOutlinedIcon, permission: Permissions.EventsRead },
-      { label: 'Duyurular', to: '/announcements', icon: CampaignOutlinedIcon, permission: Permissions.ClubsRead },
+      { labelKey: 'nav.clubs', to: '/clubs', icon: GroupsOutlinedIcon },
+      { labelKey: 'nav.events', to: '/events', icon: EventOutlinedIcon, permission: Permissions.EventsRead },
+      { labelKey: 'nav.announcements', to: '/announcements', icon: CampaignOutlinedIcon, permission: Permissions.ClubsRead },
     ],
   },
   {
-    label: 'Benim',
+    labelKey: 'nav.mine',
     items: [
-      { label: 'Kulüplerim', to: '/my-clubs', icon: Groups2OutlinedIcon },
-      { label: 'Etkinliklerim', to: '/my-events', icon: EventAvailableOutlinedIcon, permission: Permissions.EventsRead },
-      { label: 'Başvurularım', to: '/my-applications', icon: FactCheckOutlinedIcon },
+      { labelKey: 'nav.myClubs', to: '/my-clubs', icon: Groups2OutlinedIcon },
+      { labelKey: 'nav.myEvents', to: '/my-events', icon: EventAvailableOutlinedIcon, permission: Permissions.EventsRead },
+      { labelKey: 'nav.myApplications', to: '/my-applications', icon: FactCheckOutlinedIcon },
     ],
   },
   {
-    label: 'İnceleme',
+    labelKey: 'nav.review',
     items: [
-      { label: 'Başvuru İncele', to: '/review', icon: HowToRegOutlinedIcon, permission: Permissions.MembershipsWrite },
-      { label: 'Topluluk Kurma', to: '/club-applications', icon: PlaylistAddCheckOutlinedIcon, permission: Permissions.ClubsWrite },
-      { label: 'Raporlarım', to: '/reports', icon: BarChartOutlinedIcon, permission: Permissions.ReportsRead },
+      { labelKey: 'nav.reviewApps', to: '/review', icon: HowToRegOutlinedIcon, permission: Permissions.MembershipsWrite },
+      { labelKey: 'nav.clubFounding', to: '/club-applications', icon: PlaylistAddCheckOutlinedIcon, permission: Permissions.ClubsWrite },
+      { labelKey: 'nav.reports', to: '/reports', icon: BarChartOutlinedIcon, permission: Permissions.ReportsRead },
     ],
   },
   {
-    label: 'Yönetim',
+    labelKey: 'nav.admin',
     items: [
-      { label: 'Roller ve İzinler', to: '/authorization/roles', icon: AdminPanelSettingsOutlinedIcon, permission: Permissions.RolesManage },
-      { label: 'Kullanıcılar', to: '/authorization/users', icon: ManageAccountsOutlinedIcon, permission: Permissions.RolesManage },
-      { label: 'Referans Verisi', to: '/reference', icon: CategoryOutlinedIcon, permission: Permissions.ReferenceManage },
-      { label: 'Denetim İzi', to: '/audit', icon: HistoryOutlinedIcon, permission: Permissions.AuditRead },
+      { labelKey: 'nav.roles', to: '/authorization/roles', icon: AdminPanelSettingsOutlinedIcon, permission: Permissions.RolesManage },
+      { labelKey: 'nav.users', to: '/authorization/users', icon: ManageAccountsOutlinedIcon, permission: Permissions.RolesManage },
+      { labelKey: 'nav.reference', to: '/reference', icon: CategoryOutlinedIcon, permission: Permissions.ReferenceManage },
+      { labelKey: 'nav.audit', to: '/audit', icon: HistoryOutlinedIcon, permission: Permissions.AuditRead },
     ],
   },
 ]
@@ -92,6 +93,7 @@ export const SIDENAV_WIDTH = 248
 
 export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
   const { hasPermission } = useAuth()
+  const { t } = useLocale()
   const location = useLocation()
 
   const hangfireUrl = `${import.meta.env.VITE_BACKEND_URL}/hangfire?access_token=${getSession().accessToken ?? ''}`
@@ -139,7 +141,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
             <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
               <item.icon fontSize="small" />
             </ListItemIcon>
-            <ListItemText slotProps={{ primary: { sx: { fontSize: 14, fontWeight: active ? 700 : 500 } } }}>{item.label}</ListItemText>
+            <ListItemText slotProps={{ primary: { sx: { fontSize: 14, fontWeight: active ? 700 : 500 } } }}>{t(item.labelKey)}</ListItemText>
           </ListItemButton>
         )
       })
@@ -163,10 +165,10 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         {/* Bir grubun tüm öğeleri izin filtresine takılırsa başlığı da çizilmez. */}
         {visibleGroups.map((group) => (
           <List
-            key={group.label ?? 'root'}
+            key={group.labelKey ?? 'root'}
             dense
             disablePadding
-            subheader={group.label ? <NavGroupLabel text={group.label} /> : undefined}
+            subheader={group.labelKey ? <NavGroupLabel text={t(group.labelKey)} /> : undefined}
             sx={{ mb: 1 }}
           >
             {renderItems(group.items)}
@@ -193,7 +195,7 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
             <ListItemIcon sx={{ minWidth: 36, color: (theme) => alpha(theme.palette.common.white, 0.85) }}>
               <OpenInNewOutlinedIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText slotProps={{ primary: { sx: { fontSize: 13, color: (theme) => alpha(theme.palette.common.white, 0.85) } } }}>Hangfire Paneli</ListItemText>
+            <ListItemText slotProps={{ primary: { sx: { fontSize: 13, color: (theme) => alpha(theme.palette.common.white, 0.85) } } }}>{t('nav.hangfire')}</ListItemText>
           </ListItemButton>
         </>
       )}

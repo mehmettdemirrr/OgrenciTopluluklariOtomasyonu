@@ -15,6 +15,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import type { MeResponseDto, RegistrationDepartmentDto } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLocale } from '../i18n/LocaleContext'
 
 const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{6,}$/
 const currentYear = new Date().getFullYear()
@@ -38,7 +39,8 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>
 
 export function ProfilePage() {
-  useDocumentTitle('Profilim')
+  const { t } = useLocale()
+  useDocumentTitle(t('profile.title'))
 
   const notify = useNotifier()
   const queryClient = useQueryClient()
@@ -109,7 +111,7 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Profilim" description="Hesap bilgileriniz ve parola yönetimi." backTo="/panel" />
+      <PageHeader title={t('profile.title')} description={t('profile.lead')} backTo="/panel" />
 
       <Stack spacing={3}>
         <DetailHero

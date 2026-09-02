@@ -1,7 +1,7 @@
 import { Box, useMediaQuery, useTheme } from '@mui/material'
 import { DataGrid, type DataGridProps, type GridValidRowModel } from '@mui/x-data-grid'
-import { trTR } from '@mui/x-data-grid/locales'
 import { useMemo } from 'react'
+import { useLocale } from '../../i18n/LocaleContext'
 import { EmptyState } from './EmptyState'
 
 interface DataTableProps<R extends GridValidRowModel> extends DataGridProps<R> {
@@ -16,7 +16,7 @@ interface DataTableProps<R extends GridValidRowModel> extends DataGridProps<R> {
 }
 
 export function DataTable<R extends GridValidRowModel>({
-  emptyTitle = 'Kayıt bulunamadı',
+  emptyTitle: emptyTitleProp,
   emptyDescription,
   height = 480,
   mobileHiddenFields,
@@ -24,6 +24,8 @@ export function DataTable<R extends GridValidRowModel>({
   ...gridProps
 }: DataTableProps<R>) {
   const theme = useTheme()
+  const { t } = useLocale()
+  const emptyTitle = emptyTitleProp ?? t('common.notFound')
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   const columnVisibilityModel = useMemo(() => {
@@ -38,7 +40,6 @@ export function DataTable<R extends GridValidRowModel>({
   return (
     <Box sx={{ height, width: '100%' }}>
       <DataGrid
-        localeText={trTR.components.MuiDataGrid.defaultProps.localeText}
         disableRowSelectionOnClick
         slots={{
           noRowsOverlay: () => <EmptyState title={emptyTitle} description={emptyDescription} />,
@@ -46,7 +47,7 @@ export function DataTable<R extends GridValidRowModel>({
         sx={{
           border: 'none',
           '& .MuiDataGrid-columnHeader': {
-            bgcolor: 'grey.50',
+            bgcolor: 'action.hover',
             fontWeight: 700,
           },
           '& .MuiDataGrid-row:hover': {

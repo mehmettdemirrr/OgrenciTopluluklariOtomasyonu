@@ -360,6 +360,14 @@ export interface DashboardSummaryDto {
   termTrend: TermSummaryRowDto[]
 }
 
+// src/Business/DTOs/Public/PublicStatsDto.cs
+export interface PublicStatsDto {
+  clubCount: number
+  activeClubCount: number
+  studentCount: number
+  upcomingEventCount: number
+}
+
 // src/Business/DTOs/Public/PublicClubListItemDto.cs
 export interface PublicClubListItemDto {
   id: number

@@ -7,11 +7,13 @@ import { BrandMark } from '../components/layout/BrandMark'
 import { AuthFormCard } from '../components/ui/AuthFormCard'
 import { BackButton } from '../components/ui/BackButton'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLocale } from '../i18n/LocaleContext'
 
 type Status = 'confirming' | 'success' | 'error'
 
 export function ConfirmEmailPage() {
-  useDocumentTitle('E-posta Doğrulama')
+  const { t } = useLocale()
+  useDocumentTitle(t('auth.confirmTitle'))
 
   const [searchParams] = useSearchParams()
   const userId = searchParams.get('userId')
@@ -19,7 +21,7 @@ export function ConfirmEmailPage() {
   const paramsMissing = !userId || !token
 
   const [status, setStatus] = useState<Status>(paramsMissing ? 'error' : 'confirming')
-  const [message, setMessage] = useState<string>(paramsMissing ? 'Bağlantı eksik veya geçersiz.' : '')
+  const [message, setMessage] = useState<string>(paramsMissing ? t('auth.linkInvalid') : '')
 
   useEffect(() => {
     if (paramsMissing) {
@@ -30,13 +32,13 @@ export function ConfirmEmailPage() {
       .post<{ message?: string }>('/auth/confirm-email', { userId: Number(userId), token })
       .then((response) => {
         setStatus('success')
-        setMessage(response.data.message ?? 'E-posta adresiniz doğrulandı.')
+        setMessage(response.data.message ?? t('auth.confirmOk'))
       })
       .catch((error) => {
         setStatus('error')
-        setMessage(extractErrorMessage(error, 'Doğrulama başarısız oldu.'))
+        setMessage(extractErrorMessage(error, t('auth.confirmFail')))
       })
-  }, [userId, token, paramsMissing])
+  }, [userId, token, paramsMissing, t])
 
   return (
     <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: { xs: 2.5, md: 4 } }}>
@@ -48,7 +50,7 @@ export function ConfirmEmailPage() {
             <>
               <CircularProgress />
               <Typography variant="body2" color="text.secondary">
-                E-posta adresiniz doğrulanıyor…
+                {t('auth.confirming')}
               </Typography>
             </>
           )}
@@ -59,7 +61,7 @@ export function ConfirmEmailPage() {
                 {message}
               </Alert>
               <Button component={RouterLink} to="/login" variant="contained">
-                Giriş Yap
+                {t('common.login')}
               </Button>
             </>
           )}
@@ -70,7 +72,7 @@ export function ConfirmEmailPage() {
                 {message}
               </Alert>
               <Button component={RouterLink} to="/login" variant="outlined">
-                Giriş sayfasına dön
+                {t('common.backLogin')}
               </Button>
             </>
           )}

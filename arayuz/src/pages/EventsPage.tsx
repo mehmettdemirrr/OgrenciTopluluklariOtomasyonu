@@ -49,9 +49,11 @@ import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
 import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { ClubListItemDto, EventListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLocale } from '../i18n/LocaleContext'
 
 export function EventsPage() {
-  useDocumentTitle('Etkinlikler')
+  const { t } = useLocale()
+  useDocumentTitle(t('pages.events'))
 
   const { hasPermission } = useAuth()
   const [tab, setTab] = useState(0)
@@ -59,12 +61,12 @@ export function EventsPage() {
 
   return (
     <>
-      <PageHeader title="Etkinlikler" description="Yaklaşan etkinlikleri keşfedin, topluluğunuzun etkinliklerini yönetin." />
+      <PageHeader title={t('pages.events')} description={t('pages.eventsLead')} />
 
       <Tabs value={tab} onChange={(_, value: number) => setTab(value)} sx={{ mb: 2 }}>
-        <Tab label="Yaklaşan Etkinlikler" />
-        <Tab label="Topluluk Etkinliklerim" />
-        {canApprove && <Tab label="Onay Kuyruğu" />}
+        <Tab label={t('pages.upcoming')} />
+        <Tab label={t('pages.myClubEvents')} />
+        {canApprove && <Tab label={t('pages.approvalQueue')} />}
       </Tabs>
 
       {tab === 0 && <UpcomingTab />}
