@@ -11,23 +11,17 @@ import {
   Toolbar,
   alpha,
 } from '@mui/material'
-import { keyframes } from '@mui/material/styles'
 import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined'
 import { useState } from 'react'
 import { Link as RouterLink, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { useLocale } from '../../i18n/LocaleContext'
-import { brand } from '../../theme/tokens'
 import { PreferenceControls } from '../ui/PreferenceControls'
 import { AppFooter } from './AppFooter'
 import { BrandMark } from './BrandMark'
 import { CampusLocationMenu } from './CampusLocationMenu'
+import { brandSlideBarSx, brandSlideToolbarSx } from './brandSlideBar'
 
-const brandBarSlide = keyframes`
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-`
 // docs/PLAN-V2.md §14.5: giriş yapmamış ziyaretçi kabuğu — sidebar yok, sade üst bar + footer.
 const publicLinks = [
   { to: '/kulupler', labelKey: 'nav.clubs' },
@@ -45,37 +39,10 @@ export function PublicLayout() {
       <AppBar
         position="sticky"
         color="transparent"
-        sx={{
-          color: 'common.white',
-          bgcolor: 'transparent',
-          backgroundImage: `linear-gradient(90deg, ${brand.navy} 0%, ${brand.orange} 38%, ${brand.gold} 68%, ${brand.navy} 100%)`,
-          backgroundSize: '260% 100%',
-          animation: `${brandBarSlide} 14s ease-in-out infinite`,
-          boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.common.black, 0.18)}`,
-          '@media (prefers-reduced-motion: reduce)': {
-            animation: 'none',
-            backgroundPosition: '20% 50%',
-          },
-        }}
+        sx={brandSlideBarSx}
       >
         <Toolbar
-          sx={{
-            gap: 1,
-            minHeight: 72,
-            color: 'common.white',
-            '& .MuiIconButton-root': { color: 'common.white' },
-            '& .MuiToggleButtonGroup-root': {
-              bgcolor: (theme) => alpha(theme.palette.common.white, 0.12),
-            },
-            '& .MuiToggleButton-root': {
-              color: 'common.white',
-              borderColor: (theme) => alpha(theme.palette.common.white, 0.28),
-              '&.Mui-selected': {
-                color: 'common.white',
-                bgcolor: (theme) => alpha(theme.palette.common.white, 0.22),
-              },
-            },
-          }}
+          sx={brandSlideToolbarSx}
         >
           <BrandMark to="/" showSubtitle light />
           <Box sx={{ flexGrow: 1 }} />

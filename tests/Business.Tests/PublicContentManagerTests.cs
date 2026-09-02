@@ -86,6 +86,47 @@ public class PublicContentManagerTests
         Assert.DoesNotContain(result.Data.Items, i => i.Name == "Pasif");
     }
 
+    [Fact(DisplayName = "Alfabetik filtre: letter ile adın ilk harfi SQL'de eşleşir, Ç C'ye düşmez")]
+    public async Task GetClubsAsync_LetterFilter_ReturnsNamesStartingWithLetter()
+    {
+        var bilim = new Club { Id = 1, Name = "Bilim Topluluğu", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
+        var kucukB = new Club { Id = 5, Name = "bisiklet Topluluğu", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
+        var cevre = new Club { Id = 2, Name = "Çevre Topluluğu", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
+        var sanat = new Club { Id = 3, Name = "Sanat Topluluğu", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
+        var inactive = new Club { Id = 4, Name = "Bilinmeyen Pasif", AdvisorId = 1, IsActive = false, CreatedAtUtc = FixedNow };
+        SetupPagedFilter<Club, string>(_clubRepository, [bilim, kucukB, cevre, sanat, inactive]);
+
+        var bResult = await _sut.GetClubsAsync(0, 20, letter: "b");
+        Assert.Equal(2, bResult.Data!.Items.Count);
+        Assert.Contains(bResult.Data.Items, i => i.Name == "Bilim Topluluğu");
+        Assert.Contains(bResult.Data.Items, i => i.Name == "bisiklet Topluluğu");
+
+        var cResult = await _sut.GetClubsAsync(0, 20, letter: "C");
+        Assert.Empty(cResult.Data!.Items);
+
+        var ceResult = await _sut.GetClubsAsync(0, 20, letter: "ç");
+        Assert.Equal("Çevre Topluluğu", Assert.Single(ceResult.Data!.Items).Name);
+    }
+
+    [Fact(DisplayName = "GetClubCategoriesAsync: kategoriler ada göre sıralı döner, yalnızca id ve ad taşır")]
+    public async Task GetClubCategoriesAsync_ReturnsSortedNames()
+    {
+        _clubCategoryRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubCategory, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new ClubCategory { Id = 2, Name = "Spor" },
+                new ClubCategory { Id = 1, Name = "Bilim" },
+                new ClubCategory { Id = 3, Name = "Sanat" },
+            ]);
+
+        var result = await _sut.GetClubCategoriesAsync();
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(["Bilim", "Sanat", "Spor"], result.Data!.Select(c => c.Name).ToArray());
+        Assert.Equal(1, result.Data[0].Id);
+    }
+
     [Fact(DisplayName = "GetClubByIdAsync: aktif kulüp için detay döner (AdvisorId gibi iç alan taşımaz)")]
     public async Task GetClubByIdAsync_ActiveClub_ReturnsDetail()
     {

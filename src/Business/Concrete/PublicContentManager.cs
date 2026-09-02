@@ -22,19 +22,25 @@ public sealed class PublicContentManager(
     private const int MaxPageSize = 100;
 
     public async Task<IDataResult<PagedResult<PublicClubListItemDto>>> GetClubsAsync(
-        int pageIndex, int pageSize, string? search = null, int? categoryId = null, CancellationToken cancellationToken = default)
+        int pageIndex, int pageSize, string? search = null, int? categoryId = null, string? letter = null, CancellationToken cancellationToken = default)
     {
         var term = SearchTerm.Normalize(search);
+        var initial = NameInitial.Normalize(letter);
+        var initialLower = NameInitial.ToSearchLower(initial);
 
-        // A-50: arama ve kategori filtresi SQL'de. IsActive filtresi kodda sabit kalır (Y-58) —
-        // ne search ne categoryId onu gevşetebilir.
+        // A-50: arama, kategori ve harf filtresi SQL'de. IsActive filtresi kodda sabit kalır (Y-58) —
+        // search / categoryId / letter onu gevşetemez. Büyük/küçük harf iki sabit önekle taranır
+        // (EF ToLower+culture SQL'e çevrilemez; ToLower burada, ifade ağacının dışında alınır).
         var paged = await clubRepository
             .GetListPagedAsync(
                 pageIndex,
                 ClampPageSize(pageSize),
                 c => c.IsActive
                     && (categoryId == null || c.ClubCategoryId == categoryId)
-                    && (term.Length == 0 || c.Name.Contains(term)),
+                    && (term.Length == 0 || c.Name.Contains(term))
+                    && (initial.Length == 0
+                        || c.Name.StartsWith(initial)
+                        || c.Name.StartsWith(initialLower)),
                 c => c.Name,
                 descending: false,
                 cancellationToken)
@@ -199,6 +205,18 @@ public sealed class PublicContentManager(
             StudentCount = studentsTask.Result.TotalCount,
             UpcomingEventCount = eventsTask.Result.TotalCount,
         });
+    }
+
+    public async Task<IDataResult<IReadOnlyList<PublicClubCategoryDto>>> GetClubCategoriesAsync(CancellationToken cancellationToken = default)
+    {
+        var categories = await clubCategoryRepository.GetListAsync(null, cancellationToken).ConfigureAwait(false);
+        var items = categories
+            .OrderBy(c => c.Name)
+            .ThenBy(c => c.Id)
+            .Select(c => new PublicClubCategoryDto { Id = c.Id, Name = c.Name })
+            .ToList();
+
+        return DataResult<IReadOnlyList<PublicClubCategoryDto>>.Success(items);
     }
 
     private static int ClampPageSize(int pageSize) =>

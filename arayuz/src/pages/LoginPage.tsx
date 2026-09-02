@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Box, Button, Divider, IconButton, InputAdornment, Stack, TextField, Typography, alpha } from '@mui/material'
+import { Alert, Box, Button, Chip, Divider, IconButton, InputAdornment, Stack, TextField, Typography, alpha } from '@mui/material'
 import MailOutlineOutlinedIcon from '@mui/icons-material/MailOutlineOutlined'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
@@ -94,7 +94,8 @@ export function LoginPage() {
           <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 3, mt: 1 }}>
             <BrandMark to="/" showSubtitle />
           </Box>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mt: 2.5, mb: 0.75, fontSize: { xs: 26, sm: 30 }, letterSpacing: '-0.03em' }}>
+          <Chip label={t('brand.campusLife')} size="small" sx={{ mt: 2.5, mb: 1.5, fontWeight: 700 }} />
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 0.75, fontSize: { xs: 26, sm: 30 }, letterSpacing: '-0.03em' }}>
             {t('auth.loginTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5, lineHeight: 1.6 }}>

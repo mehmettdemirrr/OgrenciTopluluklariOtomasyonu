@@ -241,7 +241,7 @@ public sealed class UserProvisioningTests : IClassFixture<CustomWebApplicationFa
             RoleNames = Array.Empty<string>(),
         });
 
-        foreach (var path in new[] { "/api/public/clubs", "/api/public/events", "/api/public/announcements" })
+        foreach (var path in new[] { "/api/public/clubs", "/api/public/events", "/api/public/announcements", "/api/public/club-categories" })
         {
             var body = await _client.GetStringAsync($"{path}?pageIndex=0&pageSize=100");
 

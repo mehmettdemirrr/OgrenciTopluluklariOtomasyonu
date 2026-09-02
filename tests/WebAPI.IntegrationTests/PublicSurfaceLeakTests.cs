@@ -94,6 +94,21 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
         AssertNoPii(body, scenario);
     }
 
+    [Fact(DisplayName = "Anonim ziyaretçi: /api/public/club-categories yalnızca id ve ad döner, PII sızmaz")]
+    public async Task GetPublicClubCategories_Anonymous_ReturnsNamesWithoutPii()
+    {
+        var scenario = await SeedScenarioAsync("categories");
+
+        var response = await _client.GetAsync("/api/public/club-categories");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains(scenario.CategoryName, body);
+        Assert.DoesNotContain("advisorId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("email", body, StringComparison.OrdinalIgnoreCase);
+        AssertNoPii(body, scenario);
+    }
+
     private static void AssertNoPii(string body, Scenario scenario)
     {
         Assert.DoesNotContain(scenario.AdvisorEmail, body);
@@ -111,7 +126,8 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
         string MembersOnlyAnnouncementTitle,
         string AdvisorEmail,
         string StudentEmail,
-        string StudentNumber);
+        string StudentNumber,
+        string CategoryName);
 
     private async Task<Scenario> SeedScenarioAsync(string suffix)
     {
@@ -144,8 +160,13 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
         db.Students.Add(new Student { ApplicationUserId = studentUser.Id, StudentNumber = studentNumber, DepartmentId = department.Id, EnrollmentYear = 2026 });
         await db.SaveChangesAsync();
 
+        var categoryName = $"pub-leak-category-{suffix}";
+        var category = new ClubCategory { Name = categoryName };
+        db.ClubCategories.Add(category);
+        await db.SaveChangesAsync();
+
         var activeClubName = $"pub-leak-active-club-{suffix}";
-        var activeClub = new Club { Name = activeClubName, AdvisorId = advisor.Id, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+        var activeClub = new Club { Name = activeClubName, AdvisorId = advisor.Id, IsActive = true, CreatedAtUtc = DateTime.UtcNow, ClubCategoryId = category.Id };
         db.Clubs.Add(activeClub);
         var inactiveClubName = $"pub-leak-inactive-club-{suffix}";
         db.Clubs.Add(new Club { Name = inactiveClubName, AdvisorId = advisor.Id, IsActive = false, CreatedAtUtc = DateTime.UtcNow });
@@ -185,7 +206,7 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
 
         return new Scenario(
             activeClubName, inactiveClubName, publishedTitle, draftTitle, pendingTitle,
-            publicAnnouncementTitle, membersOnlyTitle, advisorEmail, studentEmail, studentNumber);
+            publicAnnouncementTitle, membersOnlyTitle, advisorEmail, studentEmail, studentNumber, categoryName);
     }
 
     [Fact(DisplayName = "Y-72: /api/public/events ucundan ClubMembers kitleli etkinlik donmez, Public doner")]

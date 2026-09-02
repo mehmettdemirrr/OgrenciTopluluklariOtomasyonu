@@ -21,9 +21,10 @@ public sealed class PublicContentController(IPublicContentService publicContentS
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
         [FromQuery] int? categoryId = null,
+        [FromQuery] string? letter = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await publicContentService.GetClubsAsync(pageIndex, pageSize, search, categoryId, cancellationToken);
+        var result = await publicContentService.GetClubsAsync(pageIndex, pageSize, search, categoryId, letter, cancellationToken);
         return result.ToActionResult();
     }
 
@@ -62,6 +63,13 @@ public sealed class PublicContentController(IPublicContentService publicContentS
     public async Task<IActionResult> GetStats(CancellationToken cancellationToken = default)
     {
         var result = await publicContentService.GetStatsAsync(cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpGet("club-categories")]
+    public async Task<IActionResult> GetClubCategories(CancellationToken cancellationToken = default)
+    {
+        var result = await publicContentService.GetClubCategoriesAsync(cancellationToken);
         return result.ToActionResult();
     }
 }

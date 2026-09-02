@@ -1,7 +1,10 @@
-import { Box, alpha } from '@mui/material'
+import { AppBar, Box, Toolbar } from '@mui/material'
 import { Outlet } from 'react-router-dom'
 import { PreferenceControls } from '../ui/PreferenceControls'
 import { AppFooter } from './AppFooter'
+import { BrandMark } from './BrandMark'
+import { CampusLocationMenu } from './CampusLocationMenu'
+import { brandSlideBarSx, brandSlideToolbarSx } from './brandSlideBar'
 
 /**
  * docs/PLAN-V3.md §15.2: kimlik sayfaları (login/register/confirm-email/forgot/reset) ne `AppShell`
@@ -11,21 +14,16 @@ import { AppFooter } from './AppFooter'
  */
 export function AuthLayout() {
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        bgcolor: 'background.default',
-        backgroundImage: (theme) =>
-          `radial-gradient(ellipse at 0% 0%, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 46%), radial-gradient(ellipse at 100% 100%, ${alpha(theme.palette.secondary.main, 0.08)} 0%, transparent 42%)`,
-      }}
-    >
-      <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 2 }}>
-        <PreferenceControls />
-      </Box>
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', pt: { xs: 6, md: 0 } }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+      <AppBar position="sticky" color="transparent" sx={brandSlideBarSx}>
+        <Toolbar sx={brandSlideToolbarSx}>
+          <BrandMark to="/" showSubtitle light />
+          <Box sx={{ flexGrow: 1 }} />
+          <CampusLocationMenu />
+          <PreferenceControls />
+        </Toolbar>
+      </AppBar>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Outlet />
       </Box>
       <AppFooter />
