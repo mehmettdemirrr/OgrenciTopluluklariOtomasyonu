@@ -26,4 +26,13 @@ public interface IFileService
     /// </summary>
     Task<IDataResult<UploadedFileDto>> StoreApplicationDocumentAsync(
         UploadFileRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · K-40/A-64: başvuru logosu — yalnızca JPEG/PNG/WebP, Public.
+    /// Controller ucu YOKTUR; yalnızca ClubApplicationManager çağırır (başvuru akışının parçası),
+    /// bu yüzden [SecuredOperation] da yok — yetki SubmitAsync'te zaten kurulmuş durumda.
+    /// Kulüp henüz yoktur; bu yüzden UploadClubLogoAsync'in danışman kontrolü BURADA YAPILAMAZ (A-69).
+    /// </summary>
+    Task<IDataResult<UploadedFileDto>> StoreApplicationLogoAsync(
+        UploadFileRequestDto request, CancellationToken cancellationToken = default);
 }

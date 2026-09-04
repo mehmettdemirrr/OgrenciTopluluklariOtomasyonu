@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Business.BackgroundJobs;
 using DataAccess;
 using Entities;
@@ -368,7 +369,8 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
         string accessToken,
         string proposedName,
         IReadOnlyList<(int TypeId, byte[] Bytes, string FileName)> documents,
-        int? proposedCategoryId = null)
+        int? proposedCategoryId = null,
+        byte[]? logoBytes = null)
     {
         using var content = new MultipartFormDataContent
         {
@@ -381,6 +383,13 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
         if (proposedCategoryId is { } categoryId)
         {
             content.Add(new StringContent(categoryId.ToString(CultureInfo.InvariantCulture)), "ProposedCategoryId");
+        }
+
+        if (logoBytes is not null)
+        {
+            var logoContent = new ByteArrayContent(logoBytes);
+            logoContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            content.Add(logoContent, "Logo", "logo.png");
         }
 
         for (var i = 0; i < documents.Count; i++)
@@ -445,6 +454,53 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
         Assert.All(files, f => Assert.Equal("application/pdf", f.ContentType));
         // Y-40: ad sunucuda üretilir — istemcinin verdiği "evrak0.pdf" saklanmaz.
         Assert.All(files, f => Assert.DoesNotContain("evrak", f.GeneratedFileName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact(DisplayName = "K-40/A-69: logolu başvuru kabul edilir, logo Public görünürlükle saklanır (evraktan farklı)")]
+    public async Task Submit_WithLogo_StoresLogoPublicly()
+    {
+        var proposedName = $"Logolu Kulüp {Guid.NewGuid():N}"[..30];
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+
+        var requiredIds = await GetRequiredDocumentTypeIdsAsync();
+        var documents = requiredIds
+            .Select((id, index) => (TypeId: id, Bytes: FakePdfBytes(), FileName: $"evrak{index}.pdf"))
+            .ToList();
+
+        var response = await SubmitMultipartAsync(studentToken, proposedName, documents, logoBytes: FakePngBytes());
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var application = await db.ClubApplications.SingleAsync(a => a.ProposedName == proposedName);
+        Assert.NotNull(application.LogoFileId);
+
+        var logoFile = await db.StoredFiles.SingleAsync(f => f.Id == application.LogoFileId);
+        // A-69: logo kulüp kimliğidir, kişisel veri değildir — evrakın aksine Public.
+        Assert.Equal(FileVisibility.Public, logoFile.Visibility);
+        Assert.Equal("image/png", logoFile.ContentType);
+    }
+
+    [Fact(DisplayName = "K-40: 'Başvurularım' ucu logoFileId'yi sayı olarak taşır")]
+    public async Task ClubApplicationsMine_CarriesLogoFileIdAsNumber()
+    {
+        var proposedName = $"Sayi Logo {Guid.NewGuid():N}"[..30];
+        await ClearPendingApplicationsAsync(OtherStudentEmail);
+        var studentToken = await LoginAsync(OtherStudentEmail, OtherStudentPassword);
+
+        var requiredIds = await GetRequiredDocumentTypeIdsAsync();
+        var documents = requiredIds
+            .Select((id, index) => (TypeId: id, Bytes: FakePdfBytes(), FileName: $"evrak{index}.pdf"))
+            .ToList();
+        Assert.Equal(HttpStatusCode.OK, (await SubmitMultipartAsync(studentToken, proposedName, documents, logoBytes: FakePngBytes())).StatusCode);
+
+        var mine = await SendWithBearerAsync(HttpMethod.Get, "/api/club-applications/mine", studentToken);
+        var items = await mine.Content.ReadFromJsonAsync<JsonElement>();
+        var row = items.EnumerateArray().Single(x => x.GetProperty("proposedName").GetString() == proposedName);
+
+        Assert.Equal(JsonValueKind.Number, row.GetProperty("logoFileId").ValueKind);
     }
 
     [Fact(DisplayName = "A-64: evrak yerine PNG yüklenirse 400 alınır ve kayıt yazılmaz")]

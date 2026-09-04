@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Stack, TextField, Typography } from '@mui/material'
+import { Avatar, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Stack, TextField, Typography } from '@mui/material'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -66,6 +66,22 @@ export function ClubApplicationsReviewPage() {
   })
 
   const columns: GridColDef<ClubApplicationListItemDto>[] = [
+    {
+      field: 'logoFileId',
+      headerName: '',
+      width: 56,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Avatar
+          src={params.row.logoFileId ? `/api/files/${params.row.logoFileId}` : undefined}
+          variant="rounded"
+          sx={{ width: 32, height: 32 }}
+        >
+          {params.row.proposedName.charAt(0)}
+        </Avatar>
+      ),
+    },
     { field: 'proposedName', headerName: 'Önerilen Ad', flex: 1, minWidth: 180 },
     { field: 'studentNumber', headerName: 'Öğrenci No', width: 130 },
     { field: 'proposedAdvisorDisplayName', headerName: 'Önerilen Danışman', flex: 1, minWidth: 180 },

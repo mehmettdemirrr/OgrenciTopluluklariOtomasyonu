@@ -26,6 +26,9 @@ public sealed class ClubApplication : IEntity, ISoftDeletable
     /// <summary>docs/MIMARI.md · K-35/A-60: önerilen kategori. Nullable — zorunlu değil.</summary>
     public int? ProposedCategoryId { get; set; }
 
+    /// <summary>docs/MIMARI.md · K-40/A-69: önerilen logo. Null = logosuz başvuru (geçerli).</summary>
+    public int? LogoFileId { get; set; }
+
     public ApplicationStatus Status { get; set; }
 
     public DateTime AppliedAtUtc { get; set; }

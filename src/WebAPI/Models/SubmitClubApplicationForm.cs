@@ -18,6 +18,9 @@ public sealed class SubmitClubApplicationForm
     /// <summary>docs/MIMARI.md · K-35/A-60: önerilen kategori. Opsiyonel.</summary>
     public int? ProposedCategoryId { get; set; }
 
+    /// <summary>docs/MIMARI.md · K-40: opsiyonel logo. Y-05: IFormFile bu katmanda kalır.</summary>
+    public IFormFile? Logo { get; set; }
+
     public List<SubmitClubApplicationDocumentForm> Documents { get; set; } = [];
 }
 

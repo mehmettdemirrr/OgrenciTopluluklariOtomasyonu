@@ -136,6 +136,7 @@ export interface ClubApplicationListItemDto {
   createdClubId: number | null
   proposedCategoryId: number | null
   proposedCategoryName: string | null
+  logoFileId: number | null
   documents: ClubApplicationDocumentDto[]
 }
 

@@ -1,3 +1,5 @@
+using Business.DTOs.Files;
+
 namespace Business.DTOs.ClubApplications;
 
 public sealed class SubmitClubApplicationRequestDto
@@ -15,4 +17,7 @@ public sealed class SubmitClubApplicationRequestDto
 
     /// <summary>docs/MIMARI.md · K-37/Y-71: yüklenen evraklar. Bütünlük kontrolü Business'ta, katalog okunarak.</summary>
     public IReadOnlyList<ClubApplicationDocumentUploadDto> Documents { get; set; } = [];
+
+    /// <summary>docs/MIMARI.md · K-40/A-69: opsiyonel logo. Null = logosuz başvuru.</summary>
+    public UploadFileRequestDto? Logo { get; set; }
 }

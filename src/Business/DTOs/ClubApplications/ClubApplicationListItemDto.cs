@@ -40,6 +40,9 @@ public sealed class ClubApplicationListItemDto
 
     public int? CreatedClubId { get; set; }
 
+    /// <summary>docs/MIMARI.md · K-40: başvuruyla gelen logo. Null = yüklenmemiş.</summary>
+    public int? LogoFileId { get; set; }
+
     /// <summary>
     /// docs/MIMARI.md · K-37: yüklenen evraklar. Zorunlu ama yüklenmemiş tipler bu listede YOKTUR —
     /// arayüz eksikliği katalogla karşılaştırarak gösterir.

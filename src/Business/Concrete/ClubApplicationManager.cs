@@ -144,6 +144,20 @@ public sealed class ClubApplicationManager(
         // bu kod tabanında navigation property kullanmamanın standart çözümü (DecideAsync precedent'i).
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
+        if (request.Logo is not null)
+        {
+            // A-69: logo bir kez saklanır; onayda Club.LogoFileId aynı dosyayı işaret eder.
+            // Tip hatası burada yakalanır ve başvuru [TransactionAspect] sayesinde geri alınır.
+            var storedLogo = await fileService.StoreApplicationLogoAsync(request.Logo, cancellationToken).ConfigureAwait(false);
+            if (!storedLogo.IsSuccess)
+            {
+                return Result.ValidationError(storedLogo.Message ?? Messages.UnsupportedFileType);
+            }
+
+            application.LogoFileId = storedLogo.Data.FileId;
+            clubApplicationRepository.Update(application);
+        }
+
         foreach (var document in request.Documents)
         {
             // A-63/A-64: Protected + yalnızca PDF. Tip hatası burada yakalanır ve başvuru
@@ -252,6 +266,7 @@ public sealed class ClubApplicationManager(
             ReviewedAtUtc = a.ReviewedAtUtc,
             ReviewNote = a.ReviewNote,
             CreatedClubId = a.CreatedClubId,
+            LogoFileId = a.LogoFileId,
         }).ToList();
 
         await AttachDocumentsAsync(items, cancellationToken).ConfigureAwait(false);
@@ -443,6 +458,8 @@ public sealed class ClubApplicationManager(
                         ClubCategoryId = application.ProposedCategoryId,
                         IsActive = true,
                         CreatedAtUtc = now,
+                        // Y-76: bu atama YALNIZCA Approved dalındadır — reddedilen başvurunun logosu geçmez.
+                        LogoFileId = application.LogoFileId,
                     };
 
                     // Club.Id'ye ClubMembership'in düz int FK'si için ihtiyaç var — ara SaveChanges
@@ -524,6 +541,7 @@ public sealed class ClubApplicationManager(
             ReviewedAtUtc = a.ReviewedAtUtc,
             ReviewNote = a.ReviewNote,
             CreatedClubId = a.CreatedClubId,
+            LogoFileId = a.LogoFileId,
         }).ToList();
     }
 

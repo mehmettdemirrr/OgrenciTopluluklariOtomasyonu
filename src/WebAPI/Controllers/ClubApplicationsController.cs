@@ -48,6 +48,19 @@ public sealed class ClubApplicationsController(IClubApplicationService clubAppli
                 });
             }
 
+            UploadFileRequestDto? logo = null;
+            if (form.Logo is not null)
+            {
+                var logoStream = form.Logo.OpenReadStream();
+                streams.Add(logoStream);
+                logo = new UploadFileRequestDto
+                {
+                    Content = logoStream,
+                    OriginalFileName = form.Logo.FileName,
+                    Length = form.Logo.Length,
+                };
+            }
+
             var request = new SubmitClubApplicationRequestDto
             {
                 ProposedName = form.ProposedName,
@@ -55,6 +68,7 @@ public sealed class ClubApplicationsController(IClubApplicationService clubAppli
                 Justification = form.Justification,
                 ProposedAdvisorId = form.ProposedAdvisorId,
                 ProposedCategoryId = form.ProposedCategoryId,
+                Logo = logo,
                 Documents = documents,
             };
 

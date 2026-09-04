@@ -140,6 +140,11 @@ public sealed class FileManager(
         // A-64: DocumentTypes = yalnızca PDF. Y-70: görünürlük Protected, pazarlık yok.
         StoreFileAsync(request, FileVisibility.Protected, DocumentTypes, Messages.UnsupportedDocumentFileType, cancellationToken);
 
+    public Task<IDataResult<UploadedFileDto>> StoreApplicationLogoAsync(
+        UploadFileRequestDto request, CancellationToken cancellationToken = default) =>
+        // A-64: ImageTypes = JPEG/PNG/WebP. Logo kulüp kimliğidir, kişisel veri değil → Public (A-69).
+        StoreFileAsync(request, FileVisibility.Public, ImageTypes, Messages.UnsupportedFileType, cancellationToken);
+
     private async Task<IDataResult<UploadedFileDto>> StoreFileAsync(
         UploadFileRequestDto request,
         FileVisibility visibility,

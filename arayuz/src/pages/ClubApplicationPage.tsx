@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
-import { useState } from 'react'
+import { Alert, Avatar, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../api/client'
@@ -31,6 +31,26 @@ export function ClubApplicationPage() {
   const navigate = useNavigate()
   const notify = useNotifier()
   const [files, setFiles] = useState<Record<number, File>>({})
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null)
+
+  // K-40: seçim anında yeni obje URL'i kurulur, eskisi hemen serbest bırakılır.
+  const handleLogoChange = (file: File | null) => {
+    setLogoFile(file)
+    setLogoPreviewUrl((previous) => {
+      if (previous) {
+        URL.revokeObjectURL(previous)
+      }
+      return file ? URL.createObjectURL(file) : null
+    })
+  }
+
+  // Yalnızca bileşen kapanırken kalan URL'i serbest bırakır — değişimdeki revoke handleLogoChange'te.
+  useEffect(() => () => {
+    if (logoPreviewUrl) {
+      URL.revokeObjectURL(logoPreviewUrl)
+    }
+  }, [logoPreviewUrl])
 
   const { control, handleSubmit } = useForm<ClubApplicationFormValues>({
     resolver: zodResolver(clubApplicationFormSchema),
@@ -70,6 +90,10 @@ export function ClubApplicationPage() {
       const categoryId = toCategoryPayload(values.proposedCategoryId)
       if (categoryId !== null) {
         formData.append('ProposedCategoryId', String(categoryId))
+      }
+
+      if (logoFile) {
+        formData.append('Logo', logoFile)
       }
 
       // Alan adları backend'in bağlama modeliyle birebir: Documents[i].DocumentTypeId / .File
@@ -181,6 +205,24 @@ export function ClubApplicationPage() {
               </TextField>
             )}
           />
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+              Topluluk Logosu (isteğe bağlı)
+            </Typography>
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+              <Avatar src={logoPreviewUrl ?? undefined} variant="rounded" sx={{ width: 64, height: 64 }} />
+              <Box>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) => handleLogoChange(event.target.files?.[0] ?? null)}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  JPEG, PNG veya WebP. Onaylanırsa topluluğun logosu olur.
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
         </Stack>
       </SectionCard>
 
