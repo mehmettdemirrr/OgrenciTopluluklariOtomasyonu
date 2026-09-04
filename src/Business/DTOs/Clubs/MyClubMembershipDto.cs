@@ -20,4 +20,7 @@ public sealed class MyClubMembershipDto
 
     /// <summary>docs/PLAN-V4.md §22.3: liste güncel döneme filtreli — hangi dönem olduğu görünsün.</summary>
     public required string AcademicTermName { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-70: Member = üyelik satırı, Advisor = danışmanlık satırı.</summary>
+    public ClubRelationship Relationship { get; set; }
 }

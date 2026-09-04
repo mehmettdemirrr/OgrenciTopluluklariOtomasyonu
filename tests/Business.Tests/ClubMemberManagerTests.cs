@@ -226,20 +226,62 @@ public class ClubMemberManagerTests
         var item = Assert.Single(result.Data!);
         Assert.Equal(_club.Name, item.ClubName);
         Assert.Equal(ClubRole.Officer, item.ClubRole);
+        // K-41/A-70: üyelik satırı Member ilişkisiyle işaretlenir — danışman satırından ayırt edilsin diye.
+        Assert.Equal(ClubRelationship.Member, item.Relationship);
     }
 
-    [Fact(DisplayName = "GetMineAsync: öğrenci profili olmayan kullanıcı (ör. danışman) için hata değil boş liste döner")]
-    public async Task GetMineAsync_NoStudentProfile_ReturnsEmptySuccess()
+    [Fact(DisplayName = "GetMineAsync: ne öğrenci ne danışman profili olan kullanıcı için hata değil boş liste döner")]
+    public async Task GetMineAsync_NoStudentOrAdvisorProfile_ReturnsEmptySuccess()
     {
         _currentUser.Setup(c => c.UserId).Returns(100);
         _studentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Student?)null);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AcademicStaff?)null);
 
         var result = await _sut.GetMineAsync();
 
         Assert.True(result.IsSuccess);
         Assert.Empty(result.Data!);
         _clubMembershipRepository.Verify(r => r.GetListAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "K-41/A-70: danışmanı olduğu kulüp Advisor ilişkisiyle Kulüplerim listesinde görünür")]
+    public async Task GetMineAsync_ReturnsAdvisorRow_ForAcademicStaff()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _studentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Student?)null);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+        _clubRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([_club]);
+
+        var result = await _sut.GetMineAsync();
+
+        var item = Assert.Single(result.Data!);
+        Assert.Equal(_club.Name, item.ClubName);
+        Assert.Equal(ClubRelationship.Advisor, item.Relationship);
+        Assert.Null(item.ClubRoleName);
+    }
+
+    [Fact(DisplayName = "A-70: danışmanlık dönemsel değildir — güncel dönem tanımsızken bile danışman kulübünü görür")]
+    public async Task GetMineAsync_AdvisorRow_IgnoresMissingCurrentTerm()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _studentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Student?)null);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+        _clubRepository.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([_club]);
+        // Güncel dönem yok — üyelik dalı bu yüzden boş dönerdi, danışman dalı buna bağlı değildir.
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AcademicTerm?)null);
+
+        var result = await _sut.GetMineAsync();
+
+        Assert.Single(result.Data!);
     }
 
     [Fact(DisplayName = "A-61/Y-22: unvan atanınca ClubRole TANIMDAN gelir, istemcinin gönderdiği değer yok sayılır")]

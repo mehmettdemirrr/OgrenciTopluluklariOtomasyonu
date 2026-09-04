@@ -32,10 +32,19 @@ public sealed class ClubMemberManager(
             return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success([]);
         }
 
+        var rows = new List<MyClubMembershipDto>();
+        rows.AddRange(await GetMembershipRowsAsync(userId, cancellationToken).ConfigureAwait(false));
+        rows.AddRange(await GetAdvisorRowsAsync(userId, cancellationToken).ConfigureAwait(false));
+
+        return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success(rows);
+    }
+
+    private async Task<IReadOnlyCollection<MyClubMembershipDto>> GetMembershipRowsAsync(int userId, CancellationToken cancellationToken)
+    {
         var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
         if (student is null)
         {
-            return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success([]);
+            return [];
         }
 
         // docs/PLAN-V4.md §22.3: buraya kadar TÜM dönemlerin üyelikleri dönüyordu, oysa
@@ -44,7 +53,7 @@ public sealed class ClubMemberManager(
         var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
         if (term is null)
         {
-            return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success([]);
+            return [];
         }
 
         var memberships = await clubMembershipRepository
@@ -58,7 +67,7 @@ public sealed class ClubMemberManager(
         var definitionNames = await GetRoleDefinitionNamesAsync(
             memberships.Select(m => m.ClubRoleDefinitionId), cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyCollection<MyClubMembershipDto> items = memberships
+        return memberships
             .OrderByDescending(m => m.JoinedAtUtc)
             .Select(m =>
             {
@@ -72,11 +81,40 @@ public sealed class ClubMemberManager(
                     ClubRoleName = m.ClubRoleDefinitionId is { } did ? definitionNames.GetValueOrDefault(did) : null,
                     JoinedAtUtc = m.JoinedAtUtc,
                     AcademicTermName = term.Name,
+                    Relationship = ClubRelationship.Member,
                 };
             })
             .ToList();
+    }
 
-        return DataResult<IReadOnlyCollection<MyClubMembershipDto>>.Success(items);
+    /// <summary>
+    /// docs/MIMARI.md · K-41/A-70: danışmanlık dönemsel bir kayıt değildir (Club.AdvisorId), bu yüzden
+    /// üyelik dalının dönem filtresi buraya uygulanmaz.
+    /// </summary>
+    private async Task<IReadOnlyCollection<MyClubMembershipDto>> GetAdvisorRowsAsync(int userId, CancellationToken cancellationToken)
+    {
+        var staff = await academicStaffRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (staff is null)
+        {
+            return [];
+        }
+
+        var clubs = await clubRepository.GetListAsync(c => c.AdvisorId == staff.Id, cancellationToken).ConfigureAwait(false);
+
+        return clubs
+            .OrderBy(c => c.Name)
+            .Select(c => new MyClubMembershipDto
+            {
+                ClubId = c.Id,
+                ClubName = c.Name,
+                ClubIsActive = c.IsActive,
+                ClubRole = ClubRole.Member,
+                ClubRoleName = null,
+                JoinedAtUtc = c.CreatedAtUtc,
+                AcademicTermName = string.Empty,
+                Relationship = ClubRelationship.Advisor,
+            })
+            .ToList();
     }
 
     public async Task<IDataResult<PagedResult<ClubMemberListItemDto>>> GetMembersPagedAsync(

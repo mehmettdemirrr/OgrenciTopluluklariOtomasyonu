@@ -43,25 +43,35 @@ export function MyClubsPage() {
   })
 
   const items = myClubsQuery.data ?? []
+  // K-41/A-70: danışman satırı varsa başlık metni "üyesi" demeyecek şekilde kurulur.
+  const hasMemberRow = items.some((item) => item.relationship === 'Member')
+  const hasAdvisorRow = items.some((item) => item.relationship === 'Advisor')
+  const memberTerm = items.find((item) => item.relationship === 'Member')?.academicTermName
+
+  const headerDescription = (() => {
+    if (hasMemberRow && hasAdvisorRow) {
+      return `${memberTerm} döneminde üyesi veya danışmanı olduğunuz topluluklar ve bu topluluklardaki rolünüz.`
+    }
+    if (hasAdvisorRow) {
+      return 'Danışmanı olduğunuz topluluklar.'
+    }
+    if (hasMemberRow) {
+      return `${memberTerm} döneminde üyesi olduğunuz topluluklar ve bu topluluklardaki rolünüz.`
+    }
+    return 'Güncel dönemde üyesi veya danışmanı olduğunuz topluluklar ve bu topluluklardaki rolünüz.'
+  })()
 
   return (
     <>
       {/* §22.3: liste artık yalnızca güncel dönemi gösteriyor — hangi dönem olduğu başlıkta yazar. */}
-      <PageHeader
-        title="Kulüplerim"
-        description={
-          items.length > 0
-            ? `${items[0].academicTermName} döneminde üyesi olduğunuz topluluklar ve bu topluluklardaki rolünüz.`
-            : 'Güncel dönemde üyesi olduğunuz topluluklar ve bu topluluklardaki rolünüz.'
-        }
-      />
+      <PageHeader title="Kulüplerim" description={headerDescription} />
 
       {myClubsQuery.isLoading ? (
         <CardGridSkeleton count={3} />
       ) : items.length === 0 ? (
         <EmptyState
           icon={GroupsOutlinedIcon}
-          title="Henüz bir topluluğa üye değilsiniz"
+          title="Görüntülenecek topluluk yok"
           description="Kulüpler sayfasından ilginizi çeken bir topluluğa üyelik başvurusu yapabilirsiniz."
         />
       ) : (
@@ -74,8 +84,10 @@ export function MyClubsPage() {
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {membership.clubName}
                     </Typography>
-                    {/* K-36: unvan varsa onu göster, yetki seviyesi rozeti yanında kalır. */}
-                    {membership.clubRoleName ? (
+                    {membership.relationship === 'Advisor' ? (
+                      <Chip size="small" color="secondary" label="Danışman" sx={{ flexShrink: 0 }} />
+                    ) : membership.clubRoleName ? (
+                      // K-36: unvan varsa onu göster, yetki seviyesi rozeti yanında kalır.
                       <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexShrink: 0 }}>
                         <Chip size="small" label={membership.clubRoleName} />
                         <ClubRoleChip role={membership.clubRole} />
@@ -86,18 +98,23 @@ export function MyClubsPage() {
                   </Stack>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     {!membership.clubIsActive && <Chip size="small" label="Pasif" variant="outlined" />}
-                    <Typography variant="caption" color="text.secondary">
-                      {new Date(membership.joinedAtUtc).toLocaleDateString('tr-TR')} tarihinden beri üye
-                    </Typography>
+                    {membership.relationship !== 'Advisor' && (
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(membership.joinedAtUtc).toLocaleDateString('tr-TR')} tarihinden beri üye
+                      </Typography>
+                    )}
                   </Stack>
                 </CardContent>
                 <CardActions sx={{ px: 2, pb: 2, gap: 0.5 }}>
                   <Button size="small" component={RouterLink} to={`/clubs/${membership.clubId}`}>
                     Detay
                   </Button>
-                  <Button size="small" color="error" onClick={() => setLeaveTarget(membership)}>
-                    Ayrıl
-                  </Button>
+                  {/* Y-77: danışmanlıktan "ayrılınmaz" — sonlandırma AdvisorId değişikliğiyle olur. */}
+                  {membership.relationship !== 'Advisor' && (
+                    <Button size="small" color="error" onClick={() => setLeaveTarget(membership)}>
+                      Ayrıl
+                    </Button>
+                  )}
                 </CardActions>
               </Card>
             </Grid>

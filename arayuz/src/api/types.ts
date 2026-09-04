@@ -328,6 +328,10 @@ export interface MeResponseDto {
 }
 
 // src/Business/DTOs/Clubs/MyClubMembershipDto.cs
+// src/Entities/Enums/ClubRelationship.cs — backend enum'unun tamamı; bu ekran yalnızca
+// Member ve Advisor üretir, kalan değerler ClubDetailDto.myRelationship (Faz 41) içindir.
+export type ClubRelationship = 'None' | 'Member' | 'Officer' | 'President' | 'Advisor' | 'Administrator'
+
 export interface MyClubMembershipDto {
   clubId: number
   clubName: string
@@ -338,6 +342,8 @@ export interface MyClubMembershipDto {
   joinedAtUtc: string
   /** Liste güncel döneme filtreli (PLAN-V4 §22.3). */
   academicTermName: string
+  /** docs/MIMARI.md · K-41/A-70: Member = üyelik satırı, Advisor = danışmanlık satırı. */
+  relationship: ClubRelationship
 }
 
 // src/Entities/Dtos/Dashboard/PersonalDashboardStatsDto.cs

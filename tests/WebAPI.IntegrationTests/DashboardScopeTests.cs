@@ -101,6 +101,23 @@ public sealed class DashboardScopeTests : IClassFixture<CustomWebApplicationFact
         var item = Assert.Single(items!, i => i.ClubId == scenario.ClubId);
         Assert.False(string.IsNullOrWhiteSpace(item.ClubName));
         Assert.Equal("Member", item.ClubRole);
+        // K-41/A-70: üyelik satırı Member ilişkisiyle işaretlenir — danışman satırından ayırt edilsin diye.
+        Assert.Equal("Member", item.Relationship);
+    }
+
+    [Fact(DisplayName = "K-41/A-70: GET /api/clubs/mine danışmanın kulübünü Advisor ilişkisiyle döner")]
+    public async Task GetClubsMine_Advisor_ReturnsAdvisedClubWithAdvisorRelationship()
+    {
+        var scenario = await SeedAdvisorClubWithMemberAsync("clubs-mine-advisor");
+        var token = await LoginAndGetAccessTokenAsync(scenario.AdvisorEmail, scenario.AdvisorPassword);
+
+        var response = await SendWithBearerAsync(HttpMethod.Get, "/api/clubs/mine", token);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var items = await response.Content.ReadFromJsonAsync<List<MyClubMembershipResponseDto>>();
+        var item = Assert.Single(items!, i => i.ClubId == scenario.ClubId);
+        Assert.False(string.IsNullOrWhiteSpace(item.ClubName));
+        Assert.Equal("Advisor", item.Relationship);
     }
 
     private sealed record AdvisorScenario(string AdvisorEmail, string AdvisorPassword, string StudentEmail, string StudentPassword, int ClubId, int TermId);
@@ -238,6 +255,8 @@ public sealed class DashboardScopeTests : IClassFixture<CustomWebApplicationFact
         public string ClubRole { get; init; } = string.Empty;
 
         public DateTime JoinedAtUtc { get; init; }
+
+        public string Relationship { get; init; } = string.Empty;
     }
 
     private sealed class AuthResponseDto
