@@ -374,4 +374,67 @@ public class EventManagerTests
         Assert.NotNull(captured);
         Assert.Equal(EventAudience.Public, captured!.Audience);
     }
+
+    private const string ValidDescriptionJson = """
+    {"type":"doc","content":[
+      {"type":"paragraph","attrs":{"textAlign":"left"},"content":[
+        {"type":"text","text":"Kayıtlar ","marks":[{"type":"bold"}]},
+        {"type":"text","text":"15 Ekim","marks":[{"type":"textColor","attrs":{"token":"accent"}}]}
+      ]}
+    ]}
+    """;
+
+    [Fact(DisplayName = "Create: K-43/A-71 — DescriptionJson kaydedilir, Description düz metin aynası olarak türetilir")]
+    public async Task CreateAsync_StoresDescriptionJson_AndDerivesPlainText()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+        Event? captured = null;
+        _eventRepository
+            .Setup(r => r.AddAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()))
+            .Callback((Event e, CancellationToken _) => captured = e)
+            .Returns(Task.CompletedTask);
+
+        var request = ValidCreateRequest();
+        request.DescriptionJson = ValidDescriptionJson;
+
+        var result = await _sut.CreateAsync(1, request);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ValidDescriptionJson, captured!.DescriptionJson);
+        Assert.Equal("Kayıtlar 15 Ekim", captured.Description);
+    }
+
+    [Fact(DisplayName = "Create: Y-78 — izin listesinde olmayan düğüm içeren DescriptionJson reddedilir, kayıt oluşmaz")]
+    public async Task CreateAsync_Rejects_WhenDescriptionJsonHasDisallowedNode()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+
+        var request = ValidCreateRequest();
+        request.DescriptionJson = """{"type":"doc","content":[{"type":"iframe"}]}""";
+
+        var result = await _sut.CreateAsync(1, request);
+
+        Assert.False(result.IsSuccess);
+        _eventRepository.Verify(r => r.AddAsync(It.IsAny<Event>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "GetByIdAsync: DescriptionJson DTO'ya taşınır")]
+    public async Task GetByIdAsync_CarriesDescriptionJson()
+    {
+        var @event = new Event
+        {
+            Id = 1, ClubId = 1, Title = "Etkinlik", Description = "Kayıtlar 15 Ekim", DescriptionJson = ValidDescriptionJson,
+            StartDateUtc = FixedNow.AddDays(5), EndDateUtc = FixedNow.AddDays(5).AddHours(2), Status = EventStatus.Published, CreatedAtUtc = FixedNow,
+        };
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(@event);
+
+        var result = await _sut.GetByIdAsync(1);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ValidDescriptionJson, result.Data!.DescriptionJson);
+    }
 }

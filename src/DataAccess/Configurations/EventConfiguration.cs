@@ -20,6 +20,10 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.Property(e => e.CancellationReason)
             .HasMaxLength(500);
 
+        // K-43/A-71: düğüm ağacı; boyutu değişken, nvarchar(max) sabitlenir.
+        builder.Property(e => e.DescriptionJson)
+            .HasColumnType("nvarchar(max)");
+
         // K-38/A-65: mevcut satırlar ve varsayılanı olmayan insert'ler Public olur — bugünkü
         // davranış korunur. Y-72: kolon nullable DEĞİL, "kitle belirsiz" diye bir durum yok.
         builder.Property(e => e.Audience)

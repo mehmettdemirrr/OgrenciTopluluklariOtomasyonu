@@ -14,6 +14,9 @@ public sealed class EventListItemDto
 
     public string? Description { get; set; }
 
+    /// <summary>docs/MIMARI.md · A-71: null ise Description düz metin olarak gösterilir.</summary>
+    public string? DescriptionJson { get; set; }
+
     public string? Location { get; set; }
 
     public DateTime StartDateUtc { get; set; }

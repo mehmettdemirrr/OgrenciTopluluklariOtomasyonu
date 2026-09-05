@@ -46,6 +46,7 @@ import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { ResultPagination } from '../components/ui/ResultPagination'
 import { SearchField } from '../components/ui/SearchField'
 import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
+import { RichTextEditor } from '../components/richtext/RichTextEditor'
 import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { ClubListItemDto, EventListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -337,7 +338,7 @@ function EventsTab() {
           reset(emptyEventFormValues)
         }}
         fullWidth
-        maxWidth="xs"
+        maxWidth="sm"
       >
         <DialogTitle>Yeni Etkinlik</DialogTitle>
         <DialogContent>
@@ -349,9 +350,13 @@ function EventsTab() {
             )}
           />
           <Controller
-            name="description"
+            name="descriptionJson"
             control={control}
-            render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
+            render={({ field }) => (
+              <Box sx={{ mt: 1, mb: 1.5 }}>
+                <RichTextEditor value={field.value || null} onChange={field.onChange} />
+              </Box>
+            )}
           />
           <Controller name="location" control={control} render={({ field }) => <TextField {...field} fullWidth margin="dense" label="Yer" />} />
           <Controller

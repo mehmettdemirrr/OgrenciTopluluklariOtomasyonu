@@ -270,6 +270,8 @@ export interface EventListItemDto {
   clubName: string
   title: string
   description: string | null
+  /** docs/MIMARI.md · A-71: null ise description düz metin olarak gösterilir. */
+  descriptionJson: string | null
   location: string | null
   startDateUtc: string
   endDateUtc: string

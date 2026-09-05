@@ -2,6 +2,7 @@ using Business.Abstract;
 using Business.BackgroundJobs;
 using Business.Constants;
 using Business.DTOs.Events;
+using Business.RichText;
 using Core.DataAccess;
 using Core.Utilities.Results;
 using Core.Utilities.Security;
@@ -43,11 +44,17 @@ public sealed class EventManager(
             return DataResult<int>.Forbidden(accessError);
         }
 
+        if (!TryResolveDescription(request.Description, request.DescriptionJson, out var description, out var descriptionError))
+        {
+            return DataResult<int>.ValidationError(descriptionError!);
+        }
+
         var @event = new Event
         {
             ClubId = clubId,
             Title = request.Title,
-            Description = request.Description,
+            Description = description,
+            DescriptionJson = request.DescriptionJson,
             Location = request.Location,
             StartDateUtc = request.StartDateUtc,
             EndDateUtc = request.EndDateUtc,
@@ -381,8 +388,14 @@ public sealed class EventManager(
             return Result.Conflict(Messages.EventCannotBeUpdated);
         }
 
+        if (!TryResolveDescription(request.Description, request.DescriptionJson, out var description, out var descriptionError))
+        {
+            return Result.ValidationError(descriptionError!);
+        }
+
         @event.Title = request.Title;
-        @event.Description = request.Description;
+        @event.Description = description;
+        @event.DescriptionJson = request.DescriptionJson;
         @event.Location = request.Location;
         @event.StartDateUtc = request.StartDateUtc;
         @event.EndDateUtc = request.EndDateUtc;
@@ -392,6 +405,31 @@ public sealed class EventManager(
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return Result.Success(Messages.EventUpdated);
+    }
+
+    /// <summary>
+    /// docs/MIMARI.md · Y-78: izin listesi kapalıdır; reddedilen içerik sessizce temizlenmez, hata döner.
+    /// A-71: düz metin aynası JSON'dan türetilir.
+    /// </summary>
+    private static bool TryResolveDescription(string? description, string? descriptionJson, out string? resolvedDescription, out string? error)
+    {
+        resolvedDescription = description?.Trim();
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(descriptionJson))
+        {
+            return true;
+        }
+
+        var validation = RichTextDocumentValidator.Validate(descriptionJson);
+        if (!validation.IsValid)
+        {
+            error = validation.Error ?? Messages.UnsupportedRichTextContent;
+            return false;
+        }
+
+        resolvedDescription = RichTextPlainTextExtractor.Extract(descriptionJson);
+        return true;
     }
 
     public async Task<IResult> DeleteAsync(int eventId, CancellationToken cancellationToken = default)
@@ -435,6 +473,7 @@ public sealed class EventManager(
         ClubName = clubName,
         Title = e.Title,
         Description = e.Description,
+        DescriptionJson = e.DescriptionJson,
         Location = e.Location,
         StartDateUtc = e.StartDateUtc,
         EndDateUtc = e.EndDateUtc,

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -26,6 +27,7 @@ import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { DataTable } from '../components/ui/DataTable'
 import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
+import { RichTextEditor } from '../components/richtext/RichTextEditor'
 import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { EventListItemDto, PagedResult } from '../api/types'
 
@@ -119,7 +121,7 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
           reset(emptyEventFormValues)
         }}
         fullWidth
-        maxWidth="xs"
+        maxWidth="sm"
       >
         <DialogTitle>Yeni Etkinlik</DialogTitle>
         <DialogContent>
@@ -131,9 +133,13 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
             )}
           />
           <Controller
-            name="description"
+            name="descriptionJson"
             control={control}
-            render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
+            render={({ field }) => (
+              <Box sx={{ mt: 1, mb: 1.5 }}>
+                <RichTextEditor value={field.value || null} onChange={field.onChange} />
+              </Box>
+            )}
           />
           <Controller name="location" control={control} render={({ field }) => <TextField {...field} fullWidth margin="dense" label="Yer" />} />
           <Controller

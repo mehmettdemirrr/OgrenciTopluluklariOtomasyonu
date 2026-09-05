@@ -23,6 +23,7 @@ import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined
 import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import { z } from 'zod'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { GridColDef } from '@mui/x-data-grid'
@@ -40,11 +41,16 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
 import { DateBadge } from '../components/ui/DateBadge'
 import { DetailHero, DetailMedia } from '../components/ui/DetailHero'
+import { EventTimeline } from '../components/ui/EventTimeline'
 import { InfoTile } from '../components/ui/InfoTile'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
-import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
+import { RichTextContent } from '../components/richtext/RichTextContent'
+import { RichTextEditor } from '../components/richtext/RichTextEditor'
+import { emptyEventFormValues, eventFormSchema, plainTextToDoc, toEventPayload, type EventFormValues } from '../schemas/eventForm'
+import { mapsDirectionsUrl, mapsEmbedUrl } from '../utils/maps'
+import { useLocale } from '../i18n/LocaleContext'
 import type { EventListItemDto, EventParticipantListItemDto, PagedResult } from '../api/types'
 
 export function EventDetailPage() {
@@ -55,6 +61,7 @@ export function EventDetailPage() {
   const notify = useNotifier()
   const { hasPermission } = useAuth()
   const canManage = hasPermission(Permissions.EventsWrite)
+  const { t } = useLocale()
 
   const editDialog = useFormDialog()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -203,7 +210,7 @@ export function EventDetailPage() {
     if (!eventQuery.data) return
     reset({
       title: eventQuery.data.title,
-      description: eventQuery.data.description ?? '',
+      descriptionJson: eventQuery.data.descriptionJson ?? plainTextToDoc(eventQuery.data.description ?? ''),
       location: eventQuery.data.location ?? '',
       startDateTime: toLocalInput(eventQuery.data.startDateUtc),
       endDateTime: toLocalInput(eventQuery.data.endDateUtc),
@@ -335,8 +342,6 @@ export function EventDetailPage() {
             <EventAudienceChip audience={event.audience} />
           </>
         }
-        description={event.description}
-        emptyDescription="Bu etkinlik için henüz açıklama eklenmemiş."
         actions={
           event.status === 'Published' ? (
             isRegistered ? (
@@ -351,6 +356,16 @@ export function EventDetailPage() {
           ) : undefined
         }
       >
+        {event.descriptionJson || event.description ? (
+          <RichTextContent json={event.descriptionJson} fallbackText={event.description ?? ''} />
+        ) : (
+          <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+            Bu etkinlik için henüz açıklama eklenmemiş.
+          </Typography>
+        )}
+
+        <EventTimeline startIso={event.startDateUtc} endIso={event.endDateUtc} />
+
         <Grid container spacing={1.5}>
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <InfoTile
@@ -379,6 +394,34 @@ export function EventDetailPage() {
         </Grid>
       </DetailHero>
 
+      {event.location && (
+        <SectionCard title={t('event.location')} sx={{ mb: 3 }}>
+          <Typography variant="body2" sx={{ mb: 1.5 }}>
+            {event.location}
+          </Typography>
+          <Box sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+            <Box
+              component="iframe"
+              title={event.location}
+              src={mapsEmbedUrl(event.location)}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              sx={{ display: 'block', width: '100%', height: { xs: 220, md: 300 }, border: 0 }}
+            />
+          </Box>
+          <Button
+            href={mapsDirectionsUrl(event.location)}
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="outlined"
+            endIcon={<OpenInNewOutlinedIcon />}
+            sx={{ mt: 1.5 }}
+          >
+            {t('event.directions')}
+          </Button>
+        </SectionCard>
+      )}
+
       {canManage && (
         <SectionCard title="Katılımcılar">
           <DataTable
@@ -397,7 +440,7 @@ export function EventDetailPage() {
         </SectionCard>
       )}
 
-      <Dialog open={editDialog.open} onClose={editDialog.closeDialog} fullWidth maxWidth="xs">
+      <Dialog open={editDialog.open} onClose={editDialog.closeDialog} fullWidth maxWidth="sm">
         <DialogTitle>Etkinliği Düzenle</DialogTitle>
         <DialogContent>
           <Controller
@@ -408,9 +451,13 @@ export function EventDetailPage() {
             )}
           />
           <Controller
-            name="description"
+            name="descriptionJson"
             control={control}
-            render={({ field }) => <TextField {...field} fullWidth multiline minRows={2} margin="dense" label="Açıklama" />}
+            render={({ field }) => (
+              <Box sx={{ mt: 1, mb: 1.5 }}>
+                <RichTextEditor value={field.value || null} onChange={field.onChange} />
+              </Box>
+            )}
           />
           <Controller name="location" control={control} render={({ field }) => <TextField {...field} fullWidth margin="dense" label="Yer" />} />
           <Controller

@@ -19,11 +19,3 @@ export const campuses: {
     query: 'Malatya Turgut Özal Üniversitesi Battalgazi Yerleşkesi, Boran Mahallesi Kırkgöz Caddesi No:82B Battalgazi Malatya',
   },
 ]
-
-export function mapsSearchUrl(query: string) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
-}
-
-export function mapsEmbedUrl(query: string) {
-  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`
-}

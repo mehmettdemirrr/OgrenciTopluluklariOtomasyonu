@@ -5,7 +5,9 @@ import { z } from 'zod'
 export const eventFormSchema = z
   .object({
     title: z.string().min(1, 'Başlık gerekli.'),
-    description: z.string(),
+    // docs/MIMARI.md · K-43/A-71: açıklama RichTextEditor'den JSON ağacı olarak gelir; düz metin
+    // aynası (description) sunucuda türetilir, arayüz ayrıca göndermez.
+    descriptionJson: z.string(),
     location: z.string(),
     startDateTime: z.string().min(1, 'Başlangıç tarihi gerekli.'),
     endDateTime: z.string().min(1, 'Bitiş tarihi gerekli.'),
@@ -26,7 +28,7 @@ export type EventFormValues = z.infer<typeof eventFormSchema>
 
 export const emptyEventFormValues: EventFormValues = {
   title: '',
-  description: '',
+  descriptionJson: '',
   location: '',
   startDateTime: '',
   endDateTime: '',
@@ -37,11 +39,20 @@ export const emptyEventFormValues: EventFormValues = {
 export function toEventPayload(values: EventFormValues) {
   return {
     title: values.title,
-    description: values.description.trim() || null,
+    descriptionJson: values.descriptionJson.trim() || null,
     location: values.location.trim() || null,
     startDateUtc: new Date(values.startDateTime).toISOString(),
     endDateUtc: new Date(values.endDateTime).toISOString(),
     capacity: values.capacity.trim() === '' ? null : Number(values.capacity),
     audience: values.audience,
   }
+}
+
+// docs/MIMARI.md · A-71: eski düz metin etkinlik düzenlemeye açılınca kaybolmasın diye
+// editöre tek paragraflık bir belge olarak yüklenir.
+export function plainTextToDoc(text: string): string {
+  return JSON.stringify({
+    type: 'doc',
+    content: [{ type: 'paragraph', content: text ? [{ type: 'text', text }] : [] }],
+  })
 }

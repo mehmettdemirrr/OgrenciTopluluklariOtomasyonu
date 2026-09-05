@@ -17,6 +17,12 @@ public sealed class Event : IEntity, ISoftDeletable
 
     public string? Description { get; set; }
 
+    /// <summary>
+    /// docs/MIMARI.md · K-43/A-71: biçimlendirilmiş açıklamanın düğüm ağacı (JSON).
+    /// Null = düz metin açıklama. Description bu alanın düz metin aynasıdır.
+    /// </summary>
+    public string? DescriptionJson { get; set; }
+
     public string? Location { get; set; }
 
     public DateTime StartDateUtc { get; set; }

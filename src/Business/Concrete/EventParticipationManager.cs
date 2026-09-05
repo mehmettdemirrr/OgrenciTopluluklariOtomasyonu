@@ -205,6 +205,7 @@ public sealed class EventParticipationManager(
             ClubName = clubNames.GetValueOrDefault(e.ClubId, string.Empty),
             Title = e.Title,
             Description = e.Description,
+            DescriptionJson = e.DescriptionJson,
             Location = e.Location,
             StartDateUtc = e.StartDateUtc,
             EndDateUtc = e.EndDateUtc,

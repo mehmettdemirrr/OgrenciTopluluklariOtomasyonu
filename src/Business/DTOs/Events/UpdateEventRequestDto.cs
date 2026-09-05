@@ -8,6 +8,9 @@ public sealed class UpdateEventRequestDto
 
     public string? Description { get; set; }
 
+    /// <summary>docs/MIMARI.md · K-43/A-71: biçimlendirilmiş açıklama ağacı. Null = düz metin.</summary>
+    public string? DescriptionJson { get; set; }
+
     public string? Location { get; set; }
 
     public DateTime StartDateUtc { get; set; }
