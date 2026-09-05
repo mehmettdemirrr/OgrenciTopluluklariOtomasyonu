@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Box, Card, CardContent, CardMedia, Chip, Grid, Skeleton, Stack, Typography } from '@mui/material'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined'
 import { useParams } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { AnnouncementCard } from '../../components/ui/AnnouncementCard'
@@ -12,6 +14,7 @@ import { DetailHero, DetailMedia } from '../../components/ui/DetailHero'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { InfoTile } from '../../components/ui/InfoTile'
 import { SectionCard } from '../../components/ui/SectionCard'
+import { SocialLinkIcons } from '../../components/ui/SocialLinks'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useLocale } from '../../i18n/LocaleContext'
 import type { PagedResult, PublicAnnouncementListItemDto, PublicClubDetailDto, PublicEventListItemDto } from '../../api/types'
@@ -89,6 +92,36 @@ export function PublicClubDetailPage() {
           </Grid>
         </Grid>
       </DetailHero>
+
+      {(club.contactEmail || club.contactPhone || club.socialLinks.length > 0) && (
+        <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+          {club.contactEmail && (
+            <Stack
+              direction="row"
+              spacing={0.5}
+              component="a"
+              href={`mailto:${club.contactEmail}`}
+              sx={{ alignItems: 'center', color: 'text.primary', textDecoration: 'none' }}
+            >
+              <EmailOutlinedIcon fontSize="small" color="action" />
+              <Typography variant="body2">{club.contactEmail}</Typography>
+            </Stack>
+          )}
+          {club.contactPhone && (
+            <Stack
+              direction="row"
+              spacing={0.5}
+              component="a"
+              href={`tel:${club.contactPhone}`}
+              sx={{ alignItems: 'center', color: 'text.primary', textDecoration: 'none' }}
+            >
+              <PhoneOutlinedIcon fontSize="small" color="action" />
+              <Typography variant="body2">{club.contactPhone}</Typography>
+            </Stack>
+          )}
+          <SocialLinkIcons links={club.socialLinks} />
+        </Stack>
+      )}
 
       <SectionCard title={t('pages.events')}>
         {(eventsQuery.data?.items.length ?? 0) === 0 ? (

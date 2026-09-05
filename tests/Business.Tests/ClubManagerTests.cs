@@ -4,6 +4,7 @@ using Business.Concrete;
 using Business.DTOs.Clubs;
 using Business.Mappings;
 using Core.DataAccess;
+using Core.Utilities.Security;
 using Core.Utilities.Time;
 using Entities;
 using Entities.Enums;
@@ -21,7 +22,12 @@ public class ClubManagerTests
     private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
     private readonly Mock<IEntityRepository<ClubRoleDefinition>> _clubRoleDefinitionRepository = new();
     private readonly Mock<IEntityRepository<MembershipApplication>> _membershipApplicationRepository = new();
+    private readonly Mock<IEntityRepository<Student>> _studentRepository = new();
+    private readonly Mock<IEntityRepository<ClubMembership>> _clubMembershipRepository = new();
+    private readonly Mock<IEntityRepository<AcademicTerm>> _academicTermRepository = new();
+    private readonly Mock<IEntityRepository<ClubSocialLink>> _clubSocialLinkRepository = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
+    private readonly Mock<ICurrentUser> _currentUser = new();
     private readonly Mock<IClock> _clock = new();
     private readonly IMapper _mapper;
     private readonly ClubManager _sut;
@@ -30,13 +36,19 @@ public class ClubManagerTests
     {
         var mapperConfiguration = new MapperConfiguration(cfg => cfg.AddProfile<ClubMappingProfile>(), NullLoggerFactory.Instance);
         _mapper = mapperConfiguration.CreateMapper();
+        _currentUser.Setup(c => c.Permissions).Returns([]);
         _sut = new ClubManager(
             _clubRepository.Object,
             _academicStaffRepository.Object,
             _clubCategoryRepository.Object,
             _clubRoleDefinitionRepository.Object,
             _membershipApplicationRepository.Object,
+            _studentRepository.Object,
+            _clubMembershipRepository.Object,
+            _academicTermRepository.Object,
+            _clubSocialLinkRepository.Object,
             _unitOfWork.Object,
+            _currentUser.Object,
             _clock.Object,
             _mapper);
     }

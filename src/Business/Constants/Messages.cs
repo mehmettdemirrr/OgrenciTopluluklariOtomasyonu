@@ -215,4 +215,7 @@ public static class Messages
 
     public const string ClubRoleDefinitionWouldCreateSecondPresident =
         "Bu unvanı birden fazla üye taşıyor; Başkan seviyesine yükseltilemez (bir toplulukta tek başkan olur).";
+
+    // Faz 40 — Kulüp iletişimi ve sosyal medya (K-44, A-74, Y-80)
+    public const string ClubContactUpdated = "İletişim bilgileri güncellendi.";
 }

@@ -31,10 +31,12 @@ import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
 import { useState } from 'react'
-import { Controller, useForm, type Control } from 'react-hook-form'
+import { Controller, useFieldArray, useForm, type Control } from 'react-hook-form'
 import { useParams } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
@@ -49,8 +51,15 @@ import { DetailHero, DetailMedia } from '../components/ui/DetailHero'
 import { InfoTile } from '../components/ui/InfoTile'
 import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
+import { SOCIAL_PLATFORMS, SOCIAL_PLATFORM_LABELS, SocialLinkIcons } from '../components/ui/SocialLinks'
 import { ClubRoleChip } from '../components/ui/StatusChip'
 import { clubFormSchema, emptyClubFormValues, toCategoryPayload, type ClubFormValues } from '../schemas/clubForm'
+import {
+  clubContactFormSchema,
+  emptyClubContactFormValues,
+  toClubContactPayload,
+  type ClubContactFormValues,
+} from '../schemas/clubContactForm'
 import {
   clubRoleDefinitionFormSchema,
   emptyClubRoleDefinitionFormValues,
@@ -84,6 +93,8 @@ export function ClubDetailPage() {
   const [tab, setTab] = useState<TabKey>('general')
   const { hasPermission } = useAuth()
   const canManageClubs = hasPermission(Permissions.ClubsWrite)
+  // docs/MIMARI.md · A-74: iletişim/sosyal bağlantı kapısı Club.Name/Description'dan farklı — bkz. AnnouncementsManage kapasitesi.
+  const canManageContact = hasPermission(Permissions.AnnouncementsWrite)
   const canViewMembers = hasPermission(Permissions.MembershipsRead)
   const canViewEvents = hasPermission(Permissions.EventsRead)
   const canViewAnnouncements = hasPermission(Permissions.ClubsRead)
@@ -124,7 +135,9 @@ export function ClubDetailPage() {
         </Tabs>
       </Paper>
 
-      {tab === 'general' && <GeneralTab clubId={clubId} club={clubQuery.data} canManage={canManageClubs} />}
+      {tab === 'general' && (
+        <GeneralTab clubId={clubId} club={clubQuery.data} canManage={canManageClubs} canManageContact={canManageContact} />
+      )}
       {tab === 'members' && canViewMembers && <MembersTab clubId={clubId} />}
       {tab === 'roles' && canViewMembers && <RoleDefinitionsTab clubId={clubId} />}
       {tab === 'events' && canViewEvents && <ClubEventsTab clubId={clubId} />}
@@ -133,10 +146,21 @@ export function ClubDetailPage() {
   )
 }
 
-function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDetailDto | undefined; canManage: boolean }) {
+function GeneralTab({
+  clubId,
+  club,
+  canManage,
+  canManageContact,
+}: {
+  clubId: number
+  club: ClubDetailDto | undefined
+  canManage: boolean
+  canManageContact: boolean
+}) {
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const editDialog = useFormDialog()
+  const contactDialog = useFormDialog()
   const {
     control,
     handleSubmit,
@@ -146,6 +170,18 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
     resolver: zodResolver(clubFormSchema),
     defaultValues: emptyClubFormValues,
   })
+
+  const {
+    control: contactControl,
+    handleSubmit: handleContactSubmit,
+    reset: resetContact,
+    formState: { isSubmitting: isContactFormSubmitting },
+  } = useForm<ClubContactFormValues>({
+    resolver: zodResolver(clubContactFormSchema),
+    defaultValues: emptyClubContactFormValues,
+  })
+
+  const { fields: linkFields, append: appendLink, remove: removeLink } = useFieldArray({ control: contactControl, name: 'links' })
 
   const categoriesQuery = useQuery({
     queryKey: ['club-categories'],
@@ -191,6 +227,27 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
       clubCategoryId: club?.clubCategoryId ?? 0,
     })
     editDialog.openDialog()
+  }
+
+  const setContactMutation = useMutation({
+    mutationFn: async (values: ClubContactFormValues) => {
+      await apiClient.put(`/clubs/${clubId}/contact`, toClubContactPayload(values))
+    },
+    onSuccess: () => {
+      notify({ message: 'İletişim bilgileri güncellendi.', severity: 'success' })
+      contactDialog.closeDialog()
+      queryClient.invalidateQueries({ queryKey: ['clubs'] })
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'İletişim bilgileri güncellenemedi.'), severity: 'error' }),
+  })
+
+  const openContactDialog = () => {
+    resetContact({
+      contactEmail: club?.contactEmail ?? '',
+      contactPhone: club?.contactPhone ?? '',
+      links: (club?.socialLinks ?? []).map((link) => ({ platform: link.platform, url: link.url })),
+    })
+    contactDialog.openDialog()
   }
 
   // §23.2: bomboş ekran yerine iskelet — üst bileşen `club` gelene kadar undefined geçer.
@@ -253,6 +310,132 @@ function GeneralTab({ clubId, club, canManage }: { clubId: number; club: ClubDet
           </Grid>
         </Grid>
       </DetailHero>
+
+      {/* K-44: iletişim e-postası/telefonu ve sosyal bağlantılar — üye olmayan ziyaretçiye de görünür (vitrindeki karşılığı PublicClubDetailPage). */}
+      {(club.contactEmail || club.contactPhone || club.socialLinks.length > 0 || canManageContact) && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 3 }}>
+          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              İletişim
+            </Typography>
+            {canManageContact && (
+              <Button size="small" variant="outlined" onClick={openContactDialog}>
+                Düzenle
+              </Button>
+            )}
+          </Stack>
+
+          {!club.contactEmail && !club.contactPhone && club.socialLinks.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              Bu topluluk için henüz iletişim bilgisi eklenmemiş.
+            </Typography>
+          ) : (
+            <Stack direction="row" spacing={2} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+              {club.contactEmail && (
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  component="a"
+                  href={`mailto:${club.contactEmail}`}
+                  sx={{ alignItems: 'center', color: 'text.primary', textDecoration: 'none' }}
+                >
+                  <EmailOutlinedIcon fontSize="small" color="action" />
+                  <Typography variant="body2">{club.contactEmail}</Typography>
+                </Stack>
+              )}
+              {club.contactPhone && (
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  component="a"
+                  href={`tel:${club.contactPhone}`}
+                  sx={{ alignItems: 'center', color: 'text.primary', textDecoration: 'none' }}
+                >
+                  <PhoneOutlinedIcon fontSize="small" color="action" />
+                  <Typography variant="body2">{club.contactPhone}</Typography>
+                </Stack>
+              )}
+              <SocialLinkIcons links={club.socialLinks} />
+            </Stack>
+          )}
+        </Paper>
+      )}
+
+      <Dialog open={contactDialog.open} onClose={contactDialog.closeDialog} fullWidth maxWidth="sm">
+        <DialogTitle>İletişim Bilgilerini Düzenle</DialogTitle>
+        <DialogContent>
+          <Controller
+            name="contactEmail"
+            control={contactControl}
+            render={({ field, fieldState }) => (
+              <TextField {...field} fullWidth margin="dense" label="İletişim E-postası" error={!!fieldState.error} helperText={fieldState.error?.message} />
+            )}
+          />
+          <Controller
+            name="contactPhone"
+            control={contactControl}
+            render={({ field }) => <TextField {...field} fullWidth margin="dense" label="İletişim Telefonu" />}
+          />
+
+          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+            Sosyal Medya Bağlantıları
+          </Typography>
+          <Stack spacing={1.5}>
+            {linkFields.map((field, index) => (
+              <Stack key={field.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                <Controller
+                  name={`links.${index}.platform`}
+                  control={contactControl}
+                  render={({ field: platformField }) => (
+                    <TextField {...platformField} select sx={{ width: 160 }} margin="dense" label="Platform">
+                      {SOCIAL_PLATFORMS.map((platform) => (
+                        <MenuItem key={platform} value={platform}>
+                          {SOCIAL_PLATFORM_LABELS[platform]}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
+                <Controller
+                  name={`links.${index}.url`}
+                  control={contactControl}
+                  render={({ field: urlField, fieldState }) => (
+                    <TextField
+                      {...urlField}
+                      fullWidth
+                      margin="dense"
+                      label="Bağlantı (https://)"
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message}
+                    />
+                  )}
+                />
+                <IconButton aria-label="Bağlantıyı kaldır" onClick={() => removeLink(index)} sx={{ mt: 1 }}>
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
+              </Stack>
+            ))}
+            <Button
+              variant="text"
+              onClick={() => appendLink({ platform: 'Instagram', url: '' })}
+              sx={{ alignSelf: 'flex-start' }}
+              disabled={linkFields.length >= 10}
+            >
+              + Bağlantı Ekle
+            </Button>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={contactDialog.closeDialog}>Vazgeç</Button>
+          <Button
+            variant="contained"
+            disabled={isContactFormSubmitting || setContactMutation.isPending}
+            onClick={handleContactSubmit((values) => setContactMutation.mutate(values))}
+          >
+            Kaydet
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={editDialog.open} onClose={editDialog.closeDialog} fullWidth maxWidth="xs">
         <DialogTitle>Topluluğu Düzenle</DialogTitle>

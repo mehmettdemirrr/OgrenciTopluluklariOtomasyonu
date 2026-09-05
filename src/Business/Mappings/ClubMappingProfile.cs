@@ -14,7 +14,9 @@ public sealed class ClubMappingProfile : Profile
         CreateMap<Club, ClubListItemDto>()
             .ForMember(d => d.ClubCategoryName, o => o.Ignore());
 
+        // K-44: SocialLinks ayrı bir tablodan gelir (ClubSocialLink); ClubManager dolduruyor.
         CreateMap<Club, ClubDetailDto>()
-            .ForMember(d => d.ClubCategoryName, o => o.Ignore());
+            .ForMember(d => d.ClubCategoryName, o => o.Ignore())
+            .ForMember(d => d.SocialLinks, o => o.Ignore());
     }
 }

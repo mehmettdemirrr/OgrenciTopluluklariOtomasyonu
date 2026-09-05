@@ -56,4 +56,11 @@ public sealed class ClubsController(IClubService clubService, IClubMemberService
         var result = await clubService.SetStatusAsync(id, request, cancellationToken);
         return result.ToActionResult();
     }
+
+    [HttpPut("{id:int}/contact")]
+    public async Task<IActionResult> SetContact(int id, SetClubSocialLinksRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await clubService.SetContactAsync(id, request, cancellationToken);
+        return result.ToActionResult();
+    }
 }

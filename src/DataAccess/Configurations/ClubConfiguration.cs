@@ -36,5 +36,9 @@ public sealed class ClubConfiguration : IEntityTypeConfiguration<Club>
 
         builder.Property(c => c.RowVersion)
             .IsRowVersion();
+
+        // K-44: iletişim alanları isteğe bağlıdır, kulübe özgü tek satırlık değerlerdir.
+        builder.Property(c => c.ContactEmail).HasMaxLength(256);
+        builder.Property(c => c.ContactPhone).HasMaxLength(32);
     }
 }

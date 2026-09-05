@@ -1,5 +1,6 @@
 using Business.Abstract;
 using Business.Constants;
+using Business.DTOs.Clubs;
 using Business.DTOs.Public;
 using Core.DataAccess;
 using Core.Utilities.Results;
@@ -16,6 +17,7 @@ public sealed class PublicContentManager(
     IEntityRepository<Announcement> announcementRepository,
     IEntityRepository<ClubCategory> clubCategoryRepository,
     IEntityRepository<Student> studentRepository,
+    IEntityRepository<ClubSocialLink> clubSocialLinkRepository,
     IClock clock) : IPublicContentService
 {
     private const int DefaultPageSize = 20;
@@ -77,6 +79,11 @@ public sealed class PublicContentManager(
             club.ClubCategoryId is { } cid ? [cid] : [],
             cancellationToken).ConfigureAwait(false);
 
+        var socialLinks = (await clubSocialLinkRepository.GetListAsync(l => l.ClubId == id, cancellationToken).ConfigureAwait(false))
+            .OrderBy(l => l.DisplayOrder)
+            .Select(l => new ClubSocialLinkDto { Platform = l.Platform, Url = l.Url, DisplayOrder = l.DisplayOrder })
+            .ToList();
+
         return DataResult<PublicClubDetailDto>.Success(new PublicClubDetailDto
         {
             Id = club.Id,
@@ -84,6 +91,9 @@ public sealed class PublicContentManager(
             Description = club.Description,
             LogoFileId = club.LogoFileId,
             ClubCategoryName = club.ClubCategoryId is { } detailCategoryId ? categoryNames.GetValueOrDefault(detailCategoryId) : null,
+            ContactEmail = club.ContactEmail,
+            ContactPhone = club.ContactPhone,
+            SocialLinks = socialLinks,
         });
     }
 

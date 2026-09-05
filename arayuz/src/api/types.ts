@@ -18,6 +18,16 @@ export interface ClubListItemDto {
   clubCategoryName: string | null
 }
 
+// src/Entities/Enums/SocialPlatform.cs
+export type SocialPlatform = 'Instagram' | 'X' | 'LinkedIn' | 'YouTube' | 'Website'
+
+// src/Business/DTOs/Clubs/ClubSocialLinkDto.cs
+export interface ClubSocialLinkDto {
+  platform: SocialPlatform
+  url: string
+  displayOrder: number
+}
+
 // src/Business/DTOs/Clubs/ClubDetailDto.cs
 export interface ClubDetailDto {
   id: number
@@ -29,6 +39,10 @@ export interface ClubDetailDto {
   logoFileId: number | null
   clubCategoryId: number | null
   clubCategoryName: string | null
+  /** docs/MIMARI.md · K-44 */
+  contactEmail: string | null
+  contactPhone: string | null
+  socialLinks: ClubSocialLinkDto[]
 }
 
 // src/Business/DTOs/Reference/ClubCategoryListItemDto.cs
@@ -406,6 +420,10 @@ export interface PublicClubDetailDto {
   description: string | null
   logoFileId: number | null
   clubCategoryName: string | null
+  /** docs/MIMARI.md · K-44 */
+  contactEmail: string | null
+  contactPhone: string | null
+  socialLinks: ClubSocialLinkDto[]
 }
 
 // src/Business/DTOs/Public/PublicEventListItemDto.cs

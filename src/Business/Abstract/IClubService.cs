@@ -36,4 +36,15 @@ public interface IClubService
     [CacheRemoveAspect("ClubManager.", "PublicContentManager.")]
     [TransactionAspect]
     Task<IResult> SetStatusAsync(int clubId, SetClubStatusRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · K-44/A-74/Y-80: iletişim ve sosyal bağlantıları topluca değiştirir.
+    /// A-74: ikinci (kapsam daraltan) kapı `AnnouncementManager.EnsureClubWriteAccessAsync` ile
+    /// birebir aynı desendir — danışman veya `ClubCapability.AnnouncementsManage` taşıyan üye.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.AnnouncementsWrite)]
+    [ValidationAspect(typeof(SetClubSocialLinksRequestValidator))]
+    [TransactionAspect]
+    [CacheRemoveAspect("ClubManager.", "PublicContentManager.")]
+    Task<IResult> SetContactAsync(int clubId, SetClubSocialLinksRequestDto request, CancellationToken cancellationToken = default);
 }

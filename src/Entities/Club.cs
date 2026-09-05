@@ -23,6 +23,12 @@ public sealed class Club : IEntity
 
     public bool IsActive { get; set; }
 
+    /// <summary>docs/MIMARI.md · K-44: topluluk iletişim e-postası. Null = tanımsız.</summary>
+    public string? ContactEmail { get; set; }
+
+    /// <summary>docs/MIMARI.md · K-44: topluluk iletişim telefonu. Null = tanımsız.</summary>
+    public string? ContactPhone { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public byte[] RowVersion { get; set; } = null!;

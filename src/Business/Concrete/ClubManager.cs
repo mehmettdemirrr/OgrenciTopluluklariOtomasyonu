@@ -4,7 +4,9 @@ using Business.Constants;
 using Business.DTOs.Clubs;
 using Core.DataAccess;
 using Core.Utilities.Results;
+using Core.Utilities.Security;
 using Core.Utilities.Time;
+using DataAccess.Seed;
 using Entities;
 using Entities.Enums;
 
@@ -16,7 +18,12 @@ public sealed class ClubManager(
     IEntityRepository<ClubCategory> clubCategoryRepository,
     IEntityRepository<ClubRoleDefinition> clubRoleDefinitionRepository,
     IEntityRepository<MembershipApplication> membershipApplicationRepository,
+    IEntityRepository<Student> studentRepository,
+    IEntityRepository<ClubMembership> clubMembershipRepository,
+    IEntityRepository<AcademicTerm> academicTermRepository,
+    IEntityRepository<ClubSocialLink> clubSocialLinkRepository,
     IUnitOfWork unitOfWork,
+    ICurrentUser currentUser,
     IClock clock,
     IMapper mapper) : IClubService
 {
@@ -71,8 +78,17 @@ public sealed class ClubManager(
             dto.ClubCategoryName = category?.Name;
         }
 
+        dto.SocialLinks = await GetSocialLinksAsync(id, cancellationToken).ConfigureAwait(false);
+
         return DataResult<ClubDetailDto>.Success(dto);
     }
+
+    /// <summary>K-44: `PublicContentManager.GetClubByIdAsync`'in de doldurduğu ikinci yapım noktası.</summary>
+    private async Task<IReadOnlyList<ClubSocialLinkDto>> GetSocialLinksAsync(int clubId, CancellationToken cancellationToken) =>
+        (await clubSocialLinkRepository.GetListAsync(l => l.ClubId == clubId, cancellationToken).ConfigureAwait(false))
+            .OrderBy(l => l.DisplayOrder)
+            .Select(l => new ClubSocialLinkDto { Platform = l.Platform, Url = l.Url, DisplayOrder = l.DisplayOrder })
+            .ToList();
 
     /// <summary>
     /// Y-10/Y-32: kategori adı AutoMapper ile taşınamaz (join gerekir). Tek toplu sorguyla
@@ -214,6 +230,88 @@ public sealed class ClubManager(
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return Result.Success(Messages.ClubStatusUpdated);
+    }
+
+    public async Task<IResult> SetContactAsync(int clubId, SetClubSocialLinksRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+        if (club is null)
+        {
+            return Result.NotFound(Messages.ClubNotFound);
+        }
+
+        var accessError = await EnsureClubWriteAccessAsync(club, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return Result.Forbidden(accessError);
+        }
+
+        club.ContactEmail = string.IsNullOrWhiteSpace(request.ContactEmail) ? null : request.ContactEmail.Trim();
+        club.ContactPhone = string.IsNullOrWhiteSpace(request.ContactPhone) ? null : request.ContactPhone.Trim();
+        clubRepository.Update(club);
+
+        // Bağlantılar toplu değiştirilir: eski satırlar silinir, yenileri yazılır.
+        // Kısmi güncelleme (id eşleme) bu ekran için gereksiz karmaşıklıktır — YAGNI.
+        var existing = await clubSocialLinkRepository.GetListAsync(l => l.ClubId == clubId, cancellationToken).ConfigureAwait(false);
+        foreach (var link in existing)
+        {
+            clubSocialLinkRepository.Delete(link);
+        }
+
+        var order = 0;
+        foreach (var link in request.Links)
+        {
+            await clubSocialLinkRepository.AddAsync(
+                new ClubSocialLink { ClubId = clubId, Platform = link.Platform, Url = link.Url.Trim(), DisplayOrder = order++ },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return Result.Success(Messages.ClubContactUpdated);
+    }
+
+    // Y-23/A-74: announcements.write izni yeterli değil — AnnouncementManager.EnsureClubWriteAccessAsync
+    // ile aynı desen. İletişim/sosyal bağlantılar dışa dönük iletişimin bir parçası sayılır; A-68 kapalı
+    // kümesinde bunun için ayrı bir kapasite yoktur, en yakın anlamsal karşılık (AnnouncementsManage)
+    // yeniden kullanılır — yeni bir ClubCapability bayrağı açılmaz.
+    private async Task<string?> EnsureClubWriteAccessAsync(Club club, CancellationToken cancellationToken)
+    {
+        // Y-66: yönetici kontrolü her kapsam metodunun İLK satırıdır (A-55).
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
+        {
+            return null;
+        }
+
+        if (currentUser.UserId is not { } userId)
+        {
+            return Messages.NotClubAdvisorOrOfficer;
+        }
+
+        var advisor = await academicStaffRepository.GetAsync(s => s.Id == club.AdvisorId, cancellationToken).ConfigureAwait(false);
+        if (advisor is not null && advisor.ApplicationUserId == userId)
+        {
+            return null;
+        }
+
+        var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
+        if (term is null)
+        {
+            return Messages.NotClubAdvisorOrOfficer;
+        }
+
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (student is null)
+        {
+            return Messages.NotClubAdvisorOrOfficer;
+        }
+
+        var membership = await clubMembershipRepository
+            .GetAsync(m => m.ClubId == club.Id && m.StudentId == student.Id && m.AcademicTermId == term.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        return membership is not null && membership.Capabilities.HasFlag(ClubCapability.AnnouncementsManage)
+            ? null
+            : Messages.NotClubAdvisorOrOfficer;
     }
 
     private static int ClampPageSize(int pageSize) =>

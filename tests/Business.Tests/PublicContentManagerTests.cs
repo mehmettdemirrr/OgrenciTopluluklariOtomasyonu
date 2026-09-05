@@ -22,15 +22,19 @@ public class PublicContentManagerTests
     private readonly Mock<IEntityRepository<Announcement>> _announcementRepository = new();
     private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
     private readonly Mock<IEntityRepository<Student>> _studentRepository = new();
+    private readonly Mock<IEntityRepository<ClubSocialLink>> _clubSocialLinkRepository = new();
     private readonly Mock<IClock> _clock = new();
     private readonly PublicContentManager _sut;
 
     public PublicContentManagerTests()
     {
         _clock.Setup(c => c.UtcNow).Returns(FixedNow);
+        _clubSocialLinkRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubSocialLink, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
         _sut = new PublicContentManager(
             _clubRepository.Object, _eventRepository.Object, _announcementRepository.Object,
-            _clubCategoryRepository.Object, _studentRepository.Object, _clock.Object);
+            _clubCategoryRepository.Object, _studentRepository.Object, _clubSocialLinkRepository.Object, _clock.Object);
     }
 
     [Fact(DisplayName = "GetClubsAsync: yalnızca IsActive=true kulüpler döner, pasif kulüp listede yok")]
