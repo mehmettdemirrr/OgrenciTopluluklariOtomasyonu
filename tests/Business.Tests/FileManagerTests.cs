@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Business.Abstract;
 using Business.Concrete;
 using Business.DTOs.Files;
 using Core.DataAccess;
@@ -19,11 +20,14 @@ public class FileManagerTests
 {
     private static readonly DateTime FixedNow = new(2026, 9, 10, 12, 0, 0, DateTimeKind.Utc);
     private static readonly byte[] ValidPngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00];
+    private static readonly byte[] PdfBytes = [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34];
 
     private readonly Mock<IEntityRepository<StoredFile>> _storedFileRepository = new();
     private readonly Mock<IEntityRepository<Club>> _clubRepository = new();
     private readonly Mock<IEntityRepository<Event>> _eventRepository = new();
     private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
+    private readonly Mock<IEntityRepository<Announcement>> _announcementRepository = new();
+    private readonly Mock<IAnnouncementService> _announcementService = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<ICurrentUser> _currentUser = new();
     private readonly Mock<IClock> _clock = new();
@@ -43,6 +47,8 @@ public class FileManagerTests
             _clubRepository.Object,
             _eventRepository.Object,
             _academicStaffRepository.Object,
+            _announcementRepository.Object,
+            _announcementService.Object,
             _unitOfWork.Object,
             _currentUser.Object,
             _clock.Object,
@@ -188,5 +194,65 @@ public class FileManagerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ResultStatus.NotFound, result.Status);
+    }
+
+    [Fact(DisplayName = "UploadAnnouncementImageAsync: duyuruyu yönetemeyen kullanıcı reddedilir")]
+    public async Task UploadAnnouncementImageAsync_Rejects_WhenCallerCannotManageAnnouncements()
+    {
+        _announcementService
+            .Setup(s => s.EnsureCanManageAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Forbidden("yasak"));
+
+        var request = new UploadFileRequestDto { Content = new MemoryStream(ValidPngBytes), OriginalFileName = "kapak.png", Length = ValidPngBytes.Length };
+
+        var result = await _sut.UploadAnnouncementImageAsync(1, request);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.Forbidden, result.Status);
+        _storedFileRepository.Verify(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "UploadAnnouncementImageAsync: yönetebilen kullanıcı görseli yükleyebilir")]
+    public async Task UploadAnnouncementImageAsync_StoresImage_WhenCallerCanManageAnnouncements()
+    {
+        _announcementService
+            .Setup(s => s.EnsureCanManageAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+        var announcement = new Announcement { Id = 1, ClubId = 1, Title = "Duyuru", Content = "İçerik", Visibility = AnnouncementVisibility.Public, PublishedAtUtc = FixedNow };
+        _announcementRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Announcement, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(announcement);
+        _storedFileRepository
+            .Setup(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()))
+            .Callback<StoredFile, CancellationToken>((f, _) => f.Id = 77)
+            .Returns(Task.CompletedTask);
+
+        var request = new UploadFileRequestDto { Content = new MemoryStream(ValidPngBytes), OriginalFileName = "kapak.png", Length = ValidPngBytes.Length };
+
+        var result = await _sut.UploadAnnouncementImageAsync(1, request);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(77, announcement.ImageFileId);
+        _announcementRepository.Verify(r => r.Update(It.Is<Announcement>(a => a.ImageFileId == 77)), Times.Once);
+    }
+
+    [Fact(DisplayName = "UploadAnnouncementImageAsync: PNG uzantılı ama PDF içerikli dosya reddedilir (Y-40)")]
+    public async Task UploadAnnouncementImageAsync_Rejects_PdfDisguisedAsPng()
+    {
+        _announcementService
+            .Setup(s => s.EnsureCanManageAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+        var announcement = new Announcement { Id = 1, ClubId = 1, Title = "Duyuru", Content = "İçerik", Visibility = AnnouncementVisibility.Public, PublishedAtUtc = FixedNow };
+        _announcementRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Announcement, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(announcement);
+
+        var request = new UploadFileRequestDto { Content = new MemoryStream(PdfBytes), OriginalFileName = "kapak.png", Length = PdfBytes.Length };
+
+        var result = await _sut.UploadAnnouncementImageAsync(1, request);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.ValidationError, result.Status);
+        _storedFileRepository.Verify(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

@@ -2,7 +2,7 @@
 
 **Sürüm:** v6.4 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
 eklendi) · v3.0: 23 Ağustos 2026 (Faz 15-18 eklendi) · v4.0: 23 Ağustos 2026 (Faz 19-23 eklendi)
-· v5.0: 25 Ağustos 2026 (Faz 24-29 eklendi) · v6.0: 26 Ağustos 2026 (Faz 30-34 eklendi) · v6.1: 26 Ağustos 2026 (A-67, Y-74 — onay kuyruklarında yönetici kapsamı) · v6.2: 27 Ağustos 2026 (A-68, Y-75, Faz 35 — kulüp içi yetki matrisi; A-61 ve Y-69 tadil edildi) · v6.3: 5 Eylül 2026 (K-40, A-69, Y-76, Faz 36 — kuruluş başvurusunda logo) · **v6.4: 5 Eylül 2026 (K-41, A-70, Y-77, Faz 37 — danışmanın toplulukları)**
+· v5.0: 25 Ağustos 2026 (Faz 24-29 eklendi) · v6.0: 26 Ağustos 2026 (Faz 30-34 eklendi) · v6.1: 26 Ağustos 2026 (A-67, Y-74 — onay kuyruklarında yönetici kapsamı) · v6.2: 27 Ağustos 2026 (A-68, Y-75, Faz 35 — kulüp içi yetki matrisi; A-61 ve Y-69 tadil edildi) · v6.3: 5 Eylül 2026 (K-40, A-69, Y-76, Faz 36 — kuruluş başvurusunda logo) · v6.4: 5 Eylül 2026 (K-41, A-70, Y-77, Faz 37 — danışmanın toplulukları) · **v6.5: 5 Eylül 2026 (K-42, A-71, A-72, Y-78, Faz 38 — zengin duyuru içeriği)**
 **Referans mimari:** [engindemirog/NetCoreBackend](https://github.com/engindemirog/NetCoreBackend)
 **Uygulama planları:** [docs/PLAN-V2.md](PLAN-V2.md) (Faz 8-14) · [docs/PLAN-V3.md](PLAN-V3.md) (Faz 15-18)
 · [docs/PLAN-V4.md](PLAN-V4.md) (Faz 19-23) · [docs/PLAN-V5.md](PLAN-V5.md) (Faz 24-29)
@@ -17,7 +17,9 @@ v3.0 dört yeni fazla (K-28, K-29) 4 karar (A-44…A-47) ve 2 kural (Y-59, Y-60)
 matrisine çevirerek 1 karar (A-68) ve 1 kural (Y-75) ekledi ve **A-61 ile Y-69'u tadil etti**;
 **v6.3** kuruluş başvurusuna logoyu ekleyerek 1 kapsam maddesi (K-40), 1 karar (A-69) ve 1 kural
 (Y-76) ekledi; **v6.4** danışmanın topluluklarını "Kulüplerim" listesine ekleyerek 1 kapsam maddesi
-(K-41), 1 karar (A-70) ve 1 kural (Y-77) ekledi. Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
+(K-41), 1 karar (A-70) ve 1 kural (Y-77) ekledi; **v6.5** duyurulara biçimlendirilmiş içerik ve kapak
+görseli ekleyerek 1 kapsam maddesi (K-42), 2 karar (A-71, A-72) ve 1 kural (Y-78) ekledi. Yığın,
+kapsam ve kurallar sabit; bundan sonrası uygulama.
 
 > **v6.2 neden bir tadil, iptal değil:** A-61'in kazancı ("yetki kontrolleri ek DB okuması yapmaz")
 > korunuyor — yetki alanı `ClubMembership`'e denormalize edilmeye devam ediyor. Değişen tek şey o
@@ -31,10 +33,10 @@ matrisine çevirerek 1 karar (A-68) ve 1 kural (Y-75) ekledi ve **A-61 ile Y-69'
 
 | | |
 |---|---|
-| Karar | 70 (36 v1.0 + 7 v2.0 + 4 v3.0 + 7 v4.0 + 5 v5.0 + 9 v6.0 + 1 v6.3 + 1 v6.4) |
-| Yasak kural | 77 (52 v1.0 + 6 v2.0 + 2 v3.0 + 4 v4.0 + 4 v5.0 + 7 v6.0 + 1 v6.3 + 1 v6.4) |
+| Karar | 72 (36 v1.0 + 7 v2.0 + 4 v3.0 + 7 v4.0 + 5 v5.0 + 9 v6.0 + 1 v6.3 + 1 v6.4 + 2 v6.5) |
+| Yasak kural | 78 (52 v1.0 + 6 v2.0 + 2 v3.0 + 4 v4.0 + 4 v5.0 + 7 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5) |
 | V1 dışı madde | 13 (K-13 v4.0'da **ikiye bölündü** — bkz. §3) |
-| Uygulama fazı | 37 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0 + 6 v5.0 + 6 v6.0 + 1 v6.3 + 1 v6.4) |
+| Uygulama fazı | 38 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0 + 6 v5.0 + 6 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5) |
 
 **Yığın:** .NET 8 LTS · ASP.NET Core Identity · EF Core 8 / MSSQL · Autofac + async AOP ·
 FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · React 18 + Vite + TypeScript + MUI
@@ -44,11 +46,11 @@ FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · 
 ## İçindekiler
 
 1. [Katmanlar ve bağımlılık yönü](#1-katmanlar-ve-bağımlılık-yönü)
-2. [Açıkça yasak (Y-01 … Y-77)](#2-açıkça-yasak)
-3. [V1 kapsamı (K-01 … K-41)](#3-v1-kapsamı)
+2. [Açıkça yasak (Y-01 … Y-78)](#2-açıkça-yasak)
+3. [V1 kapsamı (K-01 … K-42)](#3-v1-kapsamı)
 4. [Teknoloji ve domain](#4-teknoloji-ve-domain)
 5. [Uygulama sırası](#5-uygulama-sırası)
-6. [Karar kaydı (A-01 … A-70)](#6-karar-kaydı)
+6. [Karar kaydı (A-01 … A-72)](#6-karar-kaydı)
 7. [Sessiz onaylar](#7-sessiz-onaylar)
 
 ---
@@ -236,6 +238,7 @@ değiştiririz — ama önce belge değişir, sonra kod.
 | **Y-69** *(v6.2'de tadil edildi)* | Topluluk içi rol tanımına **izin kodu (string), claim veya `RoleClaim` referansı** bağlamak; arayüzden yeni bir yetki türü tanımlanabilir hâle getirmek | Tanım, kodda `[Flags] enum ClubCapability` olarak sabitlenmiş **kapalı** kümeden seçim yapar; tek bir `int` alanda taşınır (A-68). Gerekçe değişmedi — Y-37'nin kulüp karşılığı: Identity'nin yanına ikinci bir yetki *sistemi* açmak, izinlerin nereden geldiğini sorulamaz hâle getirir. Kapalı bir enum sistem değildir; yeni kapasite eklemek kod değişikliği + migration ister. Mimari test tipin `string`/koleksiyon bir izin alanı taşımadığını doğrulamaya devam eder. **v6.0-v6.1'deki hâli:** tanım yalnızca bir `ClubRole` seviyesine bağlanabiliyordu; Faz 35 bunu matrise genişletti |
 | **Y-76** | Kuruluş başvurusunun logosunu, karar dalından **bağımsız** olarak bir kulübe taşımak — `Club.LogoFileId`'yi `DecideAsync`'in `Approved` dalı dışında yazmak | Atama yalnızca onay dalındadır; reddedilen ya da bekleyen başvurunun logosu hiçbir kulübe geçmez. Gerekçe: A-69 dosyayı **paylaşımlı** bıraktı (kopya yok, aynı `StoredFile`), bu yüzden "hangi kaydın hakkı var" sorusunun tek cevabı olmalı — koşulsuz kopyalayan bir satır, reddedilmiş bir başvurunun görselini yaşayan bir kulübün kimliği hâline getirir (K-40, A-69) |
 | **Y-77** | Danışmanlıktan "ayrılınmak" — `Relationship == Advisor` satırında `DELETE /api/clubs/{id}/membership` çağırmak veya arayüzde "Ayrıl" düğmesi göstermek | Danışman bir üye değildir; danışmanlığı sonlandırmanın yolu kulüp düzenleme akışının `AdvisorId` alanını değiştirmektir, üyelikten çıkma akışı değil. Gerekçe: bu uç `ClubMembership` satırı arar — danışmanlık satırının arkasında öyle bir satır yoktur; çağrı 404 yerine yanlış bir üyeliği silme riski taşımaz ama arayüzün düğmeyi göstermesi bile "buradan çıkılabilir" yanlış izlenimini verir (K-41, A-70) |
+| **Y-78** | Zengin metin içeriğini izin listesinde **olmayan** bir düğüm/işaret/öznitelik/renk token'ıyla kaydetmek; reddedilen içeriği sessizce temizleyip yine de kaydetmek; arayüzde `dangerouslySetInnerHTML` veya HTML ayrıştıran bir render yolu açmak | `ContentJson` yazılmadan önce sunucu ağacı `RichTextSchema`'ya göre dolaşır (`RichTextDocumentValidator`); izin listesinde olmayan herhangi bir şey **isteği reddeder** — sessizce filtrelemek değil, 400 dönmek. Gerekçe: sessiz temizleme, "neden biçimlendirmem gitti" diye sormayan bir kullanıcıya güvenmek demektir; fail-closed, kullanıcıya söyler. Arayüz tarafında ağaç gezilir, React öğesi üretilir — HTML dizesi hiç oluşmaz, dolayısıyla sanitize edilecek bir yer de yoktur. İhlali `Architecture.Tests` kaynak taramasıyla yakalar (K-42, A-71, A-72) |
 | **Y-75** | Kulüp içi kapasiteyi, kullanıcının Identity izninin **vermediği** bir şeyi verecek şekilde kullanmak; uç noktadan `[SecuredOperation]`'ı kaldırıp kararı kulüp matrisine bırakmak | Kulüp matrisi yalnızca **daraltır**, asla genişletmez. Uçtaki `[SecuredOperation(events.write)]` birinci kapı olarak yerinde kalır; kulüp kapasitesi ikinci kapıdır. Bir kulüp rolüne "etkinlik yönet" işaretlemek, Identity rolünde `events.write` olmayan birine bu hakkı **veremez** (A-68). Gerekçe: Y-37 ancak izinlerin tek kaynağı Identity kalırsa ayakta durur — matris bir *filtre*, bir *kaynak* değil. Mimari test kapasite okuyan her metodun aynı zamanda `[SecuredOperation]` taşıyan bir uçtan çağrıldığını doğrular |
 | **Y-70** | Başvuru evrakını `Public` görünürlükle kaydetmek veya anonim dosya ucundan servis etmek; indirmede yetkiyi yeniden kontrol etmemek | Evrak daima `FileVisibility.Protected`; erişim yalnızca `GET /api/club-applications/{id}/documents/{documentId}` ucundan, **indirme anında** yeniden kontrol edilen yetkiyle (A-63). Y-52'nin ve Y-51'in evrak karşılığı — adli sicil ve kurucu üye dilekçesi kişisel veridir, K-19 (KVKK akışı) hâlâ V1 dışıdır |
 | **Y-71** | Zorunlu evrak bütünlüğünü yalnızca arayüzde kontrol etmek veya FluentValidation kuralına gömmek | Kontrol `ClubApplicationManager` içinde, evrak tipi katalogunu okuyarak (A-62). Gerekçe: "hangi evrak zorunlu" cevabı veritabanındadır — biçimsel doğrulama değil iş kuralıdır (Y-03, Y-35) |
@@ -328,6 +331,7 @@ Ayrıntılı gerekçe, uçlar ve testler için [docs/PLAN-V6.md](PLAN-V6.md).
 | **K-39** | **Topluluk kurma başvuru takvimi** | Başvurular admin'in belirlediği tarihler arasında açık; admin ayrıca elle açıp kapatabilir | `AcademicTerm`'e üç alan, tek değerlendirme metodu, `SubmitAsync` muhafızı, durum okuma ucu (A-66, Y-73) |
 | **K-40** | **Kuruluş başvurusunda logo** | Öğrenci, topluluk kurma başvurusunda önerilen logoyu evraklarla aynı istekte yükler; zorunlu değildir, başvuru logosuz da geçerlidir | `ClubApplication.LogoFileId` (nullable), `IFileService.StoreApplicationLogoAsync`, multipart forma `Logo` alanı, onayda `Club.LogoFileId`'ye devir (A-69, Y-76) |
 | **K-41** | **Danışmanın toplulukları** | Akademik danışman, "Kulüplerim" sayfasında danışmanı olduğu toplulukları görür — öğrenci üyelikleriyle aynı listede, ilişkisi ayırt edilerek | `GET /api/clubs/mine` iki dalda üretir: üyelik satırları (dönemsel, §22.3) ve danışmanlık satırları (dönemsel değil, `Club.AdvisorId`); `MyClubMembershipDto.Relationship` ayrımı taşır (A-70, Y-77) |
+| **K-42** | **Zengin duyuru** | Duyuru metni araç çubuğundan biçimlendirilebilir (kalın, italik, altı çizili, üstü çizili, başlık, madde/numara listesi, hizalama, bağlantı, renk) ve duyuruya bir kapak görseli eklenebilir; ikisi de isteğe bağlıdır | `Announcement.ContentJson` (düğüm ağacı) + `ImageFileId`; sunucu tarafı kapalı izin listesi, düz metin aynası `Content`'te kalır (A-71, A-72, Y-78) |
 
 > **K-29 notu (v6.0):** topluluk kurma başvurusu V6'da iki yerden birden büyüyor — önüne bir **kapı**
 > (K-39 takvimi), içine **evrak** (K-37) geliyor. Onay akışının kendisi değişmiyor: tek aşamalı admin
@@ -733,6 +737,8 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | **A-68** | Kulüp içi yetki **kapalı bir matristir**, merdiven değil | A | Üç değerli `ClubRole` merdiveni yerine `[Flags] enum ClubCapability` — **altı** kulüp içi kapasite: `EventsManage`, `EventParticipantsView`, `AnnouncementsManage`, `MembersView`, `MembersManage`, `ReportsView`. Bu altı, `ClubRole`'ün bugün yetki kararı verdiği **tam** yer kümesidir; sayım koddan yapıldı, tahminle değil. Tek `int` alanda taşınır: `ClubRoleDefinition.Capabilities` (kaynak) ve `ClubMembership.Capabilities` (denormalize kopya, A-61). **Neden enum, neden tablo değil:** string izin kodları taşıyan bir tablo, Identity'nin yanında ikinci bir yetki sistemidir (Y-37/Y-69); kapalı bir enum ise kod değişikliği + migration olmadan büyüyemez. **Neden `ClubRole` silinmiyor:** A-39'un filtreli unique index'i, dönem devri ve bildirim hedefi "başkan kim" sorusuna cevap ister — enum **makam** olarak kalır, yetki kararı vermez. **Unvansız üyenin varsayılanı** eski davranışı birebir korur: `Member` → boş, `Officer` → `MembersView\|EventsManage\|EventParticipantsView\|AnnouncementsManage\|ReportsView`, `President` → hepsi. Migration mevcut üyelikleri bu eşlemeyle geri doldurur. Matris **yalnızca daraltır** (Y-75) (K-36, A-61, Y-69) |
 | **A-69** | Başvuru logosu **bir kez saklanır, onayda kopyalanır** | A | Logo başvuru anında `FileVisibility.Public` olarak saklanır (kulüp kimliğidir, kişisel veri değil — A-63'ün evrak gerekçesi buraya uymaz) ve `ClubApplication.LogoFileId`'de tutulur. Onay dalında `Club.LogoFileId` **aynı `StoredFile` satırını** işaret ederek alır; ikinci yükleme veya dosya kopyası yapılmaz. Depoda tek kayıt kalır ve onay anında yükleme hatası riski doğmaz. Kulüp henüz yokken danışman kontrolü yapılamayacağı için `UploadClubLogoAsync` yeniden kullanılmaz; `StoreApplicationLogoAsync` (evrak yolunun kardeşi, ama Public + görsel tipleri) eklenir — yetki `SubmitAsync`'te zaten kurulmuştur (K-40, A-64, Y-76) |
 | **A-70** | "Kulüplerim" **tek uçtur, iki ilişki üretir** | A | `GET /api/clubs/mine` aynı kalır; yanıt satırlarına `Relationship` (`Member`\|`Officer`\|`President`\|`Advisor`\|`Administrator`) eklenir. Üyelik satırları §22.3 gereği YALNIZCA güncel döneme aittir; danışmanlık dönemsel bir kayıt değildir (`Club.AdvisorId`, `AcademicStaff` 1-1), bu yüzden danışman satırlarına dönem filtresi uygulanmaz — güncel dönem tanımsızken bile danışman kulübünü görür. Bir kullanıcı aynı kulübe hem üye hem danışman olamaz (biri öğrenci profili, diğeri personel profili), bu yüzden satırlar çakışmaz. `Relationship` enum'ı, Faz 41'in `ClubDetailDto.MyRelationship`'ı için baştan altı değerle açılır — sonradan araya değer sokmak, tel üzerinde metin giden bir enum'da eski istemcileri bozar (K-41) |
+| **A-71** | Zengin metin **yapısal JSON'dur, HTML değildir** | A | Duyuru (ve Faz 39'da etkinlik) içeriği editörün düğüm ağacı olarak (`ContentJson`) saklanır; HTML dizesi ne veritabanına yazılır ne arayüzde ayrıştırılır. Yazma anında sunucu ağacı kapalı izin listesine göre dolaşır (`RichTextDocumentValidator`), okuma anında arayüz ağacı gezip React öğeleri üretir (`dangerouslySetInnerHTML` YOK). Gerekçe: HTML saklamak her okuma noktasında sanitize zorunluluğu doğurur; bir noktayı atlamak depolanmış XSS demektir — ağaçta böyle bir kapı yoktur. Düz metin aynası (`Content`) korunur: arama (`GetFeedAsync`), e-posta ve önizleme oradan okumaya devam eder; `ContentJson` null olan eski kayıtlar düz metin olarak render edilir, veri taşıma gerekmez (K-42, Y-78) |
+| **A-72** | İçerikteki renk **anlamsal token'dır, hex değildir** | A | Yazar `accent\|success\|warning\|danger\|muted` arasından seçer; hangi hex'e karşılık geldiğine `arayuz/src/theme/tokens.ts`'teki `richTextColors` (Y-56'nın tek istisnası değil, onun **uzantısı**) karar verir — koyu/açık mod için ayrı tablo. Gerekçe: uygulamanın koyu modu var; içeriğe gömülen sabit bir hex koyu temada zeminle birleşebilir, token ise moda göre çözülür. Sunucudaki `RichTextSchema.AllowedColorTokens` ile arayüzdeki token listesi **aynı beş isim** olmalıdır — biri diğerine eklenmeden değişirse kullanıcı seçtiği rengi kaydedemez; bu eşleşme mimari testle kilitlenir (K-42, Y-78) |
 
 ### Kararların birbirini etkilediği yerler
 

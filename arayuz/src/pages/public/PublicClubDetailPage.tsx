@@ -132,6 +132,8 @@ export function PublicClubDetailPage() {
                 key={announcement.id}
                 title={announcement.title}
                 content={announcement.content}
+                contentJson={announcement.contentJson}
+                imageFileId={announcement.imageFileId}
                 publishedAtUtc={announcement.publishedAtUtc}
               />
             ))}

@@ -137,4 +137,105 @@ public class AnnouncementManagerTests
         Assert.True(result.IsSuccess);
         Assert.True(announcement.IsDeleted);
     }
+
+    private const string ValidContentJson = """
+    {"type":"doc","content":[
+      {"type":"paragraph","attrs":{"textAlign":"left"},"content":[
+        {"type":"text","text":"Kayıtlar ","marks":[{"type":"bold"}]},
+        {"type":"text","text":"15 Ekim","marks":[{"type":"textColor","attrs":{"token":"accent"}}]}
+      ]}
+    ]}
+    """;
+
+    [Fact(DisplayName = "Create: K-42/A-71 — ContentJson kaydedilir, Content düz metin aynası olarak türetilir")]
+    public async Task CreateAsync_StoresContentJson_AndDerivesPlainText()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+        Announcement? captured = null;
+        _announcementRepository.Setup(r => r.AddAsync(It.IsAny<Announcement>(), It.IsAny<CancellationToken>()))
+            .Callback<Announcement, CancellationToken>((a, _) => captured = a)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.CreateAsync(1, new CreateAnnouncementRequestDto
+        {
+            Title = "Kayıtlar açıldı", ContentJson = ValidContentJson, Visibility = AnnouncementVisibility.Public,
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ValidContentJson, captured!.ContentJson);
+        Assert.Equal("Kayıtlar 15 Ekim", captured.Content);
+    }
+
+    [Fact(DisplayName = "Create: Y-78 — izin listesinde olmayan düğüm içeren ContentJson reddedilir, kayıt oluşmaz")]
+    public async Task CreateAsync_Rejects_WhenContentJsonHasDisallowedNode()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+
+        var result = await _sut.CreateAsync(1, new CreateAnnouncementRequestDto
+        {
+            Title = "Kötü", ContentJson = """{"type":"doc","content":[{"type":"iframe"}]}""", Visibility = AnnouncementVisibility.Public,
+        });
+
+        Assert.False(result.IsSuccess);
+        _announcementRepository.Verify(r => r.AddAsync(It.IsAny<Announcement>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "Create: ContentJson boşken düz metin duyuru hâlâ yazılabilir (geriye dönük)")]
+    public async Task CreateAsync_AcceptsPlainContent_WhenContentJsonIsNull()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(100);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 10, ApplicationUserId = 100, Title = "Dr.", DepartmentId = 1 });
+        Announcement? captured = null;
+        _announcementRepository.Setup(r => r.AddAsync(It.IsAny<Announcement>(), It.IsAny<CancellationToken>()))
+            .Callback<Announcement, CancellationToken>((a, _) => captured = a)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.CreateAsync(1, new CreateAnnouncementRequestDto
+        {
+            Title = "Düz", Content = "Sadece metin", Visibility = AnnouncementVisibility.Public,
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(captured!.ContentJson);
+        Assert.Equal("Sadece metin", captured.Content);
+    }
+
+    [Fact(DisplayName = "CreateGlobal: sistem duyurusu da ContentJson taşıyabilir")]
+    public async Task CreateGlobalAsync_StoresContentJson()
+    {
+        Announcement? captured = null;
+        _announcementRepository.Setup(r => r.AddAsync(It.IsAny<Announcement>(), It.IsAny<CancellationToken>()))
+            .Callback<Announcement, CancellationToken>((a, _) => captured = a)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.CreateGlobalAsync(new CreateAnnouncementRequestDto
+        {
+            Title = "Sistem", ContentJson = ValidContentJson, Visibility = AnnouncementVisibility.Public,
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Kayıtlar 15 Ekim", captured!.Content);
+    }
+
+    [Fact(DisplayName = "Update: ContentJson güncellenince Content aynası yeniden türetilir")]
+    public async Task UpdateAsync_StoresContentJson_AndDerivesPlainText()
+    {
+        var announcement = new Announcement { Id = 1, ClubId = null, Title = "Eski", Content = "Eski içerik", Visibility = AnnouncementVisibility.Public, PublishedAtUtc = FixedNow };
+        _announcementRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Announcement, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(announcement);
+        _currentUser.Setup(c => c.Permissions).Returns([IdentitySeedData.Permissions.AnnouncementsGlobal]);
+
+        var result = await _sut.UpdateAsync(1, new UpdateAnnouncementRequestDto
+        {
+            Title = "Yeni", ContentJson = ValidContentJson, Visibility = AnnouncementVisibility.Public,
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Kayıtlar 15 Ekim", announcement.Content);
+        Assert.Equal(ValidContentJson, announcement.ContentJson);
+    }
 }

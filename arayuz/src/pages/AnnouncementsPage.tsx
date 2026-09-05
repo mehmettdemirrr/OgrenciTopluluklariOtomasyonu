@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
-import { useState } from 'react'
+import { type ChangeEvent, useState } from 'react'
 import { Controller, useForm, type Control } from 'react-hook-form'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
@@ -17,12 +17,28 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SearchField } from '../components/ui/SearchField'
 import { AnnouncementCard } from '../components/ui/AnnouncementCard'
 import { AnnouncementVisibilityChip } from '../components/ui/StatusChip'
+import { RichTextEditor } from '../components/richtext/RichTextEditor'
 import { announcementFormSchema, type AnnouncementFormValues } from '../schemas/announcementForm'
 import type { AnnouncementListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useLocale } from '../i18n/LocaleContext'
 
-const emptyAnnouncementFormValues: AnnouncementFormValues = { title: '', content: '', visibility: 'Public' }
+const emptyAnnouncementFormValues: AnnouncementFormValues = { title: '', contentJson: '', visibility: 'Public' }
+
+async function uploadAnnouncementImage(announcementId: number, image: File) {
+  const formData = new FormData()
+  formData.append('file', image)
+  await apiClient.post(`/announcements/${announcementId}/image`, formData)
+}
+
+// docs/MIMARI.md · A-71: eski düz metin duyuru düzenlemeye açılınca kaybolmasın diye
+// editöre tek paragraflık bir belge olarak yüklenir.
+function plainTextToDoc(text: string): string {
+  return JSON.stringify({
+    type: 'doc',
+    content: [{ type: 'paragraph', content: text ? [{ type: 'text', text }] : [] }],
+  })
+}
 
 export function AnnouncementsPage() {
   const { t } = useLocale()
@@ -35,6 +51,8 @@ export function AnnouncementsPage() {
 
   const createDialog = useFormDialog()
   const [editTarget, setEditTarget] = useState<AnnouncementListItemDto | null>(null)
+  const [createImage, setCreateImage] = useState<File | null>(null)
+  const [editImage, setEditImage] = useState<File | null>(null)
 
   const createForm = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementFormSchema),
@@ -59,12 +77,16 @@ export function AnnouncementsPage() {
 
   const createGlobalMutation = useMutation({
     mutationFn: async (values: AnnouncementFormValues) => {
-      await apiClient.post('/announcements', values)
+      const response = await apiClient.post<number>('/announcements', values)
+      if (createImage) {
+        await uploadAnnouncementImage(response.data, createImage)
+      }
     },
     onSuccess: () => {
       notify({ message: 'Duyuru yayınlandı.', severity: 'success' })
       createDialog.closeDialog()
       createForm.reset(emptyAnnouncementFormValues)
+      setCreateImage(null)
       queryClient.invalidateQueries({ queryKey: ['announcements-feed'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Duyuru oluşturulamadı.'), severity: 'error' }),
@@ -74,17 +96,26 @@ export function AnnouncementsPage() {
     mutationFn: async (values: AnnouncementFormValues) => {
       if (!editTarget) return
       await apiClient.put(`/announcements/${editTarget.id}`, values)
+      if (editImage) {
+        await uploadAnnouncementImage(editTarget.id, editImage)
+      }
     },
     onSuccess: () => {
       notify({ message: 'Duyuru güncellendi.', severity: 'success' })
       setEditTarget(null)
+      setEditImage(null)
       queryClient.invalidateQueries({ queryKey: ['announcements-feed'] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Duyuru güncellenemedi.'), severity: 'error' }),
   })
 
   const openEditDialog = (announcement: AnnouncementListItemDto) => {
-    editForm.reset({ title: announcement.title, content: announcement.content, visibility: announcement.visibility })
+    editForm.reset({
+      title: announcement.title,
+      contentJson: announcement.contentJson ?? plainTextToDoc(announcement.content),
+      visibility: announcement.visibility,
+    })
+    setEditImage(null)
     setEditTarget(announcement)
   }
 
@@ -124,6 +155,8 @@ export function AnnouncementsPage() {
               key={announcement.id}
               title={announcement.title}
               content={announcement.content}
+              contentJson={announcement.contentJson}
+              imageFileId={announcement.imageFileId}
               publishedAtUtc={announcement.publishedAtUtc}
               meta={`${announcement.clubName ?? 'Sistem Duyurusu'} · ${new Date(announcement.publishedAtUtc).toLocaleString('tr-TR')}`}
               chip={<AnnouncementVisibilityChip visibility={announcement.visibility} />}
@@ -163,19 +196,21 @@ export function AnnouncementsPage() {
         onClose={() => {
           createDialog.closeDialog()
           createForm.reset(emptyAnnouncementFormValues)
+          setCreateImage(null)
         }}
         fullWidth
-        maxWidth="xs"
+        maxWidth="sm"
       >
         <DialogTitle>Sistem Duyurusu</DialogTitle>
         <DialogContent>
-          <AnnouncementFormFields control={createForm.control} />
+          <AnnouncementFormFields control={createForm.control} image={createImage} onImageChange={setCreateImage} />
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() => {
               createDialog.closeDialog()
               createForm.reset(emptyAnnouncementFormValues)
+              setCreateImage(null)
             }}
           >
             Vazgeç
@@ -190,10 +225,10 @@ export function AnnouncementsPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={editTarget !== null} onClose={() => setEditTarget(null)} fullWidth maxWidth="xs">
+      <Dialog open={editTarget !== null} onClose={() => setEditTarget(null)} fullWidth maxWidth="sm">
         <DialogTitle>Sistem Duyurusunu Düzenle</DialogTitle>
         <DialogContent>
-          <AnnouncementFormFields control={editForm.control} />
+          <AnnouncementFormFields control={editForm.control} image={editImage} onImageChange={setEditImage} existingImageFileId={editTarget?.imageFileId} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditTarget(null)}>Vazgeç</Button>
@@ -210,7 +245,22 @@ export function AnnouncementsPage() {
   )
 }
 
-function AnnouncementFormFields({ control }: { control: Control<AnnouncementFormValues> }) {
+function AnnouncementFormFields({
+  control,
+  image,
+  onImageChange,
+  existingImageFileId,
+}: {
+  control: Control<AnnouncementFormValues>
+  image: File | null
+  onImageChange: (file: File | null) => void
+  existingImageFileId?: number | null
+}) {
+  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onImageChange(event.target.files?.[0] ?? null)
+    event.target.value = ''
+  }
+
   return (
     <>
       <Controller
@@ -221,12 +271,33 @@ function AnnouncementFormFields({ control }: { control: Control<AnnouncementForm
         )}
       />
       <Controller
-        name="content"
+        name="contentJson"
         control={control}
         render={({ field, fieldState }) => (
-          <TextField {...field} fullWidth multiline minRows={3} margin="dense" label="İçerik" error={!!fieldState.error} helperText={fieldState.error?.message} />
+          <Box sx={{ mt: 1, mb: 0.5 }}>
+            <RichTextEditor value={field.value || null} onChange={field.onChange} />
+            {fieldState.error && (
+              <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+                {fieldState.error.message}
+              </Typography>
+            )}
+          </Box>
         )}
       />
+      <Box sx={{ mt: 1.5 }}>
+        <Button component="label" size="small" variant="outlined">
+          {image ? image.name : existingImageFileId ? 'Kapak görselini değiştir' : 'Kapak görseli ekle'}
+          <input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={handleImageChange} />
+        </Button>
+        {(image || existingImageFileId) && (
+          <Box
+            component="img"
+            src={image ? URL.createObjectURL(image) : `/api/files/${existingImageFileId}`}
+            alt=""
+            sx={{ display: 'block', mt: 1, height: 80, borderRadius: 1.5, objectFit: 'cover' }}
+          />
+        )}
+      </Box>
       <Controller
         name="visibility"
         control={control}

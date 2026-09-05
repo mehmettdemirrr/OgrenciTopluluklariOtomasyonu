@@ -43,4 +43,12 @@ public interface IAnnouncementService
     [CacheRemoveAspect("PublicContentManager.")]
     [TransactionAspect]
     Task<IDataResult<int>> CreateGlobalAsync(CreateAnnouncementRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · K-42: `FileManager.UploadAnnouncementImageAsync`'in kapak görseli yetki kapısı.
+    /// `CreateAsync`/`UpdateAsync`/`DeleteAsync`'in kullandığı aynı `EnsureAnnouncementWriteAccessAsync`
+    /// zincirini çağırır — ikinci bir kopya yazmak, iki yerin er ya da geç ayrışması demektir.
+    /// Controller ucu YOKTUR; yalnızca FileManager çağırır, bu yüzden [SecuredOperation] taşımaz.
+    /// </summary>
+    Task<IResult> EnsureCanManageAsync(int announcementId, CancellationToken cancellationToken = default);
 }

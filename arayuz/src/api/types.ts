@@ -301,6 +301,10 @@ export interface AnnouncementListItemDto {
   title: string
   content: string
   visibility: AnnouncementVisibility
+  /** docs/MIMARI.md · A-71: null ise content düz metin olarak gösterilir. */
+  contentJson: string | null
+  /** docs/MIMARI.md · K-42: kapak görseli. */
+  imageFileId: number | null
   publishedAtUtc: string
 }
 
@@ -423,6 +427,10 @@ export interface PublicAnnouncementListItemDto {
   clubName: string | null
   title: string
   content: string
+  /** docs/MIMARI.md · A-71: null ise content düz metin olarak gösterilir. */
+  contentJson: string | null
+  /** docs/MIMARI.md · K-42: kapak görseli. */
+  imageFileId: number | null
   publishedAtUtc: string
 }
 

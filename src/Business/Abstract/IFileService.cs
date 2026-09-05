@@ -35,4 +35,14 @@ public interface IFileService
     /// </summary>
     Task<IDataResult<UploadedFileDto>> StoreApplicationLogoAsync(
         UploadFileRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// docs/MIMARI.md · K-42/A-64: duyuru kapak görseli — yalnızca JPEG/PNG/WebP, Public.
+    /// Yetki: duyuruyu yönetebilen yönetir (kulüp duyurusunda A-68 AnnouncementsManage,
+    /// sistem duyurusunda announcements.global) — kapı IAnnouncementService.EnsureCanManageAsync'tedir.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.FilesUpload)]
+    [TransactionAspect]
+    Task<IDataResult<UploadedFileDto>> UploadAnnouncementImageAsync(
+        int announcementId, UploadFileRequestDto request, CancellationToken cancellationToken = default);
 }

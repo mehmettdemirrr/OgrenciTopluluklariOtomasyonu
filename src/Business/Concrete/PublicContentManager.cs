@@ -173,6 +173,8 @@ public sealed class PublicContentManager(
                 ClubName = a.ClubId is { } id ? clubNames.GetValueOrDefault(id, string.Empty) : null,
                 Title = a.Title,
                 Content = a.Content,
+                ContentJson = a.ContentJson,
+                ImageFileId = a.ImageFileId,
                 PublishedAtUtc = a.PublishedAtUtc,
             })
             .ToList();

@@ -1,6 +1,7 @@
 using Business.Abstract;
 using Business.Constants;
 using Business.DTOs.Announcements;
+using Business.RichText;
 using Core.DataAccess;
 using Core.Utilities.Results;
 using Core.Utilities.Security;
@@ -77,11 +78,17 @@ public sealed class AnnouncementManager(
             return DataResult<int>.Forbidden(accessError);
         }
 
+        if (!TryResolveContent(request.Content, request.ContentJson, out var content, out var contentError))
+        {
+            return DataResult<int>.ValidationError(contentError!);
+        }
+
         var announcement = new Announcement
         {
             ClubId = clubId,
             Title = request.Title,
-            Content = request.Content,
+            Content = content,
+            ContentJson = request.ContentJson,
             Visibility = request.Visibility,
             PublishedAtUtc = clock.UtcNow,
         };
@@ -106,8 +113,14 @@ public sealed class AnnouncementManager(
             return Result.Forbidden(accessError);
         }
 
+        if (!TryResolveContent(request.Content, request.ContentJson, out var content, out var contentError))
+        {
+            return Result.ValidationError(contentError!);
+        }
+
         announcement.Title = request.Title;
-        announcement.Content = request.Content;
+        announcement.Content = content;
+        announcement.ContentJson = request.ContentJson;
         announcement.Visibility = request.Visibility;
         announcementRepository.Update(announcement);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -140,11 +153,17 @@ public sealed class AnnouncementManager(
 
     public async Task<IDataResult<int>> CreateGlobalAsync(CreateAnnouncementRequestDto request, CancellationToken cancellationToken = default)
     {
+        if (!TryResolveContent(request.Content, request.ContentJson, out var content, out var contentError))
+        {
+            return DataResult<int>.ValidationError(contentError!);
+        }
+
         var announcement = new Announcement
         {
             ClubId = null,
             Title = request.Title,
-            Content = request.Content,
+            Content = content,
+            ContentJson = request.ContentJson,
             Visibility = request.Visibility,
             PublishedAtUtc = clock.UtcNow,
         };
@@ -153,6 +172,43 @@ public sealed class AnnouncementManager(
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return DataResult<int>.Success(announcement.Id, Messages.AnnouncementCreated);
+    }
+
+    /// <summary>
+    /// docs/MIMARI.md · Y-78: izin listesi kapalıdır; reddedilen içerik sessizce temizlenmez, hata döner.
+    /// A-71: düz metin aynası JSON'dan türetilir — arama ve e-posta bu alanı okur.
+    /// </summary>
+    private static bool TryResolveContent(string? content, string? contentJson, out string resolvedContent, out string? error)
+    {
+        resolvedContent = content?.Trim() ?? string.Empty;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(contentJson))
+        {
+            return true;
+        }
+
+        var validation = RichTextDocumentValidator.Validate(contentJson);
+        if (!validation.IsValid)
+        {
+            error = validation.Error ?? Messages.UnsupportedRichTextContent;
+            return false;
+        }
+
+        resolvedContent = RichTextPlainTextExtractor.Extract(contentJson);
+        return true;
+    }
+
+    public async Task<IResult> EnsureCanManageAsync(int announcementId, CancellationToken cancellationToken = default)
+    {
+        var announcement = await announcementRepository.GetAsync(a => a.Id == announcementId, cancellationToken).ConfigureAwait(false);
+        if (announcement is null)
+        {
+            return Result.NotFound(Messages.AnnouncementNotFound);
+        }
+
+        var accessError = await EnsureAnnouncementWriteAccessAsync(announcement, cancellationToken).ConfigureAwait(false);
+        return accessError is null ? Result.Success() : Result.Forbidden(accessError);
     }
 
     private async Task<string?> EnsureAnnouncementWriteAccessAsync(Announcement announcement, CancellationToken cancellationToken)
@@ -237,6 +293,8 @@ public sealed class AnnouncementManager(
                 Title = a.Title,
                 Content = a.Content,
                 Visibility = a.Visibility,
+                ContentJson = a.ContentJson,
+                ImageFileId = a.ImageFileId,
                 PublishedAtUtc = a.PublishedAtUtc,
             }).ToList();
     }

@@ -18,6 +18,10 @@ public sealed class AnnouncementConfiguration : IEntityTypeConfiguration<Announc
         builder.Property(a => a.Content)
             .IsRequired();
 
+        // K-42/A-71: düğüm ağacı; boyutu değişken, nvarchar(max) sabitlenir.
+        builder.Property(a => a.ContentJson)
+            .HasColumnType("nvarchar(max)");
+
         // A-43: sistem duyurusu (ClubId = null) kulüp silinse bile kalır — Cascade değil SetNull.
         builder.HasOne<Club>()
             .WithMany()

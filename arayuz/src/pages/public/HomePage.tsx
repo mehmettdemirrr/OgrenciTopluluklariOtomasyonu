@@ -215,6 +215,8 @@ export function HomePage() {
                 key={announcement.id}
                 title={announcement.title}
                 content={announcement.content}
+                contentJson={announcement.contentJson}
+                imageFileId={announcement.imageFileId}
                 publishedAtUtc={announcement.publishedAtUtc}
                 chip={announcement.clubName ? <Chip size="small" label={announcement.clubName} variant="outlined" /> : undefined}
               />

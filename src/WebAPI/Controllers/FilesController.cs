@@ -57,4 +57,18 @@ public sealed class FilesController(IFileService fileService) : ControllerBase
 
         return result.ToActionResult();
     }
+
+    [HttpPost("announcements/{announcementId:int}/image")]
+    [RequestSizeLimit(5_242_880)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 5_242_880)]
+    public async Task<IActionResult> UploadAnnouncementImage(int announcementId, IFormFile file, CancellationToken cancellationToken)
+    {
+        await using var stream = file.OpenReadStream();
+        var result = await fileService.UploadAnnouncementImageAsync(
+            announcementId,
+            new UploadFileRequestDto { Content = stream, OriginalFileName = file.FileName, Length = file.Length },
+            cancellationToken);
+
+        return result.ToActionResult();
+    }
 }

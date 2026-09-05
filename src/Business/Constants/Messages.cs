@@ -24,6 +24,10 @@ public static class Messages
     public const string EventNotFound = "Etkinlik bulunamadı.";
     public const string LogoUploaded = "Topluluk logosu güncellendi.";
     public const string PosterUploaded = "Etkinlik afişi güncellendi.";
+    public const string ImageUploaded = "Görsel yüklendi.";
+
+    // Faz 38 — Zengin metin (K-42/Y-78)
+    public const string UnsupportedRichTextContent = "Duyuru içeriğinde desteklenmeyen biçimlendirme var.";
 
     // Faz 6 — Rapor
     public const string ReportNotFound = "Rapor talebi bulunamadı.";

@@ -18,6 +18,8 @@ public sealed class FileManager(
     IEntityRepository<Club> clubRepository,
     IEntityRepository<Event> eventRepository,
     IEntityRepository<AcademicStaff> academicStaffRepository,
+    IEntityRepository<Announcement> announcementRepository,
+    IAnnouncementService announcementService,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     IClock clock,
@@ -144,6 +146,38 @@ public sealed class FileManager(
         UploadFileRequestDto request, CancellationToken cancellationToken = default) =>
         // A-64: ImageTypes = JPEG/PNG/WebP. Logo kulüp kimliğidir, kişisel veri değil → Public (A-69).
         StoreFileAsync(request, FileVisibility.Public, ImageTypes, Messages.UnsupportedFileType, cancellationToken);
+
+    public async Task<IDataResult<UploadedFileDto>> UploadAnnouncementImageAsync(
+        int announcementId, UploadFileRequestDto request, CancellationToken cancellationToken = default)
+    {
+        // K-42: kapı IAnnouncementService'te — CreateAsync/UpdateAsync/DeleteAsync'in kullandığı
+        // aynı EnsureAnnouncementWriteAccessAsync zincirini çağırır, burada kopyalanmaz.
+        var accessResult = await announcementService.EnsureCanManageAsync(announcementId, cancellationToken).ConfigureAwait(false);
+        if (!accessResult.IsSuccess)
+        {
+            return accessResult.Status == ResultStatus.NotFound
+                ? DataResult<UploadedFileDto>.NotFound(accessResult.Message ?? Messages.AnnouncementNotFound)
+                : DataResult<UploadedFileDto>.Forbidden(accessResult.Message ?? Messages.NotClubAdvisorOrOfficer);
+        }
+
+        var announcement = await announcementRepository.GetAsync(a => a.Id == announcementId, cancellationToken).ConfigureAwait(false);
+        if (announcement is null)
+        {
+            return DataResult<UploadedFileDto>.NotFound(Messages.AnnouncementNotFound);
+        }
+
+        var stored = await StoreFileAsync(request, FileVisibility.Public, ImageTypes, Messages.UnsupportedFileType, cancellationToken).ConfigureAwait(false);
+        if (!stored.IsSuccess)
+        {
+            return stored;
+        }
+
+        announcement.ImageFileId = stored.Data.FileId;
+        announcementRepository.Update(announcement);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return DataResult<UploadedFileDto>.Success(stored.Data, Messages.ImageUploaded);
+    }
 
     private async Task<IDataResult<UploadedFileDto>> StoreFileAsync(
         UploadFileRequestDto request,

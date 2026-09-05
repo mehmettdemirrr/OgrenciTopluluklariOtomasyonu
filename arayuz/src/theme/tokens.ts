@@ -24,3 +24,28 @@ export const surfaces = {
     textMuted: '#A8ADC2',
   },
 } as const
+
+/**
+ * docs/MIMARI.md · A-72: zengin metin içeriğindeki renk anlamsal token'dır, hex değildir.
+ * Yazar bu beş isimden seçer; hangi hex'e karşılık geldiğine mod (açık/koyu) karar verir.
+ * Sunucudaki RichTextSchema.AllowedColorTokens ile AYNI beş isim olmalıdır — biri değişirse
+ * kullanıcının seçtiği renk kaydedilemez (Architecture.Tests bu eşleşmeyi kilitler).
+ */
+export const richTextColors = {
+  light: {
+    accent: brand.turquoiseDark,
+    success: '#2E7D32',
+    warning: '#B45309',
+    danger: '#C62828',
+    muted: brand.greyDark,
+  },
+  dark: {
+    accent: brand.turquoise,
+    success: '#7BC67E',
+    warning: '#E5A13A',
+    danger: '#F28B82',
+    muted: surfaces.dark.textMuted,
+  },
+} as const
+
+export type RichTextColorToken = keyof typeof richTextColors.light
