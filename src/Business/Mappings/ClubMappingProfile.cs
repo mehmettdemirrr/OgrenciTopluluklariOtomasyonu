@@ -15,8 +15,12 @@ public sealed class ClubMappingProfile : Profile
             .ForMember(d => d.ClubCategoryName, o => o.Ignore());
 
         // K-44: SocialLinks ayrı bir tablodan gelir (ClubSocialLink); ClubManager dolduruyor.
+        // A-75: MyRelationship/MyCapabilities çağırana özgüdür, Club üzerinde kaynağı yok —
+        // ClubManager.ResolveViewerAsync dolduruyor.
         CreateMap<Club, ClubDetailDto>()
             .ForMember(d => d.ClubCategoryName, o => o.Ignore())
-            .ForMember(d => d.SocialLinks, o => o.Ignore());
+            .ForMember(d => d.SocialLinks, o => o.Ignore())
+            .ForMember(d => d.MyRelationship, o => o.Ignore())
+            .ForMember(d => d.MyCapabilities, o => o.Ignore());
     }
 }

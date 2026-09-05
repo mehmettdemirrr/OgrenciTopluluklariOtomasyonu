@@ -43,6 +43,10 @@ export interface ClubDetailDto {
   contactEmail: string | null
   contactPhone: string | null
   socialLinks: ClubSocialLinkDto[]
+  /** docs/MIMARI.md · A-75: sekme görünürlüğü buradan çizilir, global izinden değil. */
+  myRelationship: ClubRelationship
+  /** [Flags] ClubCapability biti — bkz. ClubCapability sabiti aşağıda. */
+  myCapabilities: number
 }
 
 // src/Business/DTOs/Reference/ClubCategoryListItemDto.cs

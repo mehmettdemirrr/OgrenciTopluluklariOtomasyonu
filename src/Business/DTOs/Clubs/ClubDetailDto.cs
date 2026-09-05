@@ -1,3 +1,5 @@
+using Entities.Enums;
+
 namespace Business.DTOs.Clubs;
 
 public sealed class ClubDetailDto
@@ -33,4 +35,14 @@ public sealed class ClubDetailDto
 
     /// <summary>docs/MIMARI.md · K-44/A-74: DisplayOrder'a göre sıralı sosyal bağlantılar.</summary>
     public IReadOnlyList<ClubSocialLinkDto> SocialLinks { get; set; } = [];
+
+    /// <summary>docs/MIMARI.md · A-75: arayüz sekmeleri bu alandan çizilir, global izinden değil.</summary>
+    public ClubRelationship MyRelationship { get; set; }
+
+    /// <summary>
+    /// docs/MIMARI.md · A-68/A-75: çağıranın BU kulüpteki kapasiteleri.
+    /// [Flags] olduğu için tel üzerinde SAYI gider — Program.cs'teki JsonNumberEnumConverter&lt;ClubCapability&gt;
+    /// kaydı bunu sağlar; string'e dönerse arayüzün bit maskesi çalışmaz.
+    /// </summary>
+    public ClubCapability MyCapabilities { get; set; }
 }

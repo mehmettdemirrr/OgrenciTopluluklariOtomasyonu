@@ -20,8 +20,6 @@ import { Controller, useForm } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
-import { useAuth } from '../auth/AuthContext'
-import { Permissions } from '../auth/permissions'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
@@ -31,11 +29,14 @@ import { RichTextEditor } from '../components/richtext/RichTextEditor'
 import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { EventListItemDto, PagedResult } from '../api/types'
 
-export function ClubEventsTab({ clubId }: { clubId: number }) {
+/**
+ * docs/MIMARI.md · A-75/Y-81: `canManage` çağıranın BU kulüpteki `EventsManage` kapasitesidir
+ * (ClubDetailPage'den gelir) — global `events.write` izni değil. Yetkisizken yönetim ucu
+ * (`GET /api/clubs/{id}/events`) hiç çağrılmaz, yayınlanmış etkinlik ucu kullanılır (K-45).
+ */
+export function ClubEventsTab({ clubId, canManage }: { clubId: number; canManage: boolean }) {
   const queryClient = useQueryClient()
   const notify = useNotifier()
-  const { hasPermission } = useAuth()
-  const canWrite = hasPermission(Permissions.EventsWrite)
 
   const createDialog = useFormDialog()
   const {
@@ -49,9 +50,11 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
   })
 
   const { paginationModel, setPaginationModel, query: eventsQuery } = usePagedQuery({
-    queryKey: ['club-events', clubId],
+    queryKey: ['club-events', clubId, canManage],
     queryFn: async (pageIndex, pageSize) =>
-      (await apiClient.get<PagedResult<EventListItemDto>>(`/clubs/${clubId}/events`, { params: { pageIndex, pageSize } })).data,
+      canManage
+        ? (await apiClient.get<PagedResult<EventListItemDto>>(`/clubs/${clubId}/events`, { params: { pageIndex, pageSize } })).data
+        : (await apiClient.get<PagedResult<EventListItemDto>>('/events', { params: { clubId, pageIndex, pageSize } })).data,
   })
 
   const createEventMutation = useMutation({
@@ -62,7 +65,7 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
       notify({ message: 'Etkinlik oluşturuldu (taslak).', severity: 'success' })
       createDialog.closeDialog()
       reset(emptyEventFormValues)
-      queryClient.invalidateQueries({ queryKey: ['club-events', clubId] })
+      queryClient.invalidateQueries({ queryKey: ['club-events', clubId, canManage] })
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Etkinlik oluşturulamadı.'), severity: 'error' }),
   })
@@ -93,7 +96,7 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
 
   return (
     <>
-      {canWrite && (
+      {canManage && (
         <Stack direction="row" sx={{ mb: 2 }}>
           <Button variant="contained" onClick={createDialog.openDialog}>
             Etkinlik Oluştur
@@ -111,7 +114,7 @@ export function ClubEventsTab({ clubId }: { clubId: number }) {
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}
         pageSizeOptions={[10, 20, 50]}
-        emptyTitle="Bu toplulukta etkinlik yok"
+        emptyTitle={canManage ? 'Bu toplulukta etkinlik yok' : 'Bu toplulukta yayınlanmış etkinlik yok'}
       />
 
       <Dialog

@@ -80,7 +80,66 @@ public sealed class ClubManager(
 
         dto.SocialLinks = await GetSocialLinksAsync(id, cancellationToken).ConfigureAwait(false);
 
+        (dto.MyRelationship, dto.MyCapabilities) = await ResolveViewerAsync(club, cancellationToken).ConfigureAwait(false);
+
         return DataResult<ClubDetailDto>.Success(dto);
+    }
+
+    /// <summary>
+    /// docs/MIMARI.md · A-75: kapsam ÇÖZÜMÜdür, yetki KAPISI değildir — K-25. Arayüzün hangi
+    /// sekmeyi/ucu çizeceğine karar vermesi için çağıranın BU kulüpteki ilişkisini döner;
+    /// hiçbir dalı isteği reddetmez, yalnızca None/kapasitesiz döner.
+    /// </summary>
+    private async Task<(ClubRelationship Relationship, ClubCapability Capabilities)> ResolveViewerAsync(
+        Club club, CancellationToken cancellationToken)
+    {
+        // Y-66: yönetici kontrolü her kapsam metodunun İLK satırıdır (A-55).
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
+        {
+            return (ClubRelationship.Administrator, ClubCapabilityDefaults.ForRole(ClubRole.President) | ClubCapability.MembersManage);
+        }
+
+        if (currentUser.UserId is not { } userId)
+        {
+            return (ClubRelationship.None, ClubCapability.None);
+        }
+
+        var advisor = await academicStaffRepository.GetAsync(s => s.Id == club.AdvisorId, cancellationToken).ConfigureAwait(false);
+        if (advisor is not null && advisor.ApplicationUserId == userId)
+        {
+            return (ClubRelationship.Advisor, ClubCapabilityDefaults.ForRole(ClubRole.President) | ClubCapability.MembersManage);
+        }
+
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (student is null)
+        {
+            return (ClubRelationship.None, ClubCapability.None);
+        }
+
+        // §22.3 / EnsureClubWriteAccessAsync ile aynı dönem: güncel dönemin üyeliği.
+        var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
+        if (term is null)
+        {
+            return (ClubRelationship.None, ClubCapability.None);
+        }
+
+        var membership = await clubMembershipRepository
+            .GetAsync(m => m.ClubId == club.Id && m.StudentId == student.Id && m.AcademicTermId == term.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (membership is null)
+        {
+            return (ClubRelationship.None, ClubCapability.None);
+        }
+
+        var relationship = membership.ClubRole switch
+        {
+            ClubRole.President => ClubRelationship.President,
+            ClubRole.Officer => ClubRelationship.Officer,
+            _ => ClubRelationship.Member,
+        };
+
+        return (relationship, membership.Capabilities);
     }
 
     /// <summary>K-44: `PublicContentManager.GetClubByIdAsync`'in de doldurduğu ikinci yapım noktası.</summary>

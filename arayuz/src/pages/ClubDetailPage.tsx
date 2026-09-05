@@ -65,7 +65,7 @@ import {
   emptyClubRoleDefinitionFormValues,
   type ClubRoleDefinitionFormValues,
 } from '../schemas/clubRoleDefinitionForm'
-import { CLUB_CAPABILITIES } from '../api/types'
+import { CLUB_CAPABILITIES, ClubCapability } from '../api/types'
 import type {
   AcademicStaffListItemDto,
   ClubCategoryListItemDto,
@@ -92,11 +92,10 @@ export function ClubDetailPage() {
   const clubId = Number(id)
   const [tab, setTab] = useState<TabKey>('general')
   const { hasPermission } = useAuth()
+  // A-75'in değiştirmediği kapı: Club.Name/Description hâlâ yalnızca Admin'in (clubs.write) elinde.
   const canManageClubs = hasPermission(Permissions.ClubsWrite)
   // docs/MIMARI.md · A-74: iletişim/sosyal bağlantı kapısı Club.Name/Description'dan farklı — bkz. AnnouncementsManage kapasitesi.
   const canManageContact = hasPermission(Permissions.AnnouncementsWrite)
-  const canViewMembers = hasPermission(Permissions.MembershipsRead)
-  const canViewEvents = hasPermission(Permissions.EventsRead)
   const canViewAnnouncements = hasPermission(Permissions.ClubsRead)
 
   const clubQuery = useQuery({
@@ -107,6 +106,15 @@ export function ClubDetailPage() {
   useDocumentTitle(clubQuery.data?.name)
 
   const managesAllClubs = hasPermission(Permissions.ClubsManageAll)
+
+  // docs/MIMARI.md · A-75: sekme görünürlüğü global izinle değil, BU kulüpteki kapasiteyle belirlenir —
+  // başka bir kulüpte yetkili olan öğrenci, üyesi olmadığı bu kulübün Üyeler/Roller sekmesini görmemeli.
+  const capabilities = clubQuery.data?.myCapabilities ?? 0
+  const canViewMembers = (capabilities & ClubCapability.MembersView) !== 0
+  const canViewRoles = (capabilities & ClubCapability.MembersManage) !== 0
+  const canManageEvents = (capabilities & ClubCapability.EventsManage) !== 0
+  // K-45: etkinlik sekmesi herkese açıktır — yetkisiz kullanıcı yayınlanmış etkinlikleri görür.
+  const canViewEvents = true
 
   return (
     <>
@@ -129,7 +137,7 @@ export function ClubDetailPage() {
           <Tab label="Genel" value="general" />
           {canViewMembers && <Tab label="Üyeler" value="members" />}
           {/* Y-35: sekmeyi gizlemek yetki DEĞİL, kolaylıktır — uç kendi 403'ünü döner. */}
-          {canViewMembers && <Tab label="Roller" value="roles" />}
+          {canViewRoles && <Tab label="Roller" value="roles" />}
           {canViewEvents && <Tab label="Etkinlikler" value="events" />}
           {canViewAnnouncements && <Tab label="Duyurular" value="announcements" />}
         </Tabs>
@@ -139,8 +147,8 @@ export function ClubDetailPage() {
         <GeneralTab clubId={clubId} club={clubQuery.data} canManage={canManageClubs} canManageContact={canManageContact} />
       )}
       {tab === 'members' && canViewMembers && <MembersTab clubId={clubId} />}
-      {tab === 'roles' && canViewMembers && <RoleDefinitionsTab clubId={clubId} />}
-      {tab === 'events' && canViewEvents && <ClubEventsTab clubId={clubId} />}
+      {tab === 'roles' && canViewRoles && <RoleDefinitionsTab clubId={clubId} />}
+      {tab === 'events' && canViewEvents && <ClubEventsTab clubId={clubId} canManage={canManageEvents} />}
       {tab === 'announcements' && canViewAnnouncements && <ClubAnnouncementsTab clubId={clubId} />}
     </>
   )

@@ -6,6 +6,7 @@ using Business.Mappings;
 using Core.DataAccess;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
+using DataAccess.Seed;
 using Entities;
 using Entities.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -37,6 +38,9 @@ public class ClubManagerTests
         var mapperConfiguration = new MapperConfiguration(cfg => cfg.AddProfile<ClubMappingProfile>(), NullLoggerFactory.Instance);
         _mapper = mapperConfiguration.CreateMapper();
         _currentUser.Setup(c => c.Permissions).Returns([]);
+        _clubSocialLinkRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubSocialLink, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
         _sut = new ClubManager(
             _clubRepository.Object,
             _academicStaffRepository.Object,
@@ -161,5 +165,81 @@ public class ClubManagerTests
 
         Assert.True(result.IsSuccess);
         Assert.False(club.IsActive);
+    }
+
+    [Fact(DisplayName = "GetByIdAsync: üye olmayan öğrenci için ilişki None döner (A-75)")]
+    public async Task GetByIdAsync_ReportsNoneRelationship_ForNonMember()
+    {
+        var club = new Club { Id = 1, Name = "Kulüp", AdvisorId = 99, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+        _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(club);
+        _currentUser.Setup(c => c.UserId).Returns(500);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AcademicStaff?)null);
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicTerm { Id = 5, Name = "2026-Güz", StartDateUtc = DateTime.UtcNow, EndDateUtc = DateTime.UtcNow.AddMonths(4), IsCurrent = true });
+        _studentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Student { Id = 10, ApplicationUserId = 500, StudentNumber = "S1", DepartmentId = 1, EnrollmentYear = 2026 });
+        _clubMembershipRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ClubMembership?)null);
+
+        var result = await _sut.GetByIdAsync(1);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClubRelationship.None, result.Data!.MyRelationship);
+        Assert.Equal(ClubCapability.None, result.Data.MyCapabilities);
+    }
+
+    [Fact(DisplayName = "GetByIdAsync: başkan için ilişki President ve MembersManage kapasitesi döner (A-75)")]
+    public async Task GetByIdAsync_ReportsPresidentCapabilities_ForPresident()
+    {
+        var club = new Club { Id = 1, Name = "Kulüp", AdvisorId = 99, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+        _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(club);
+        _currentUser.Setup(c => c.UserId).Returns(600);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AcademicStaff?)null);
+        _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicTerm { Id = 5, Name = "2026-Güz", StartDateUtc = DateTime.UtcNow, EndDateUtc = DateTime.UtcNow.AddMonths(4), IsCurrent = true });
+        _studentRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Student { Id = 20, ApplicationUserId = 600, StudentNumber = "S2", DepartmentId = 1, EnrollmentYear = 2026 });
+        _clubMembershipRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubMembership
+            {
+                ClubId = 1, StudentId = 20, AcademicTermId = 5, ClubRole = ClubRole.President,
+                Capabilities = ClubCapabilityDefaults.ForRole(ClubRole.President), JoinedAtUtc = DateTime.UtcNow,
+            });
+
+        var result = await _sut.GetByIdAsync(1);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClubRelationship.President, result.Data!.MyRelationship);
+        Assert.True(result.Data.MyCapabilities.HasFlag(ClubCapability.MembersManage));
+    }
+
+    [Fact(DisplayName = "GetByIdAsync: kulübün danışmanı için ilişki Advisor döner (A-75)")]
+    public async Task GetByIdAsync_ReportsAdvisor_ForAdvisorOfThatClub()
+    {
+        var club = new Club { Id = 1, Name = "Kulüp", AdvisorId = 77, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+        _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(club);
+        _currentUser.Setup(c => c.UserId).Returns(700);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicStaff { Id = 77, ApplicationUserId = 700, Title = "Dr.", DepartmentId = 1 });
+
+        var result = await _sut.GetByIdAsync(1);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClubRelationship.Advisor, result.Data!.MyRelationship);
+    }
+
+    [Fact(DisplayName = "GetByIdAsync: clubs.manage.all taşıyan yönetici için ilişki Administrator döner (A-75)")]
+    public async Task GetByIdAsync_ReportsAdministrator_ForClubsManageAll()
+    {
+        var club = new Club { Id = 1, Name = "Kulüp", AdvisorId = 99, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+        _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(club);
+        _currentUser.Setup(c => c.Permissions).Returns([IdentitySeedData.Permissions.ClubsManageAll]);
+
+        var result = await _sut.GetByIdAsync(1);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ClubRelationship.Administrator, result.Data!.MyRelationship);
     }
 }
