@@ -27,6 +27,7 @@ public class PublicContentManagerTests
     private readonly Mock<IEntityRepository<EventParticipation>> _eventParticipationRepository = new();
     private readonly Mock<IEventViewDal> _eventViewDal = new();
     private readonly Mock<IClubCategoryAssignmentDal> _clubCategoryAssignmentDal = new();
+    private readonly Mock<IClubStatsDal> _clubStatsDal = new();
     private readonly Mock<IClock> _clock = new();
     private readonly PublicContentManager _sut;
 
@@ -42,10 +43,14 @@ public class PublicContentManagerTests
         _clubCategoryAssignmentDal
             .Setup(d => d.GetNamesByClubAsync(It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<int, IReadOnlyList<string>>());
+        _clubStatsDal
+            .Setup(d => d.GetCountsAsync(It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<int, ClubCardStats>());
         _sut = new PublicContentManager(
             _clubRepository.Object, _eventRepository.Object, _announcementRepository.Object,
             _clubCategoryRepository.Object, _studentRepository.Object, _clubSocialLinkRepository.Object,
-            _eventParticipationRepository.Object, _eventViewDal.Object, _clubCategoryAssignmentDal.Object, _clock.Object);
+            _eventParticipationRepository.Object, _eventViewDal.Object, _clubCategoryAssignmentDal.Object,
+            _clubStatsDal.Object, _clock.Object);
     }
 
     [Fact(DisplayName = "GetClubsAsync: yalnızca IsActive=true kulüpler döner, pasif kulüp listede yok")]
@@ -60,6 +65,22 @@ public class PublicContentManagerTests
         Assert.True(result.IsSuccess);
         var item = Assert.Single(result.Data!.Items);
         Assert.Equal("Aktif Kulüp", item.Name);
+    }
+
+    [Fact(DisplayName = "K-50: vitrin kartı üye ve etkinlik sayısını taşır")]
+    public async Task GetClubsAsync_CarriesMemberAndEventCounts()
+    {
+        var club = new Club { Id = 1, Name = "Kulüp", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
+        SetupPagedFilter<Club, string>(_clubRepository, [club]);
+        _clubStatsDal
+            .Setup(d => d.GetCountsAsync(It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<int, ClubCardStats> { [1] = new(388, 2) });
+
+        var result = await _sut.GetClubsAsync(0, 20);
+
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal(388, item.MemberCount);
+        Assert.Equal(2, item.EventCount);
     }
 
     [Fact(DisplayName = "K-49: anonim vitrin kategori filtresi bağ tablosundan gelen id kümesiyle daraltılır")]

@@ -22,6 +22,7 @@ public sealed class PublicContentManager(
     IEntityRepository<EventParticipation> eventParticipationRepository,
     IEventViewDal eventViewDal,
     IClubCategoryAssignmentDal clubCategoryAssignmentDal,
+    IClubStatsDal clubStatsDal,
     IClock clock) : IPublicContentService
 {
     private const int DefaultPageSize = 20;
@@ -57,8 +58,12 @@ public sealed class PublicContentManager(
                 cancellationToken)
             .ConfigureAwait(false);
 
+        var clubIds = paged.Items.Select(c => c.Id).ToList();
         var namesByClub = await clubCategoryAssignmentDal
-            .GetNamesByClubAsync(paged.Items.Select(c => c.Id).ToList(), cancellationToken)
+            .GetNamesByClubAsync(clubIds, cancellationToken)
+            .ConfigureAwait(false);
+        var stats = await clubStatsDal
+            .GetCountsAsync(clubIds, cancellationToken)
             .ConfigureAwait(false);
 
         var items = paged.Items
@@ -69,6 +74,8 @@ public sealed class PublicContentManager(
                 Description = c.Description,
                 LogoFileId = c.LogoFileId,
                 ClubCategoryNames = namesByClub.GetValueOrDefault(c.Id, []),
+                MemberCount = stats.TryGetValue(c.Id, out var s) ? s.MemberCount : 0,
+                EventCount = stats.TryGetValue(c.Id, out var e) ? e.EventCount : 0,
             })
             .ToList();
 

@@ -97,5 +97,9 @@ public sealed class DataAccessAutofacModule(IConfiguration configuration) : Modu
         builder.RegisterType<EfClubCategoryAssignmentDal>()
             .As<IClubCategoryAssignmentDal>()
             .InstancePerLifetimeScope();
+
+        builder.RegisterType<EfClubStatsDal>()
+            .As<IClubStatsDal>()
+            .InstancePerLifetimeScope();
     }
 }

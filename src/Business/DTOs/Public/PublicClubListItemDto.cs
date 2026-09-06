@@ -16,4 +16,10 @@ public sealed class PublicClubListItemDto
     /// sınıflandırma, kişisel veri değil. Kimlik taşınmaz — vitrinin ihtiyacı yalnızca görünen ad.
     /// </summary>
     public IReadOnlyList<string> ClubCategoryNames { get; set; } = [];
+
+    /// <summary>docs/MIMARI.md · A-81: güncel dönemin üye sayısı. İsim/öğrenci no taşınmaz (Y-58).</summary>
+    public int MemberCount { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-81: vitrinde görünen (yayınlanmış + herkese açık) etkinlik sayısı.</summary>
+    public int EventCount { get; set; }
 }

@@ -1,10 +1,11 @@
-import { Alert, Box, Card, CardContent, CardMedia, Chip, Grid, Stack, Typography, alpha } from '@mui/material'
+import { Alert, Grid } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { extractErrorMessage } from '../../api/errors'
+import { useAuth } from '../../auth/AuthContext'
+import { ClubBrowseCard } from '../../components/clubs/ClubBrowseCard'
 import { CardGridSkeleton } from '../../components/ui/CardGridSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -12,6 +13,7 @@ import { ResultPagination } from '../../components/ui/ResultPagination'
 import type { PagedResult, PublicClubCategoryDto, PublicClubListItemDto } from '../../api/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useLocale } from '../../i18n/LocaleContext'
+import { useNotifier } from '../../notifications/NotifierProvider'
 import { ClubBrowseFilters } from './ClubBrowseFilters'
 
 const PAGE_SIZE = 12
@@ -19,6 +21,8 @@ const PAGE_SIZE = 12
 export function PublicClubsPage() {
   const { t } = useLocale()
   useDocumentTitle(t('public.clubsTitle'))
+  const { isAuthenticated } = useAuth()
+  const notify = useNotifier()
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [letter, setLetter] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
@@ -63,6 +67,25 @@ export function PublicClubsPage() {
     setPageIndex(0)
   }
 
+  // Y-86: uygunluk kararı sunucudadır; buradaki tek iş isteği göndermek ve dönen mesajı göstermek.
+  const joinMutation = useMutation({
+    mutationFn: async (clubId: number) => {
+      await apiClient.post(`/clubs/${clubId}/membership-applications`)
+    },
+    onSuccess: () => notify({ message: 'Başvurunuz alındı, danışman onayı bekleniyor.', severity: 'success' }),
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Başvuru gönderilemedi.'), severity: 'error' }),
+  })
+
+  const handleShare = async (club: PublicClubListItemDto) => {
+    const url = `${window.location.origin}/kulupler/${club.id}`
+    if (navigator.share) {
+      await navigator.share({ title: club.name, url }).catch(() => undefined)
+      return
+    }
+    await navigator.clipboard.writeText(url).catch(() => undefined)
+    notify({ message: 'Bağlantı kopyalandı.', severity: 'success' })
+  }
+
   return (
     <>
       <PageHeader
@@ -97,44 +120,13 @@ export function PublicClubsPage() {
         <Grid container spacing={2.5}>
           {items.map((club) => (
             <Grid key={club.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card
-                variant="outlined"
-                component={RouterLink}
-                to={`/kulupler/${club.id}`}
-                sx={{ display: 'flex', flexDirection: 'column', height: '100%', textDecoration: 'none', color: 'inherit' }}
-              >
-                {club.logoFileId ? (
-                  <CardMedia component="img" height={140} image={`/api/files/${club.logoFileId}`} alt="" sx={{ objectFit: 'contain', bgcolor: 'background.default', p: 2 }} />
-                ) : (
-                  <Box
-                    sx={{
-                      height: 140,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: (theme) =>
-                        `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.08)} 0%, ${alpha(theme.palette.primary.main, 0.12)} 100%)`,
-                    }}
-                  >
-                    <GroupsOutlinedIcon sx={{ fontSize: 48, color: 'primary.dark' }} />
-                  </Box>
-                )}
-                <CardContent sx={{ flex: 1 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }} noWrap>
-                    {club.name}
-                  </Typography>
-                  {club.clubCategoryNames.length > 0 && (
-                    <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap' }} useFlexGap>
-                      {club.clubCategoryNames.map((name) => (
-                        <Chip key={name} size="small" variant="outlined" color="primary" label={name} />
-                      ))}
-                    </Stack>
-                  )}
-                  <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {club.description || t('common.noDescription')}
-                  </Typography>
-                </CardContent>
-              </Card>
+              <ClubBrowseCard
+                club={club}
+                isAuthenticated={isAuthenticated}
+                joining={joinMutation.isPending}
+                onJoin={(clubId) => joinMutation.mutate(clubId)}
+                onShare={handleShare}
+              />
             </Grid>
           ))}
         </Grid>

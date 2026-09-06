@@ -422,6 +422,10 @@ export interface PublicClubListItemDto {
   logoFileId: number | null
   /** K-49: kurumsal sınıflandırma; kimlik taşınmaz (Y-58). */
   clubCategoryNames: string[]
+  /** docs/MIMARI.md · A-81: güncel dönemin üye sayısı. */
+  memberCount: number
+  /** docs/MIMARI.md · A-81: vitrinde görünen (yayınlanmış + herkese açık) etkinlik sayısı. */
+  eventCount: number
 }
 
 // src/Business/DTOs/Public/PublicClubDetailDto.cs
