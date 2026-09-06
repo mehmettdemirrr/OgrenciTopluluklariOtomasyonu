@@ -5,6 +5,7 @@ using Business.DTOs.Public;
 using Core.DataAccess;
 using Core.Utilities.Results;
 using Core.Utilities.Time;
+using DataAccess.Repositories;
 using Entities;
 using Entities.Enums;
 
@@ -18,6 +19,8 @@ public sealed class PublicContentManager(
     IEntityRepository<ClubCategory> clubCategoryRepository,
     IEntityRepository<Student> studentRepository,
     IEntityRepository<ClubSocialLink> clubSocialLinkRepository,
+    IEntityRepository<EventParticipation> eventParticipationRepository,
+    IEventViewDal eventViewDal,
     IClock clock) : IPublicContentService
 {
     private const int DefaultPageSize = 20;
@@ -152,6 +155,49 @@ public sealed class PublicContentManager(
 
         return DataResult<PagedResult<PublicEventListItemDto>>.Success(
             new PagedResult<PublicEventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<PublicEventDetailDto>> GetEventByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        // Y-82: vitrin listesiyle AYNI filtre — eşleşmezse varlığı sızdırmadan NotFound.
+        var entity = await eventRepository
+            .GetAsync(e => e.Id == id && e.Status == EventStatus.Published && e.Audience == EventAudience.Public, cancellationToken)
+            .ConfigureAwait(false);
+        if (entity is null)
+        {
+            return DataResult<PublicEventDetailDto>.NotFound(Messages.EventNotFound);
+        }
+
+        var club = await clubRepository.GetAsync(c => c.Id == entity.ClubId, cancellationToken).ConfigureAwait(false);
+
+        // Y-42: sayım SQL'de.
+        var participantCount = (await eventParticipationRepository
+            .GetListPagedAsync(0, 1, p => p.EventId == id, cancellationToken)
+            .ConfigureAwait(false)).TotalCount;
+
+        return DataResult<PublicEventDetailDto>.Success(new PublicEventDetailDto
+        {
+            Id = entity.Id,
+            ClubId = entity.ClubId,
+            ClubName = club?.Name ?? string.Empty,
+            ClubLogoFileId = club?.LogoFileId,
+            Title = entity.Title,
+            Description = entity.Description,
+            DescriptionJson = entity.DescriptionJson,
+            Location = entity.Location,
+            StartDateUtc = entity.StartDateUtc,
+            EndDateUtc = entity.EndDateUtc,
+            Capacity = entity.Capacity,
+            ParticipantCount = participantCount,
+            ViewCount = entity.ViewCount,
+            PosterFileId = entity.PosterFileId,
+        });
+    }
+
+    public async Task<IResult> RegisterEventViewAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var affected = await eventViewDal.IncrementAsync(id, cancellationToken).ConfigureAwait(false);
+        return affected == 0 ? Result.NotFound(Messages.EventNotFound) : Result.Success();
     }
 
     public async Task<IDataResult<PagedResult<PublicAnnouncementListItemDto>>> GetAnnouncementsAsync(

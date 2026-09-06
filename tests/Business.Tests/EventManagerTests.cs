@@ -42,6 +42,10 @@ public class EventManagerTests
         _currentUser.Setup(c => c.Permissions).Returns([]);
         _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(_club);
         _academicTermRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(_term);
+        // K-46: GetByIdAsync artık katılımcı sayısını da okuyor — varsayılan 0.
+        _participationRepository
+            .Setup(r => r.GetListPagedAsync(0, 1, It.IsAny<Expression<Func<EventParticipation, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResult<EventParticipation>([], 0, 0, 1));
 
         var transaction = new Mock<ITransaction>();
         transaction.Setup(t => t.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -436,5 +440,29 @@ public class EventManagerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(ValidDescriptionJson, result.Data!.DescriptionJson);
+    }
+
+    [Fact(DisplayName = "GetByIdAsync: katılımcı sayısını ve kulüp logosunu doldurur (K-46)")]
+    public async Task GetByIdAsync_FillsParticipantCountAndClubLogo()
+    {
+        var club = new Club { Id = 3, Name = "Kulüp", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow, LogoFileId = 42 };
+        var entity = new Event
+        {
+            Id = 7, ClubId = 3, Title = "Etkinlik", Status = EventStatus.Published, Audience = EventAudience.Public,
+            StartDateUtc = FixedNow.AddDays(1), EndDateUtc = FixedNow.AddDays(1).AddHours(2),
+            CreatedAtUtc = FixedNow, ViewCount = 11,
+        };
+        _eventRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(entity);
+        _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(club);
+        _participationRepository
+            .Setup(r => r.GetListPagedAsync(0, 1, It.IsAny<Expression<Func<EventParticipation, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResult<EventParticipation>([], 5, 0, 1));
+
+        var result = await _sut.GetByIdAsync(7);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(5, result.Data!.ParticipantCount);
+        Assert.Equal(42, result.Data.ClubLogoFileId);
+        Assert.Equal(11, result.Data.ViewCount);
     }
 }

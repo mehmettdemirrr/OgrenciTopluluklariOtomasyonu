@@ -1,6 +1,7 @@
 import { Box, Card, CardContent, CardMedia, Chip, Grid, Stack, Typography } from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
+import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { CardGridSkeleton } from '../../components/ui/CardGridSkeleton'
 import { DateBadge } from '../../components/ui/DateBadge'
@@ -42,7 +43,12 @@ export function PublicEventsPage() {
         <Grid container spacing={2.5}>
           {items.map((event) => (
             <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Card
+                variant="outlined"
+                component={RouterLink}
+                to={`/etkinlikler/${event.id}`}
+                sx={{ height: '100%', display: 'flex', flexDirection: 'column', textDecoration: 'none', color: 'inherit' }}
+              >
                 {event.posterFileId && (
                   <CardMedia component="img" height={160} image={`/api/files/${event.posterFileId}`} alt="" sx={{ objectFit: 'cover' }} />
                 )}

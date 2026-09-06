@@ -301,6 +301,11 @@ export interface EventListItemDto {
   posterFileId: number | null
   /** null = bu listede hesaplanmadı; yalnızca /events/upcoming doldurur (PLAN-V4 §21.5). */
   isRegistered: boolean | null
+  /** docs/MIMARI.md · K-46 */
+  clubLogoFileId: number | null
+  /** null = bu listede hesaplanmadı (yalnızca detay ucu doldurur). */
+  participantCount: number | null
+  viewCount: number
 }
 
 // src/Business/DTOs/Events/EventParticipantListItemDto.cs
@@ -441,6 +446,24 @@ export interface PublicEventListItemDto {
   startDateUtc: string
   endDateUtc: string
   capacity: number | null
+  posterFileId: number | null
+}
+
+// src/Business/DTOs/Public/PublicEventDetailDto.cs
+export interface PublicEventDetailDto {
+  id: number
+  clubId: number
+  clubName: string
+  clubLogoFileId: number | null
+  title: string
+  description: string | null
+  descriptionJson: string | null
+  location: string | null
+  startDateUtc: string
+  endDateUtc: string
+  capacity: number | null
+  participantCount: number
+  viewCount: number
   posterFileId: number | null
 }
 

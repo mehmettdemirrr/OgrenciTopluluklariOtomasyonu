@@ -45,6 +45,12 @@ public sealed class Event : IEntity, ISoftDeletable
 
     public int? PosterFileId { get; set; }
 
+    /// <summary>
+    /// docs/MIMARI.md · K-46/A-77: yaklaşık görüntülenme sayısı. Yalnızca
+    /// `IEventViewDal.IncrementAsync` (tek SQL UPDATE) artırır; okuma yolu dokunmaz.
+    /// </summary>
+    public int ViewCount { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public bool IsDeleted { get; set; }

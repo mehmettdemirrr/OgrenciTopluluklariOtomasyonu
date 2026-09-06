@@ -89,5 +89,9 @@ public sealed class DataAccessAutofacModule(IConfiguration configuration) : Modu
         builder.RegisterType<EfDemoDataDal>()
             .As<IDemoDataDal>()
             .InstancePerLifetimeScope();
+
+        builder.RegisterType<EfEventViewDal>()
+            .As<IEventViewDal>()
+            .InstancePerLifetimeScope();
     }
 }

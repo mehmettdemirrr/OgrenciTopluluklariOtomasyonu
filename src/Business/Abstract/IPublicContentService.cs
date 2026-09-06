@@ -25,6 +25,12 @@ public interface IPublicContentService
     Task<IDataResult<PagedResult<PublicEventListItemDto>>> GetEventsAsync(
         int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 
+    /// <summary>docs/MIMARI.md · K-46/Y-82: vitrin listesiyle aynı filtre; eşleşmezse NotFound. Sayaç okumadan artmaz (A-77), bu yüzden [CacheAspect] YOK.</summary>
+    Task<IDataResult<PublicEventDetailDto>> GetEventByIdAsync(int id, CancellationToken cancellationToken = default);
+
+    /// <summary>docs/MIMARI.md · A-77: sayacı tek SQL cümlesiyle artırır; okuma yolu bunu çağırmaz.</summary>
+    Task<IResult> RegisterEventViewAsync(int id, CancellationToken cancellationToken = default);
+
     [CacheAspect(durationMinutes: 10)]
     Task<IDataResult<PagedResult<PublicAnnouncementListItemDto>>> GetAnnouncementsAsync(
         int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);

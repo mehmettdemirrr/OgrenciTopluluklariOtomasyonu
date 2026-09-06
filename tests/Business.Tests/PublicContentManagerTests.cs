@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Business.Concrete;
 using Core.DataAccess;
 using Core.Utilities.Time;
+using DataAccess.Repositories;
 using Entities;
 using Entities.Enums;
 using Moq;
@@ -23,6 +24,8 @@ public class PublicContentManagerTests
     private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
     private readonly Mock<IEntityRepository<Student>> _studentRepository = new();
     private readonly Mock<IEntityRepository<ClubSocialLink>> _clubSocialLinkRepository = new();
+    private readonly Mock<IEntityRepository<EventParticipation>> _eventParticipationRepository = new();
+    private readonly Mock<IEventViewDal> _eventViewDal = new();
     private readonly Mock<IClock> _clock = new();
     private readonly PublicContentManager _sut;
 
@@ -32,9 +35,13 @@ public class PublicContentManagerTests
         _clubSocialLinkRepository
             .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubSocialLink, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
+        _eventParticipationRepository
+            .Setup(r => r.GetListPagedAsync(0, 1, It.IsAny<Expression<Func<EventParticipation, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResult<EventParticipation>([], 0, 0, 1));
         _sut = new PublicContentManager(
             _clubRepository.Object, _eventRepository.Object, _announcementRepository.Object,
-            _clubCategoryRepository.Object, _studentRepository.Object, _clubSocialLinkRepository.Object, _clock.Object);
+            _clubCategoryRepository.Object, _studentRepository.Object, _clubSocialLinkRepository.Object,
+            _eventParticipationRepository.Object, _eventViewDal.Object, _clock.Object);
     }
 
     [Fact(DisplayName = "GetClubsAsync: yalnızca IsActive=true kulüpler döner, pasif kulüp listede yok")]

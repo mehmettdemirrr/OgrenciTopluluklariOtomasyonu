@@ -1,8 +1,8 @@
 # Öğrenci Toplulukları Otomasyonu — Mimari Taslak
 
-**Sürüm:** v6.7 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
+**Sürüm:** v6.9 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
 eklendi) · v3.0: 23 Ağustos 2026 (Faz 15-18 eklendi) · v4.0: 23 Ağustos 2026 (Faz 19-23 eklendi)
-· v5.0: 25 Ağustos 2026 (Faz 24-29 eklendi) · v6.0: 26 Ağustos 2026 (Faz 30-34 eklendi) · v6.1: 26 Ağustos 2026 (A-67, Y-74 — onay kuyruklarında yönetici kapsamı) · v6.2: 27 Ağustos 2026 (A-68, Y-75, Faz 35 — kulüp içi yetki matrisi; A-61 ve Y-69 tadil edildi) · v6.3: 5 Eylül 2026 (K-40, A-69, Y-76, Faz 36 — kuruluş başvurusunda logo) · v6.4: 5 Eylül 2026 (K-41, A-70, Y-77, Faz 37 — danışmanın toplulukları) · v6.5: 5 Eylül 2026 (K-42, A-71, A-72, Y-78, Faz 38 — zengin duyuru içeriği) · v6.6: 5 Eylül 2026 (K-43, A-73, Y-79, Faz 39 — zengin etkinlik detayı) · v6.7: 5 Eylül 2026 (K-44, A-74, Y-80, Faz 40 — kulüp iletişimi ve sosyal medya) · **v6.8: 5 Eylül 2026 (K-45, A-75, Y-81, Faz 41 — üye olmayanın kulüp görünürlüğü)**
+· v5.0: 25 Ağustos 2026 (Faz 24-29 eklendi) · v6.0: 26 Ağustos 2026 (Faz 30-34 eklendi) · v6.1: 26 Ağustos 2026 (A-67, Y-74 — onay kuyruklarında yönetici kapsamı) · v6.2: 27 Ağustos 2026 (A-68, Y-75, Faz 35 — kulüp içi yetki matrisi; A-61 ve Y-69 tadil edildi) · v6.3: 5 Eylül 2026 (K-40, A-69, Y-76, Faz 36 — kuruluş başvurusunda logo) · v6.4: 5 Eylül 2026 (K-41, A-70, Y-77, Faz 37 — danışmanın toplulukları) · v6.5: 5 Eylül 2026 (K-42, A-71, A-72, Y-78, Faz 38 — zengin duyuru içeriği) · v6.6: 5 Eylül 2026 (K-43, A-73, Y-79, Faz 39 — zengin etkinlik detayı) · v6.7: 5 Eylül 2026 (K-44, A-74, Y-80, Faz 40 — kulüp iletişimi ve sosyal medya) · v6.8: 5 Eylül 2026 (K-45, A-75, Y-81, Faz 41 — üye olmayanın kulüp görünürlüğü) · **v6.9: 6 Eylül 2026 (K-46, A-76, A-77, Y-82, Faz 42 — etkinlik detay sayfası)**
 **Referans mimari:** [engindemirog/NetCoreBackend](https://github.com/engindemirog/NetCoreBackend)
 **Uygulama planları:** [docs/PLAN-V2.md](PLAN-V2.md) (Faz 8-14) · [docs/PLAN-V3.md](PLAN-V3.md) (Faz 15-18)
 · [docs/PLAN-V4.md](PLAN-V4.md) (Faz 19-23) · [docs/PLAN-V5.md](PLAN-V5.md) (Faz 24-29)
@@ -23,7 +23,9 @@ etkinlik detayına harita, zaman çizelgesi ve biçimlendirilmiş açıklama ekl
 (K-43), 1 karar (A-73) ve 1 kural (Y-79) ekledi; **v6.7** topluluğa iletişim e-postası, telefonu ve
 sosyal medya bağlantıları ekleyerek 1 kapsam maddesi (K-44), 1 karar (A-74) ve 1 kural (Y-80) ekledi;
 **v6.8** üye olmayan öğrencinin kulüp sayfasında 403 yerine yayınlanmış etkinlikleri görmesini
-sağlayarak 1 kapsam maddesi (K-45), 1 karar (A-75) ve 1 kural (Y-81) ekledi.
+sağlayarak 1 kapsam maddesi (K-45), 1 karar (A-75) ve 1 kural (Y-81) ekledi; **v6.9** etkinlik
+detayını iki sütunlu düzene taşıyıp anonim ziyaretçiye açarak 1 kapsam maddesi (K-46), 2 karar
+(A-76, A-77) ve 1 kural (Y-82) ekledi.
 Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
 
 > **v6.2 neden bir tadil, iptal değil:** A-61'in kazancı ("yetki kontrolleri ek DB okuması yapmaz")
@@ -38,10 +40,10 @@ Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
 
 | | |
 |---|---|
-| Karar | 75 (36 v1.0 + 7 v2.0 + 4 v3.0 + 7 v4.0 + 5 v5.0 + 9 v6.0 + 1 v6.3 + 1 v6.4 + 2 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8) |
-| Yasak kural | 81 (52 v1.0 + 6 v2.0 + 2 v3.0 + 4 v4.0 + 4 v5.0 + 7 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8) |
+| Karar | 77 (36 v1.0 + 7 v2.0 + 4 v3.0 + 7 v4.0 + 5 v5.0 + 9 v6.0 + 1 v6.3 + 1 v6.4 + 2 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8 + 2 v6.9) |
+| Yasak kural | 82 (52 v1.0 + 6 v2.0 + 2 v3.0 + 4 v4.0 + 4 v5.0 + 7 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8 + 1 v6.9) |
 | V1 dışı madde | 13 (K-13 v4.0'da **ikiye bölündü** — bkz. §3) |
-| Uygulama fazı | 41 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0 + 6 v5.0 + 6 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8) |
+| Uygulama fazı | 42 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0 + 6 v5.0 + 6 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8 + 1 v6.9) |
 
 **Yığın:** .NET 8 LTS · ASP.NET Core Identity · EF Core 8 / MSSQL · Autofac + async AOP ·
 FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · React 18 + Vite + TypeScript + MUI
@@ -51,11 +53,11 @@ FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · 
 ## İçindekiler
 
 1. [Katmanlar ve bağımlılık yönü](#1-katmanlar-ve-bağımlılık-yönü)
-2. [Açıkça yasak (Y-01 … Y-81)](#2-açıkça-yasak)
-3. [V1 kapsamı (K-01 … K-45)](#3-v1-kapsamı)
+2. [Açıkça yasak (Y-01 … Y-82)](#2-açıkça-yasak)
+3. [V1 kapsamı (K-01 … K-46)](#3-v1-kapsamı)
 4. [Teknoloji ve domain](#4-teknoloji-ve-domain)
 5. [Uygulama sırası](#5-uygulama-sırası)
-6. [Karar kaydı (A-01 … A-75)](#6-karar-kaydı)
+6. [Karar kaydı (A-01 … A-77)](#6-karar-kaydı)
 7. [Sessiz onaylar](#7-sessiz-onaylar)
 
 ---
@@ -247,6 +249,7 @@ değiştiririz — ama önce belge değişir, sonra kod.
 | **Y-79** | Geri sayım/kalan süre göstergesini bir **karar** yerine geçirmek — "tarayıcıda tarih geçmiş görünüyor" diye katılım düğmesini açıp kapatmak, kontenjan veya durum kararını istemci saatinden vermek | Kalan süre yalnızca bilgilendirir; katılım açıklığı, etkinlik durumu ve kontenjan kararları her zaman backend'in döndürdüğü alanlardan (`EventListItemDto.Status`, katılım ucunun kendi kararı) okunur. Gerekçe: istemci saati kullanıcı tarafından değiştirilebilir — bir görüntü öğesi onun üstüne bina edilemez (K-43) |
 | **Y-80** | Sosyal medya bağlantısını `http://` şemasıyla veya platformun bilinen alan adı dışında bir adrese kaydetmek; `javascript:` gibi bir şemayı kabul etmek | `ClubSocialLink.Url` sunucu tarafında doğrulanır: şema **daima** `https`, ana bilgisayar adı o platformun bilinen alan adları listesindedir (`Website` platformu hariç — kulübün kendi alan adı serbesttir, şema kısıtı yeterlidir). İstemci tarafı doğrulama yalnızca kolaylıktır; kapı `SetClubSocialLinksRequestValidator`'dadır (K-44, A-74) |
 | **Y-81** | Yetkisiz kullanıcının kulüp etkinlik sekmesini yönetim ucundan (`GET /api/clubs/{id}/events`) okutmak — o kulüpte `EventsManage` kapasitesi yokken bu uca düşmek | Arayüz `ClubDetailDto.myCapabilities`'e bakar: `EventsManage` yoksa yayınlanmış etkinlik ucu (`GET /api/events?clubId=`) çağrılır, yönetim ucu hiç çağrılmaz. Uçların kendi 403'leri **kaldırılmaz** — bu kural yalnızca arayüzün doğru ucu seçmesini garanti eder, ikinci bir yetki kapısı açmaz (K-45, A-75) |
+| **Y-82** | Anonim etkinlik detay ucundan taslak/onay bekleyen/reddedilen ya da `ClubMembers` kitleli bir etkinliği döndürmek; "bulunamadı" yerine 403 dönerek varlığını sızdırmak | `PublicContentManager.GetEventByIdAsync` vitrin listesiyle **aynı** filtreyi uygular (`Status == Published && Audience == Public`); eşleşmeyen her istek `NotFound` döner. Gerekçe: Y-58 ve Y-72'nin detay ucundaki karşılığı — liste sızdırmıyorken detayın sızdırması, filtrenin iki yerde ayrı yazılmasının klasik sonucudur. `PublicSurfaceLeakTests` bu ucu da tarar (K-46, A-76) |
 | **Y-75** | Kulüp içi kapasiteyi, kullanıcının Identity izninin **vermediği** bir şeyi verecek şekilde kullanmak; uç noktadan `[SecuredOperation]`'ı kaldırıp kararı kulüp matrisine bırakmak | Kulüp matrisi yalnızca **daraltır**, asla genişletmez. Uçtaki `[SecuredOperation(events.write)]` birinci kapı olarak yerinde kalır; kulüp kapasitesi ikinci kapıdır. Bir kulüp rolüne "etkinlik yönet" işaretlemek, Identity rolünde `events.write` olmayan birine bu hakkı **veremez** (A-68). Gerekçe: Y-37 ancak izinlerin tek kaynağı Identity kalırsa ayakta durur — matris bir *filtre*, bir *kaynak* değil. Mimari test kapasite okuyan her metodun aynı zamanda `[SecuredOperation]` taşıyan bir uçtan çağrıldığını doğrular |
 | **Y-70** | Başvuru evrakını `Public` görünürlükle kaydetmek veya anonim dosya ucundan servis etmek; indirmede yetkiyi yeniden kontrol etmemek | Evrak daima `FileVisibility.Protected`; erişim yalnızca `GET /api/club-applications/{id}/documents/{documentId}` ucundan, **indirme anında** yeniden kontrol edilen yetkiyle (A-63). Y-52'nin ve Y-51'in evrak karşılığı — adli sicil ve kurucu üye dilekçesi kişisel veridir, K-19 (KVKK akışı) hâlâ V1 dışıdır |
 | **Y-71** | Zorunlu evrak bütünlüğünü yalnızca arayüzde kontrol etmek veya FluentValidation kuralına gömmek | Kontrol `ClubApplicationManager` içinde, evrak tipi katalogunu okuyarak (A-62). Gerekçe: "hangi evrak zorunlu" cevabı veritabanındadır — biçimsel doğrulama değil iş kuralıdır (Y-03, Y-35) |
@@ -343,6 +346,7 @@ Ayrıntılı gerekçe, uçlar ve testler için [docs/PLAN-V6.md](PLAN-V6.md).
 | **K-43** | **Zengin etkinlik detayı** | Etkinlik detay sayfası afiş, biçimlendirilmiş açıklama, konum haritası ve yol tarifi bağlantısı ile başlangıç/bitiş ve kalan süreyi gösteren bir zaman çizelgesi taşır | `Event.DescriptionJson` (A-71'in aynı altyapısı), gömülü harita iframe'i, istemci tarafı geri sayım (A-73, Y-79) |
 | **K-44** | **Topluluk iletişimi** | Topluluk kendi iletişim e-postasını, telefonunu ve sosyal medya hesaplarını tanımlar; bunlar kulüp sayfasında herkese görünür. Tümü isteğe bağlıdır | `Club.ContactEmail`/`ContactPhone`, `ClubSocialLink` (satır başına platform), `PUT /api/clubs/{id}/contact` (A-74, Y-80) |
 | **K-45** | **Üye olmayanın kulüp görünürlüğü** | Giriş yapmış ama kulübe üye olmayan öğrenci, kulübün genel bilgilerini ve YAYINLANMIŞ etkinliklerini görür; üye listesini ve rol tanımlarını görmez. Taslak/onay bekleyen etkinlikler yalnızca yetkililere görünür | `ClubDetailDto.MyRelationship`/`MyCapabilities`, arayüz sekmeleri buradan çizilir, etkinlik sekmesi yetkisizken `GET /api/events?clubId=` ucuna düşer (A-75, Y-81) |
+| **K-46** | **Etkinlik detay sayfası** | Etkinlik detayı iki sütundur: solda afiş ve biçimlendirilmiş açıklama, sağda düzenleyen topluluk, zaman çizelgesi, konum + yol tarifi, görüntülenme/katılımcı/kontenjan sayıları ve birincil eylem. Anonim ziyaretçi de yayınlanmış ve herkese açık etkinliğin detayını görür; katılmak için giriş yapması istenir | `EventDetailLayout` (tek düzen, iki kabuk), `GET /api/public/events/{id}`, `EventListItemDto.ParticipantCount`/`ClubLogoFileId`, `Event.ViewCount` (A-76, A-77, Y-82) |
 
 > **K-29 notu (v6.0):** topluluk kurma başvurusu V6'da iki yerden birden büyüyor — önüne bir **kapı**
 > (K-39 takvimi), içine **evrak** (K-37) geliyor. Onay akışının kendisi değişmiyor: tek aşamalı admin
@@ -753,6 +757,8 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | **A-73** | Harita **gömülü iframe'dir, kütüphane değildir** | A | Konum, Google Maps'in `output=embed` ucuna gömülür ve yol tarifi bağlantısı aynı sorgu metniyle kurulur; harita SDK'sı veya API anahtarı projeye girmez. Yardımcılar `arayuz/src/utils/maps.ts` altında tek yerde durur — ana sayfanın kampüs haritası da (önceden `data/campuses.ts` içinde kopyası duran) buradan besleniyor. Gerekçe: iki ayrı harita yardımcı seti, biri güncellenirken öbürünün unutulması demektir (K-43) |
 | **A-74** | Sosyal hesaplar **satırdır, kolon değil**; yazma kapısı **`AnnouncementsManage`** kapasitesidir | A | Sosyal medya bağlantıları `ClubSocialLink` tablosunda (`ClubId`, `Platform`, `Url`, `DisplayOrder`) tutulur; `Club` satırına platform başına kolon eklenmez. Gerekçe: platform kümesi zamanla değişir, kolon eklemek her seferinde migration ve DTO şişmesi demektir; sıralama ve "aynı platformdan iki hesap" ihtiyacı satır modeliyle doğal karşılanır. E-posta ve telefon kulübe birebir olduğu için `Club` üzerinde kalır. **Yazma kapısı:** `Club.Name`/`Description` gibi çekirdek alanlar hâlâ yalnızca Admin'in (`clubs.write`) kapısındadır — bu faz onu genişletmez. İletişim/sosyal bağlantılar ise **dışa dönük iletişimin bir parçası** sayılır ve `AnnouncementManager.EnsureClubWriteAccessAsync` ile birebir aynı desenle korunur: danışman veya `ClubCapability.AnnouncementsManage` taşıyan üye (varsayılan olarak başkan ve yetkili), ya da `clubs.manage.all` taşıyan yönetici. Yeni bir `ClubCapability` bayrağı **açılmaz** — A-68 kapalı bir kümedir; en yakın anlamsal karşılık (iletişim ⇄ duyuru) yeniden kullanılır (K-44, Y-80) |
 | **A-75** | Sekme görünürlüğü global izinle değil, **kulüpteki ilişkiyle** belirlenir | A | `ClubDetailDto`, çağıran kullanıcının o kulüpteki ilişkisini (`MyRelationship`, Faz 37'nin `ClubRelationship` enum'ı) ve kapasitelerini (`MyCapabilities`, A-68) taşır; arayüz "Üyeler"/"Roller"/"Etkinlik yönetimi" sekmelerini ve düğmelerini bu iki alandan çizer. Gerekçe: `ClubDetailPage` daha önce **global** `memberships.read`/`events.write` iznine bakıyordu — bir kulüpte yetkili olan öğrenci, hiç üyesi olmadığı başka bir kulübün "Üyeler" sekmesini de açık görüyor ve uç kendi 403'ünü döndürüyordu (Y-35 doğru çalışıyordu ama kullanıcı hatasız bir ekran yerine kırık bir ekranla karşılaşıyordu). `Club.Name`/`Description` gibi çekirdek alanların düzenleme kapısı bu fazda **değişmez** — hâlâ yalnızca Admin'in (`clubs.write`) elinde (A-74'ün notu) (K-45, Y-81) |
+| **A-76** | Etkinlik detay **düzeni tek bileşendir**, sayfa onu giydirir | A | Afiş, açıklama kartı ve sağ sütun (düzenleyen/zaman/konum/istatistik) `arayuz/src/components/events/EventDetailLayout.tsx` içinde bir kez yazılır; anonim sayfa (`/etkinlikler/:id`) ve panel sayfası (`/events/:id`) onu sarar. Fark yalnızca **birincil eylem alanı** (`primaryAction` slotu: anonimde "Giriş Yap", panelde katıl/iptal) ve panele özgü ek bölümlerdir (katılımcı listesi, düzenleme/iptal). Gerekçe: A-73'ün harita yardımcılarında öğrendiğimiz ders — aynı görünümün iki kopyası, biri güncellenirken öbürünün unutulması demektir (K-46) |
+| **A-77** | Görüntülenme sayacı **ayrı bir yazma ucudur**, okuma yolunda artmaz | A | Detay ucu (`GET`) sayacı **artırmaz**; arayüz sayfayı açtığında ayrı bir `POST /api/public/events/{id}/view` çağırır ve bunu `sessionStorage` ile oturum başına bir kereye indirir. Artırma `IEventViewDal.IncrementAsync` içinde `ExecuteUpdateAsync` ile **tek SQL cümlesidir**: `Event.RowVersion` taşıdığı için oku-değiştir-kaydet döngüsü eşzamanlı okumalarda `ConcurrencyConflictException` üretirdi (A-15/Y-53). Sayaç **yaklaşıktır** ve bir karar dayanağı değildir; kontenjan ve katılım kararları hâlâ yalnızca katılım ucundan gelir. Gerekçe: GET'in yan etkisi olmaması hem önbelleklenebilirliği hem "okumak veriyi değiştirmez" beklentisini korur (K-46) |
 
 ### Kararların birbirini etkilediği yerler
 

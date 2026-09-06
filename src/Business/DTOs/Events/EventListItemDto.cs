@@ -45,4 +45,17 @@ public sealed class EventListItemDto
     /// bilinçli olarak `bool?`. Yalnızca `/api/events/upcoming` doldurur.
     /// </summary>
     public bool? IsRegistered { get; set; }
+
+    /// <summary>docs/MIMARI.md · K-46: düzenleyen topluluğun logosu (kart görseli). Null = logosuz kulüp.</summary>
+    public int? ClubLogoFileId { get; set; }
+
+    /// <summary>
+    /// docs/MIMARI.md · K-46: bu etkinliğe kayıtlı kişi sayısı — isim/öğrenci no taşımaz (Y-58).
+    /// <b>null</b> = bu listede hesaplanmadı (IsRegistered ile aynı sözleşme): yalnızca detay ucu doldurur,
+    /// liste uçları sayfa başına N sorgu açmasın diye boş bırakır.
+    /// </summary>
+    public int? ParticipantCount { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-77: yaklaşık görüntülenme sayısı; karar dayanağı değildir.</summary>
+    public int ViewCount { get; set; }
 }

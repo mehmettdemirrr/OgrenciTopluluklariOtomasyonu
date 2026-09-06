@@ -32,6 +32,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { HomePage } from './pages/public/HomePage'
 import { PublicClubDetailPage } from './pages/public/PublicClubDetailPage'
 import { PublicClubsPage } from './pages/public/PublicClubsPage'
+import { PublicEventDetailPage } from './pages/public/PublicEventDetailPage'
 import { PublicEventsPage } from './pages/public/PublicEventsPage'
 import { ReferenceDataPage } from './pages/ReferenceDataPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -63,6 +64,7 @@ function App() {
                   <Route path="/kulupler" element={<PublicClubsPage />} />
                   <Route path="/kulupler/:id" element={<PublicClubDetailPage />} />
                   <Route path="/etkinlikler" element={<PublicEventsPage />} />
+                  <Route path="/etkinlikler/:id" element={<PublicEventDetailPage />} />
                 </Route>
 
                 <Route

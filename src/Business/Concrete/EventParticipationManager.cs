@@ -195,27 +195,33 @@ public sealed class EventParticipationManager(
             .ConfigureAwait(false);
 
         var clubIds = paged.Items.Select(e => e.ClubId).Distinct().ToList();
-        var clubNames = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
-            .ToDictionary(c => c.Id, c => c.Name);
+        var clubs = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(c => c.Id, c => c);
 
-        var items = paged.Items.Select(e => new EventListItemDto
+        var items = paged.Items.Select(e =>
         {
-            Id = e.Id,
-            ClubId = e.ClubId,
-            ClubName = clubNames.GetValueOrDefault(e.ClubId, string.Empty),
-            Title = e.Title,
-            Description = e.Description,
-            DescriptionJson = e.DescriptionJson,
-            Location = e.Location,
-            StartDateUtc = e.StartDateUtc,
-            EndDateUtc = e.EndDateUtc,
-            Capacity = e.Capacity,
-            Status = e.Status,
-            Audience = e.Audience,
-            CancellationReason = e.CancellationReason,
-            // İkinci kurulum yeri: burası atlanırsa "Etkinliklerim" listesindeki afişler
-            // sessizce kaybolur (Faz 30'da Audience ile aynı tuzağa düşülmüştü).
-            PosterFileId = e.PosterFileId,
+            clubs.TryGetValue(e.ClubId, out var club);
+            return new EventListItemDto
+            {
+                Id = e.Id,
+                ClubId = e.ClubId,
+                ClubName = club?.Name ?? string.Empty,
+                Title = e.Title,
+                Description = e.Description,
+                DescriptionJson = e.DescriptionJson,
+                Location = e.Location,
+                StartDateUtc = e.StartDateUtc,
+                EndDateUtc = e.EndDateUtc,
+                Capacity = e.Capacity,
+                Status = e.Status,
+                Audience = e.Audience,
+                CancellationReason = e.CancellationReason,
+                // İkinci kurulum yeri: burası atlanırsa "Etkinliklerim" listesindeki afişler
+                // sessizce kaybolur (Faz 30'da Audience ile aynı tuzağa düşülmüştü).
+                PosterFileId = e.PosterFileId,
+                ClubLogoFileId = club?.LogoFileId,
+                ViewCount = e.ViewCount,
+            };
         }).ToList();
 
         var result = new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize);

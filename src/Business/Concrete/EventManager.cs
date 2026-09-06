@@ -306,7 +306,14 @@ public sealed class EventManager(
         }
 
         var club = await clubRepository.GetAsync(c => c.Id == @event.ClubId, cancellationToken).ConfigureAwait(false);
-        return DataResult<EventListItemDto>.Success(MapToDto(@event, club?.Name ?? string.Empty));
+        var dto = MapToDto(@event, club?.Name ?? string.Empty, club?.LogoFileId);
+
+        // Y-42: sayım SQL'de — TotalCount okunur, satırlar çekilmez. Yalnızca detay ucu doldurur.
+        dto.ParticipantCount = (await participationRepository
+            .GetListPagedAsync(0, 1, p => p.EventId == eventId, cancellationToken)
+            .ConfigureAwait(false)).TotalCount;
+
+        return DataResult<EventListItemDto>.Success(dto);
     }
 
     public async Task<IDataResult<PagedResult<EventListItemDto>>> GetUpcomingAsync(
@@ -466,7 +473,7 @@ public sealed class EventManager(
         return Result.Success(Messages.EventDeleted);
     }
 
-    private static EventListItemDto MapToDto(Event e, string clubName) => new()
+    private static EventListItemDto MapToDto(Event e, string clubName, int? clubLogoFileId) => new()
     {
         Id = e.Id,
         ClubId = e.ClubId,
@@ -482,14 +489,20 @@ public sealed class EventManager(
         Audience = e.Audience,
         CancellationReason = e.CancellationReason,
         PosterFileId = e.PosterFileId,
+        ClubLogoFileId = clubLogoFileId,
+        ViewCount = e.ViewCount,
     };
 
     private async Task<List<EventListItemDto>> MapWithClubNamesAsync(PagedResult<Event> paged, List<int> clubIds, CancellationToken cancellationToken)
     {
-        var clubNames = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
-            .ToDictionary(c => c.Id, c => c.Name);
+        var clubs = (await clubRepository.GetListAsync(c => clubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+            .ToDictionary(c => c.Id, c => c);
 
-        return paged.Items.Select(e => MapToDto(e, clubNames.GetValueOrDefault(e.ClubId, string.Empty))).ToList();
+        return paged.Items
+            .Select(e => clubs.TryGetValue(e.ClubId, out var club)
+                ? MapToDto(e, club.Name, club.LogoFileId)
+                : MapToDto(e, string.Empty, null))
+            .ToList();
     }
 
     // Y-23: izin claim'i (events.write) yeterli değil — yalnızca kulübün danışmanı VEYA güncel

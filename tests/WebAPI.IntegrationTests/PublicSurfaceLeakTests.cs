@@ -62,6 +62,31 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
         AssertNoPii(body, scenario);
     }
 
+    [Fact(DisplayName = "Anonim ziyaretçi: /api/public/events/{id} sızmaz — Draft/PendingApproval 404, Published PII taşımaz (K-46/Y-82)")]
+    public async Task GetPublicEventById_Anonymous_LeaksNothing()
+    {
+        var scenario = await SeedScenarioAsync("event-detail");
+
+        int publishedId, draftId, pendingId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            publishedId = (await db.Events.SingleAsync(e => e.Title == scenario.PublishedEventTitle)).Id;
+            draftId = (await db.Events.SingleAsync(e => e.Title == scenario.DraftEventTitle)).Id;
+            pendingId = (await db.Events.SingleAsync(e => e.Title == scenario.PendingEventTitle)).Id;
+        }
+
+        var publishedResponse = await _client.GetAsync($"/api/public/events/{publishedId}");
+        Assert.Equal(HttpStatusCode.OK, publishedResponse.StatusCode);
+        var publishedBody = await publishedResponse.Content.ReadAsStringAsync();
+        Assert.Contains(scenario.PublishedEventTitle, publishedBody);
+        Assert.DoesNotContain("participants", publishedBody, StringComparison.OrdinalIgnoreCase);
+        AssertNoPii(publishedBody, scenario);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync($"/api/public/events/{draftId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync($"/api/public/events/{pendingId}")).StatusCode);
+    }
+
     [Fact(DisplayName = "Anonim ziyaretçi: /api/public/announcements yalnızca Public görünürlüklü duyuruyu döner, Members duyurusu sızmaz")]
     public async Task GetPublicAnnouncements_Anonymous_ReturnsOnlyPublicVisibilityAnnouncement()
     {
