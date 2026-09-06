@@ -13,10 +13,6 @@ public sealed class PublicClubDetailDto
 
     public int? LogoFileId { get; set; }
 
-    /// <summary>
-    /// docs/MIMARI.md · K-35: kategori adı. Y-58 kontrolü: kurumsal sınıflandırma, kişisel veri değil.
-    /// Kimlik (ClubCategoryId) taşınmaz — vitrinin ihtiyacı yalnızca görünen ad.
-    /// </summary>
     /// <summary>docs/MIMARI.md · K-49: ada göre sıralı kategori adları. Y-58: kişisel veri değil.</summary>
     public IReadOnlyList<string> ClubCategoryNames { get; set; } = [];
 
@@ -28,4 +24,16 @@ public sealed class PublicClubDetailDto
 
     /// <summary>docs/MIMARI.md · K-44/A-74: DisplayOrder'a göre sıralı sosyal bağlantılar.</summary>
     public IReadOnlyList<ClubSocialLinkDto> SocialLinks { get; set; } = [];
+
+    /// <summary>docs/MIMARI.md · Y-87: kuruluş yılı; null ise arayüz rozeti çizmez.</summary>
+    public int? FoundedYear { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-81: güncel dönemin üye sayısı.</summary>
+    public int MemberCount { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-81: vitrinde görünen etkinlik sayısı.</summary>
+    public int EventCount { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-82/A-77: yaklaşık görüntülenme sayısı.</summary>
+    public int ViewCount { get; set; }
 }

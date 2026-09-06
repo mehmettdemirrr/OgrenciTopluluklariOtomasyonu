@@ -21,4 +21,7 @@ public sealed class UpdateClubRequestDto
 
     /// <summary>docs/MIMARI.md · K-49: en fazla 3 (validator). Boş liste = kategorisiz.</summary>
     public IReadOnlyList<int> ClubCategoryIds { get; set; } = [];
+
+    /// <summary>docs/MIMARI.md · K-51/Y-87: kuruluş yılı. Null = bilinmiyor, rozet çizilmez.</summary>
+    public int? FoundedYear { get; set; }
 }

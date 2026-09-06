@@ -258,6 +258,7 @@ public sealed class ClubManager(
 
         club.Name = name;
         club.Description = request.Description?.Trim();
+        club.FoundedYear = request.FoundedYear;
         clubRepository.Update(club);
 
         // A-80: kategoriler topluca değiştirilir (eskiler silinir, yeniler yazılır).

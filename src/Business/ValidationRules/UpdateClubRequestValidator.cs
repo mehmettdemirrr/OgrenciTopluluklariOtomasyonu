@@ -15,5 +15,10 @@ public sealed class UpdateClubRequestValidator : AbstractValidator<UpdateClubReq
             .NotNull()
             .Must(ids => ids.Count <= 3).WithMessage("En fazla 3 kategori seçilebilir.")
             .Must(ids => ids.Distinct().Count() == ids.Count).WithMessage("Aynı kategori birden fazla kez seçilemez.");
+
+        // Y-87: yıl, üniversitenin kuruluşundan bugüne makul bir aralıkta olmalı; boş bırakılabilir.
+        RuleFor(x => x.FoundedYear)
+            .InclusiveBetween(1900, DateTime.UtcNow.Year)
+            .When(x => x.FoundedYear is not null);
     }
 }

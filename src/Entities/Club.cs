@@ -26,6 +26,15 @@ public sealed class Club : IEntity
     /// <summary>docs/MIMARI.md · K-44: topluluk iletişim telefonu. Null = tanımsız.</summary>
     public string? ContactPhone { get; set; }
 
+    /// <summary>
+    /// docs/MIMARI.md · K-51/Y-87: topluluğun KURULUŞ yılı. Null = bilinmiyor (rozet çizilmez).
+    /// CreatedAtUtc (kaydın sisteme girildiği an) ile karıştırılmaz.
+    /// </summary>
+    public int? FoundedYear { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-82/A-77: yaklaşık görüntülenme sayısı; yalnızca IClubViewDal artırır.</summary>
+    public int ViewCount { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public byte[] RowVersion { get; set; } = null!;

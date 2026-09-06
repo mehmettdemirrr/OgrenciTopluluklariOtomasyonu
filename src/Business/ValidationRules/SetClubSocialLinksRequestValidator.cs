@@ -14,6 +14,7 @@ public sealed class SetClubSocialLinksRequestValidator : AbstractValidator<SetCl
             [SocialPlatform.X] = ["x.com", "www.x.com", "twitter.com", "www.twitter.com"],
             [SocialPlatform.LinkedIn] = ["linkedin.com", "www.linkedin.com"],
             [SocialPlatform.YouTube] = ["youtube.com", "www.youtube.com", "youtu.be"],
+            [SocialPlatform.Facebook] = ["facebook.com", "www.facebook.com", "m.facebook.com"],
         };
 
     public SetClubSocialLinksRequestValidator()

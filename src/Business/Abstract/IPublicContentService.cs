@@ -21,6 +21,9 @@ public interface IPublicContentService
 
     Task<IDataResult<PublicClubDetailDto>> GetClubByIdAsync(int id, CancellationToken cancellationToken = default);
 
+    /// <summary>docs/MIMARI.md · A-82: sayacı tek SQL cümlesiyle artırır; okuma yolu bunu çağırmaz.</summary>
+    Task<IResult> RegisterClubViewAsync(int id, CancellationToken cancellationToken = default);
+
     [CacheAspect(durationMinutes: 10)]
     Task<IDataResult<PagedResult<PublicEventListItemDto>>> GetEventsAsync(
         int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);

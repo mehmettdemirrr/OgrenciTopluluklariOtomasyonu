@@ -35,6 +35,14 @@ public sealed class PublicContentController(IPublicContentService publicContentS
         return result.ToActionResult();
     }
 
+    /// <summary>docs/MIMARI.md · A-82: sayaç ucu; gövde almaz, oturum başına bir kez çağrılır.</summary>
+    [HttpPost("clubs/{id:int}/view")]
+    public async Task<IActionResult> RegisterClubView(int id, CancellationToken cancellationToken)
+    {
+        var result = await publicContentService.RegisterClubViewAsync(id, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpGet("events")]
     public async Task<IActionResult> GetEvents(
         [FromQuery] int? clubId = null,

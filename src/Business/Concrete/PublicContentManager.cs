@@ -23,6 +23,7 @@ public sealed class PublicContentManager(
     IEventViewDal eventViewDal,
     IClubCategoryAssignmentDal clubCategoryAssignmentDal,
     IClubStatsDal clubStatsDal,
+    IClubViewDal clubViewDal,
     IClock clock) : IPublicContentService
 {
     private const int DefaultPageSize = 20;
@@ -95,6 +96,9 @@ public sealed class PublicContentManager(
             .GetNamesByClubAsync([id], cancellationToken)
             .ConfigureAwait(false);
 
+        var stats = await clubStatsDal.GetCountsAsync([id], cancellationToken).ConfigureAwait(false);
+        var clubStats = stats.TryGetValue(id, out var found) ? found : new ClubCardStats(0, 0);
+
         var socialLinks = (await clubSocialLinkRepository.GetListAsync(l => l.ClubId == id, cancellationToken).ConfigureAwait(false))
             .OrderBy(l => l.DisplayOrder)
             .Select(l => new ClubSocialLinkDto { Platform = l.Platform, Url = l.Url, DisplayOrder = l.DisplayOrder })
@@ -110,7 +114,17 @@ public sealed class PublicContentManager(
             ContactEmail = club.ContactEmail,
             ContactPhone = club.ContactPhone,
             SocialLinks = socialLinks,
+            FoundedYear = club.FoundedYear,
+            MemberCount = clubStats.MemberCount,
+            EventCount = clubStats.EventCount,
+            ViewCount = club.ViewCount,
         });
+    }
+
+    public async Task<IResult> RegisterClubViewAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var affected = await clubViewDal.IncrementAsync(id, cancellationToken).ConfigureAwait(false);
+        return affected == 0 ? Result.NotFound(Messages.ClubNotFound) : Result.Success();
     }
 
     public async Task<IDataResult<PagedResult<PublicEventListItemDto>>> GetEventsAsync(

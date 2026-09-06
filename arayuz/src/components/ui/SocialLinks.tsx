@@ -1,4 +1,5 @@
 import { IconButton, Stack } from '@mui/material'
+import FacebookIcon from '@mui/icons-material/Facebook'
 import InstagramIcon from '@mui/icons-material/Instagram'
 import LanguageIcon from '@mui/icons-material/Language'
 import LinkedInIcon from '@mui/icons-material/LinkedIn'
@@ -8,11 +9,12 @@ import type { ClubSocialLinkDto, SocialPlatform } from '../../api/types'
 
 // docs/MIMARI.md · K-44/A-74: kulüp düzenleme formu ve vitrin sayfası aynı platform kümesini/ikonu
 // kullanır — burada tek yerde durur, iki kopya birbirinden ayrışmasın.
-export const SOCIAL_PLATFORMS: SocialPlatform[] = ['Instagram', 'X', 'LinkedIn', 'YouTube', 'Website']
+export const SOCIAL_PLATFORMS: SocialPlatform[] = ['Instagram', 'X', 'Facebook', 'LinkedIn', 'YouTube', 'Website']
 
 export const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, typeof InstagramIcon> = {
   Instagram: InstagramIcon,
   X: XIcon,
+  Facebook: FacebookIcon,
   LinkedIn: LinkedInIcon,
   YouTube: YouTubeIcon,
   Website: LanguageIcon,
@@ -21,6 +23,7 @@ export const SOCIAL_PLATFORM_ICONS: Record<SocialPlatform, typeof InstagramIcon>
 export const SOCIAL_PLATFORM_LABELS: Record<SocialPlatform, string> = {
   Instagram: 'Instagram',
   X: 'X (Twitter)',
+  Facebook: 'Facebook',
   LinkedIn: 'LinkedIn',
   YouTube: 'YouTube',
   Website: 'Web Sitesi',

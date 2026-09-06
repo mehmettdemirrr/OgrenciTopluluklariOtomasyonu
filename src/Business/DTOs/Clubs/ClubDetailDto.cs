@@ -34,6 +34,12 @@ public sealed class ClubDetailDto
     /// <summary>docs/MIMARI.md · K-44: topluluk iletişim telefonu. Null = tanımsız.</summary>
     public string? ContactPhone { get; set; }
 
+    /// <summary>docs/MIMARI.md · K-51/Y-87: kuruluş yılı. Null = bilinmiyor.</summary>
+    public int? FoundedYear { get; set; }
+
+    /// <summary>docs/MIMARI.md · A-82: yaklaşık görüntülenme sayısı.</summary>
+    public int ViewCount { get; set; }
+
     /// <summary>docs/MIMARI.md · K-44/A-74: DisplayOrder'a göre sıralı sosyal bağlantılar.</summary>
     public IReadOnlyList<ClubSocialLinkDto> SocialLinks { get; set; } = [];
 

@@ -8,4 +8,5 @@ public enum SocialPlatform
     LinkedIn = 2,
     YouTube = 3,
     Website = 4,
+    Facebook = 5,
 }

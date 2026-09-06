@@ -28,6 +28,7 @@ public class PublicContentManagerTests
     private readonly Mock<IEventViewDal> _eventViewDal = new();
     private readonly Mock<IClubCategoryAssignmentDal> _clubCategoryAssignmentDal = new();
     private readonly Mock<IClubStatsDal> _clubStatsDal = new();
+    private readonly Mock<IClubViewDal> _clubViewDal = new();
     private readonly Mock<IClock> _clock = new();
     private readonly PublicContentManager _sut;
 
@@ -50,7 +51,7 @@ public class PublicContentManagerTests
             _clubRepository.Object, _eventRepository.Object, _announcementRepository.Object,
             _clubCategoryRepository.Object, _studentRepository.Object, _clubSocialLinkRepository.Object,
             _eventParticipationRepository.Object, _eventViewDal.Object, _clubCategoryAssignmentDal.Object,
-            _clubStatsDal.Object, _clock.Object);
+            _clubStatsDal.Object, _clubViewDal.Object, _clock.Object);
     }
 
     [Fact(DisplayName = "GetClubsAsync: yalnızca IsActive=true kulüpler döner, pasif kulüp listede yok")]

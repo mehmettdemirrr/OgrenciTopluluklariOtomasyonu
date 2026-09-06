@@ -17,6 +17,8 @@ public class ClubSocialLinkValidationTests
     [InlineData(SocialPlatform.X, "https://twitter.com/topluluk", true)]
     [InlineData(SocialPlatform.Website, "https://topluluk.ozal.edu.tr", true)]
     [InlineData(SocialPlatform.Website, "http://topluluk.ozal.edu.tr", false)]
+    [InlineData(SocialPlatform.Facebook, "https://www.facebook.com/topluluk", true)]
+    [InlineData(SocialPlatform.Facebook, "https://facebook.evil.com/topluluk", false)]
     public void Validator_AcceptsOnlyHttpsKnownHosts(SocialPlatform platform, string url, bool expected)
     {
         var request = new SetClubSocialLinksRequestDto

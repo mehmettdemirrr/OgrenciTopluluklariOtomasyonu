@@ -19,7 +19,7 @@ export interface ClubListItemDto {
 }
 
 // src/Entities/Enums/SocialPlatform.cs
-export type SocialPlatform = 'Instagram' | 'X' | 'LinkedIn' | 'YouTube' | 'Website'
+export type SocialPlatform = 'Instagram' | 'X' | 'LinkedIn' | 'YouTube' | 'Website' | 'Facebook'
 
 // src/Business/DTOs/Clubs/ClubSocialLinkDto.cs
 export interface ClubSocialLinkDto {
@@ -439,6 +439,11 @@ export interface PublicClubDetailDto {
   contactEmail: string | null
   contactPhone: string | null
   socialLinks: ClubSocialLinkDto[]
+  /** docs/MIMARI.md · Y-87: kuruluş yılı; null ise rozet çizilmez. */
+  foundedYear: number | null
+  memberCount: number
+  eventCount: number
+  viewCount: number
 }
 
 // src/Business/DTOs/Public/PublicEventListItemDto.cs
