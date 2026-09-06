@@ -151,6 +151,38 @@ public sealed class AnnouncementManager(
         return Result.Success(Messages.AnnouncementDeleted);
     }
 
+    public async Task<IDataResult<AnnouncementListItemDto>> GetByIdAsync(int announcementId, CancellationToken cancellationToken = default)
+    {
+        var announcement = await announcementRepository.GetAsync(a => a.Id == announcementId, cancellationToken).ConfigureAwait(false);
+        if (announcement is null)
+        {
+            return DataResult<AnnouncementListItemDto>.NotFound(Messages.AnnouncementNotFound);
+        }
+
+        var accessError = await EnsureAnnouncementWriteAccessAsync(announcement, cancellationToken).ConfigureAwait(false);
+        if (accessError is not null)
+        {
+            return DataResult<AnnouncementListItemDto>.Forbidden(accessError);
+        }
+
+        var club = announcement.ClubId is { } clubId
+            ? await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        return DataResult<AnnouncementListItemDto>.Success(new AnnouncementListItemDto
+        {
+            Id = announcement.Id,
+            ClubId = announcement.ClubId,
+            ClubName = club?.Name,
+            Title = announcement.Title,
+            Content = announcement.Content,
+            ContentJson = announcement.ContentJson,
+            ImageFileId = announcement.ImageFileId,
+            Visibility = announcement.Visibility,
+            PublishedAtUtc = announcement.PublishedAtUtc,
+        });
+    }
+
     public async Task<IDataResult<int>> CreateGlobalAsync(CreateAnnouncementRequestDto request, CancellationToken cancellationToken = default)
     {
         if (!TryResolveContent(request.Content, request.ContentJson, out var content, out var contentError))

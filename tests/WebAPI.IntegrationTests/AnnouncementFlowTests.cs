@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using DataAccess;
 using Entities;
 using Microsoft.AspNetCore.Identity;
@@ -103,6 +104,50 @@ public sealed class AnnouncementFlowTests : IClassFixture<CustomWebApplicationFa
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var announcement = await db.Announcements.SingleAsync(a => a.Id == announcementId);
         Assert.Null(announcement.ClubId);
+    }
+
+    [Fact(DisplayName = "K-47: duyuru düzenleme sayfası için tekil okuma ucu duyuruyu döndürür")]
+    public async Task GetById_ReturnsAnnouncement_ForManager()
+    {
+        var scenario = await SeedScenarioAsync("ann-getbyid");
+        var advisorToken = await LoginAndGetAccessTokenAsync(scenario.AdvisorEmail, scenario.AdvisorPassword);
+        var createResponse = await SendWithBearerAsync(
+            HttpMethod.Post, $"/api/clubs/{scenario.ClubId}/announcements", advisorToken,
+            new { Title = "Okunacak Duyuru", Content = "İçerik", Visibility = "Members" });
+        var announcementId = await createResponse.Content.ReadFromJsonAsync<int>();
+
+        var response = await SendWithBearerAsync(HttpMethod.Get, $"/api/announcements/{announcementId}", advisorToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Okunacak Duyuru", body.GetProperty("title").GetString());
+    }
+
+    [Fact(DisplayName = "Y-35: kulüple ilgisi olmayan kullanıcı tekil duyuru ucundan Forbidden alır")]
+    public async Task GetById_ReturnsForbidden_ForUnrelatedUser()
+    {
+        var scenario = await SeedScenarioAsync("ann-getbyid-forbidden");
+        var advisorToken = await LoginAndGetAccessTokenAsync(scenario.AdvisorEmail, scenario.AdvisorPassword);
+        var createResponse = await SendWithBearerAsync(
+            HttpMethod.Post, $"/api/clubs/{scenario.ClubId}/announcements", advisorToken,
+            new { Title = "Gizli", Content = "İçerik", Visibility = "Members" });
+        var announcementId = await createResponse.Content.ReadFromJsonAsync<int>();
+
+        const string password = "Officer!Test123456";
+        const string email = "ann-getbyid-outsider@test.local";
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+            var created = await userManager.CreateAsync(user, password);
+            Assert.True(created.Succeeded, string.Join("; ", created.Errors.Select(e => e.Description)));
+            await userManager.AddToRoleAsync(user, "ClubOfficer");
+        }
+
+        var outsiderToken = await LoginAndGetAccessTokenAsync(email, password);
+        var response = await SendWithBearerAsync(HttpMethod.Get, $"/api/announcements/{announcementId}", outsiderToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     private async Task<string> LoginAndGetAccessTokenAsync(string email, string password)

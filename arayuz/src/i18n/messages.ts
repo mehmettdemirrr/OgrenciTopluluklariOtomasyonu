@@ -34,6 +34,7 @@ export const tr = {
     capacity: 'Kontenjan: {count}',
     totalRecords: 'Toplam {count} kayıt',
     notFound: 'Kayıt bulunamadı',
+    cancel: 'Vazgeç',
   },
   event: {
     finished: 'Sona erdi',
@@ -241,6 +242,16 @@ export const tr = {
     public: 'Herkese Açık',
     clubMembers: 'Üyelere Özel',
   },
+  form: {
+    discardTitle: 'Kaydedilmemiş değişiklikler',
+    discardBody: 'Bu sayfadan çıkarsanız girdikleriniz kaybolur. Çıkmak istiyor musunuz?',
+    discardConfirm: 'Çık',
+    saveEvent: 'Etkinliği Kaydet',
+    createEvent: 'Etkinlik Oluştur',
+    saveAnnouncement: 'Duyuruyu Kaydet',
+    createAnnouncement: 'Duyuru Yayınla',
+    selectClub: 'Topluluk seçin',
+  },
 }
 
 export const en: typeof tr = {
@@ -279,6 +290,7 @@ export const en: typeof tr = {
     capacity: 'Capacity: {count}',
     totalRecords: '{count} records in total',
     notFound: 'No records found',
+    cancel: 'Cancel',
   },
   event: {
     finished: 'Finished',
@@ -485,6 +497,16 @@ export const en: typeof tr = {
     membersOnly: 'Members only',
     public: 'Public',
     clubMembers: 'Club members',
+  },
+  form: {
+    discardTitle: 'Unsaved changes',
+    discardBody: 'Leaving this page discards your changes. Continue?',
+    discardConfirm: 'Discard',
+    saveEvent: 'Save Event',
+    createEvent: 'Create Event',
+    saveAnnouncement: 'Save Announcement',
+    createAnnouncement: 'Publish Announcement',
+    selectClub: 'Select a club',
   },
 }
 

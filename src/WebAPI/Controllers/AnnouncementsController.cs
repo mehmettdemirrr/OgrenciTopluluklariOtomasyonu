@@ -34,6 +34,13 @@ public sealed class AnnouncementsController(IAnnouncementService announcementSer
         return result.ToActionResult();
     }
 
+    [HttpGet("announcements/{id:int}")]
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+    {
+        var result = await announcementService.GetByIdAsync(id, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpPut("announcements/{id:int}")]
     public async Task<IActionResult> Update(int id, UpdateAnnouncementRequestDto request, CancellationToken cancellationToken)
     {

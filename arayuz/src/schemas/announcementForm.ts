@@ -10,3 +10,14 @@ export const announcementFormSchema = z.object({
 })
 
 export type AnnouncementFormValues = z.infer<typeof announcementFormSchema>
+
+export const emptyAnnouncementFormValues: AnnouncementFormValues = { title: '', contentJson: '', visibility: 'Members' }
+
+// docs/MIMARI.md · A-71: eski düz metin duyuru düzenlemeye açılınca kaybolmasın diye
+// editöre tek paragraflık bir belge olarak yüklenir.
+export function plainTextToDoc(text: string): string {
+  return JSON.stringify({
+    type: 'doc',
+    content: [{ type: 'paragraph', content: text ? [{ type: 'text', text }] : [] }],
+  })
+}

@@ -2,17 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
-  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  Radio,
-  RadioGroup,
   Skeleton,
   Stack,
   TextField,
@@ -23,7 +17,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
@@ -37,8 +31,6 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { SectionCard } from '../components/ui/SectionCard'
 import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
 import { EventDetailLayout } from '../components/events/EventDetailLayout'
-import { RichTextEditor } from '../components/richtext/RichTextEditor'
-import { emptyEventFormValues, eventFormSchema, plainTextToDoc, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { EventListItemDto, EventParticipantListItemDto, PagedResult } from '../api/types'
 
 export function EventDetailPage() {
@@ -50,20 +42,9 @@ export function EventDetailPage() {
   const { hasPermission } = useAuth()
   const canManage = hasPermission(Permissions.EventsWrite)
 
-  const editDialog = useFormDialog()
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const posterInputRef = useRef<HTMLInputElement>(null)
   const canUploadPoster = hasPermission(Permissions.FilesUpload)
-
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { isSubmitting: isFormSubmitting },
-  } = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema),
-    defaultValues: emptyEventFormValues,
-  })
 
   const eventQuery = useQuery({
     queryKey: ['events', eventId],
@@ -118,18 +99,6 @@ export function EventDetailPage() {
       invalidateEvent()
     },
     onError: (error) => notify({ message: extractErrorMessage(error, 'Onaya gönderilemedi.'), severity: 'error' }),
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: async (values: EventFormValues) => {
-      await apiClient.put(`/events/${eventId}`, toEventPayload(values))
-    },
-    onSuccess: () => {
-      notify({ message: 'Etkinlik güncellendi.', severity: 'success' })
-      editDialog.closeDialog()
-      invalidateEvent()
-    },
-    onError: (error) => notify({ message: extractErrorMessage(error, 'Etkinlik güncellenemedi.'), severity: 'error' }),
   })
 
   const cancelDialog = useFormDialog()
@@ -193,20 +162,6 @@ export function EventDetailPage() {
       (await apiClient.get<PagedResult<EventParticipantListItemDto>>(`/events/${eventId}/participants`, { params: { pageIndex, pageSize } })).data,
   })
 
-  const openEditDialog = () => {
-    if (!eventQuery.data) return
-    reset({
-      title: eventQuery.data.title,
-      descriptionJson: eventQuery.data.descriptionJson ?? plainTextToDoc(eventQuery.data.description ?? ''),
-      location: eventQuery.data.location ?? '',
-      startDateTime: toLocalInput(eventQuery.data.startDateUtc),
-      endDateTime: toLocalInput(eventQuery.data.endDateUtc),
-      capacity: eventQuery.data.capacity?.toString() ?? '',
-      audience: eventQuery.data.audience,
-    })
-    editDialog.openDialog()
-  }
-
   const participantColumns: GridColDef<EventParticipantListItemDto>[] = [
     { field: 'studentNumber', headerName: 'Öğrenci No', flex: 1, minWidth: 160 },
     {
@@ -262,7 +217,7 @@ export function EventDetailPage() {
               </Button>
             )}
             {canEdit && (
-              <Button variant="outlined" onClick={openEditDialog}>
+              <Button variant="outlined" component={RouterLink} to={`/events/${eventId}/edit?returnTo=/events/${eventId}`}>
                 Düzenle
               </Button>
             )}
@@ -329,99 +284,6 @@ export function EventDetailPage() {
         )}
       </EventDetailLayout>
 
-      <Dialog open={editDialog.open} onClose={editDialog.closeDialog} fullWidth maxWidth="sm">
-        <DialogTitle>Etkinliği Düzenle</DialogTitle>
-        <DialogContent>
-          <Controller
-            name="title"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField {...field} autoFocus fullWidth margin="dense" label="Başlık" error={!!fieldState.error} helperText={fieldState.error?.message} />
-            )}
-          />
-          <Controller
-            name="descriptionJson"
-            control={control}
-            render={({ field }) => (
-              <Box sx={{ mt: 1, mb: 1.5 }}>
-                <RichTextEditor value={field.value || null} onChange={field.onChange} />
-              </Box>
-            )}
-          />
-          <Controller name="location" control={control} render={({ field }) => <TextField {...field} fullWidth margin="dense" label="Yer" />} />
-          <Controller
-            name="startDateTime"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                fullWidth
-                margin="dense"
-                label="Başlangıç"
-                type="datetime-local"
-                slotProps={{ inputLabel: { shrink: true } }}
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-              />
-            )}
-          />
-          <Controller
-            name="endDateTime"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                fullWidth
-                margin="dense"
-                label="Bitiş"
-                type="datetime-local"
-                slotProps={{ inputLabel: { shrink: true } }}
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-              />
-            )}
-          />
-          <Controller
-            name="capacity"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                fullWidth
-                margin="dense"
-                label="Kontenjan (boş = sınırsız)"
-                type="number"
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-              />
-            )}
-          />
-          <Controller
-            name="audience"
-            control={control}
-            render={({ field }) => (
-              <FormControl margin="dense">
-                <FormLabel>Kimler katılabilir?</FormLabel>
-                <RadioGroup {...field} row>
-                  <FormControlLabel value="Public" control={<Radio />} label="Herkese açık" />
-                  <FormControlLabel value="ClubMembers" control={<Radio />} label="Sadece topluluk üyeleri" />
-                </RadioGroup>
-              </FormControl>
-            )}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={editDialog.closeDialog}>Vazgeç</Button>
-          <Button
-            variant="contained"
-            disabled={isFormSubmitting || updateMutation.isPending}
-            onClick={handleSubmit((values) => updateMutation.mutate(values))}
-          >
-            Kaydet
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       <ConfirmDialog
         open={deleteConfirmOpen}
         title="Etkinliği sil"
@@ -486,10 +348,4 @@ export function EventDetailPage() {
       </Dialog>
     </>
   )
-}
-
-function toLocalInput(isoDate: string): string {
-  const date = new Date(isoDate)
-  const offsetMs = date.getTimezoneOffset() * 60_000
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
 }

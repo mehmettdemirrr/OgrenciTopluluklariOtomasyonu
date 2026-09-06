@@ -11,6 +11,7 @@ import { NotifierProvider } from './notifications/NotifierProvider'
 import { LocaleProvider } from './i18n/LocaleContext'
 import { ThemeModeProvider } from './theme'
 import { AnnouncementsPage } from './pages/AnnouncementsPage'
+import { AnnouncementFormPage } from './pages/forms/AnnouncementFormPage'
 import { AuditLogPage } from './pages/AuditLogPage'
 import { RolesPage } from './pages/RolesPage'
 import { UsersPage } from './pages/UsersPage'
@@ -22,6 +23,7 @@ import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EventDetailPage } from './pages/EventDetailPage'
 import { EventsPage } from './pages/EventsPage'
+import { EventFormPage } from './pages/forms/EventFormPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { MembershipReviewPage } from './pages/MembershipReviewPage'
@@ -155,10 +157,46 @@ function App() {
                   />
 
                   <Route
+                    path="/events/new"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.EventsWrite}>
+                        <EventFormPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/events/:id/edit"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.EventsWrite}>
+                        <EventFormPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
                     path="/events/:id"
                     element={
                       <ProtectedRoute requiredPermission={Permissions.EventsRead}>
                         <EventDetailPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/announcements/new"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.AnnouncementsWrite}>
+                        <AnnouncementFormPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/announcements/:id/edit"
+                    element={
+                      <ProtectedRoute requiredPermission={Permissions.AnnouncementsWrite}>
+                        <AnnouncementFormPage />
                       </ProtectedRoute>
                     }
                   />

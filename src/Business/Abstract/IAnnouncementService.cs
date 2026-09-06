@@ -37,6 +37,13 @@ public interface IAnnouncementService
     [TransactionAspect]
     Task<IResult> DeleteAsync(int announcementId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// docs/MIMARI.md · K-47: düzenleme SAYFASININ veri kaynağı — adres doğrudan açılabildiği için
+    /// tekil okuma gerekir. Kapı yazma kapısının aynısıdır (EnsureCanManageAsync): düzenleyebilen okur.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.AnnouncementsWrite)]
+    Task<IDataResult<AnnouncementListItemDto>> GetByIdAsync(int announcementId, CancellationToken cancellationToken = default);
+
     /// <summary>docs/PLAN-V2.md §10.1: kulübe bağlı olmayan sistem duyurusu — yalnızca Admin.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.AnnouncementsGlobal)]
     [ValidationAspect(typeof(CreateAnnouncementRequestValidator))]

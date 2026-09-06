@@ -4,6 +4,8 @@ import { z } from 'zod'
 // "Etkinlik yayınlanabilir mi", kontenjan doldu mu, bu öğrenci üye mi gibi kararlar API'de kalır.
 export const eventFormSchema = z
   .object({
+    // A-78: yalnızca kulüp bağlamı olmadan açılan formda doldurulur; 0 = seçilmedi.
+    clubId: z.number().int(),
     title: z.string().min(1, 'Başlık gerekli.'),
     // docs/MIMARI.md · K-43/A-71: açıklama RichTextEditor'den JSON ağacı olarak gelir; düz metin
     // aynası (description) sunucuda türetilir, arayüz ayrıca göndermez.
@@ -23,10 +25,12 @@ export const eventFormSchema = z
     message: 'Kontenjan pozitif bir sayı olmalı.',
     path: ['capacity'],
   })
+  .refine((values) => values.clubId > 0, { message: 'Topluluk seçin.', path: ['clubId'] })
 
 export type EventFormValues = z.infer<typeof eventFormSchema>
 
 export const emptyEventFormValues: EventFormValues = {
+  clubId: 0,
   title: '',
   descriptionJson: '',
   location: '',
@@ -34,6 +38,13 @@ export const emptyEventFormValues: EventFormValues = {
   endDateTime: '',
   capacity: '',
   audience: 'Public',
+}
+
+/** `datetime-local` alanı yerel saat bekler; sunucudan gelen ISO/UTC değeri dönüştürülür. */
+export function toLocalInputValue(iso: string): string {
+  const date = new Date(iso)
+  const offset = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
 export function toEventPayload(values: EventFormValues) {

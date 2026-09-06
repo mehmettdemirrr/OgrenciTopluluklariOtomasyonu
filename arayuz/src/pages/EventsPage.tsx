@@ -1,39 +1,14 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  Box,
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  Grid,
-  Radio,
-  RadioGroup,
-  Stack,
-  Tab,
-  Tabs,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Button, Card, CardActions, CardContent, Chip, Grid, Stack, Tab, Tabs, Typography } from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
-import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useSearchPagedQuery } from '../hooks/useSearchPagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
@@ -46,8 +21,6 @@ import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { ResultPagination } from '../components/ui/ResultPagination'
 import { SearchField } from '../components/ui/SearchField'
 import { EventAudienceChip, EventStatusChip } from '../components/ui/StatusChip'
-import { RichTextEditor } from '../components/richtext/RichTextEditor'
-import { emptyEventFormValues, eventFormSchema, toEventPayload, type EventFormValues } from '../schemas/eventForm'
 import type { ClubListItemDto, EventListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useLocale } from '../i18n/LocaleContext'
@@ -197,37 +170,12 @@ function EventsTab() {
   const { hasPermission } = useAuth()
   const canWrite = hasPermission(Permissions.EventsWrite)
   const [selectedClubId, setSelectedClubId] = useState<number | ''>('')
-  const createDialog = useFormDialog()
-
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { isSubmitting: isFormSubmitting },
-  } = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema),
-    defaultValues: emptyEventFormValues,
-  })
 
   const { paginationModel, setPaginationModel, query: eventsQuery } = usePagedQuery({
     queryKey: ['club-events', selectedClubId],
     enabled: selectedClubId !== '' && canWrite,
     queryFn: async (pageIndex, pageSize) =>
       (await apiClient.get<PagedResult<EventListItemDto>>(`/clubs/${selectedClubId}/events`, { params: { pageIndex, pageSize } })).data,
-  })
-
-  const createEventMutation = useMutation({
-    mutationFn: async (values: EventFormValues) => {
-      if (selectedClubId === '') throw new Error('Önce bir topluluk seçin.')
-      await apiClient.post(`/clubs/${selectedClubId}/events`, toEventPayload(values))
-    },
-    onSuccess: () => {
-      notify({ message: 'Etkinlik oluşturuldu (taslak).', severity: 'success' })
-      createDialog.closeDialog()
-      reset(emptyEventFormValues)
-      queryClient.invalidateQueries({ queryKey: ['club-events'] })
-    },
-    onError: (error) => notify({ message: extractErrorMessage(error, 'Etkinlik oluşturulamadı.'), severity: 'error' }),
   })
 
   const submitMutation = useMutation({
@@ -298,7 +246,12 @@ function EventsTab() {
         </Stack>
 
         {canWrite && (
-          <Button variant="contained" disabled={selectedClubId === ''} onClick={createDialog.openDialog}>
+          <Button
+            variant="contained"
+            disabled={selectedClubId === ''}
+            component={RouterLink}
+            to={selectedClubId === '' ? '#' : `/events/new?clubId=${selectedClubId}&returnTo=/events`}
+          >
             Etkinlik Oluştur
           </Button>
         )}
@@ -330,114 +283,6 @@ function EventsTab() {
           emptyTitle="Bu toplulukta etkinlik yok"
         />
       )}
-
-      <Dialog
-        open={createDialog.open}
-        onClose={() => {
-          createDialog.closeDialog()
-          reset(emptyEventFormValues)
-        }}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>Yeni Etkinlik</DialogTitle>
-        <DialogContent>
-          <Controller
-            name="title"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField {...field} autoFocus fullWidth margin="dense" label="Başlık" error={!!fieldState.error} helperText={fieldState.error?.message} />
-            )}
-          />
-          <Controller
-            name="descriptionJson"
-            control={control}
-            render={({ field }) => (
-              <Box sx={{ mt: 1, mb: 1.5 }}>
-                <RichTextEditor value={field.value || null} onChange={field.onChange} />
-              </Box>
-            )}
-          />
-          <Controller name="location" control={control} render={({ field }) => <TextField {...field} fullWidth margin="dense" label="Yer" />} />
-          <Controller
-            name="startDateTime"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                fullWidth
-                margin="dense"
-                label="Başlangıç"
-                type="datetime-local"
-                slotProps={{ inputLabel: { shrink: true } }}
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-              />
-            )}
-          />
-          <Controller
-            name="endDateTime"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                fullWidth
-                margin="dense"
-                label="Bitiş"
-                type="datetime-local"
-                slotProps={{ inputLabel: { shrink: true } }}
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-              />
-            )}
-          />
-          <Controller
-            name="capacity"
-            control={control}
-            render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                fullWidth
-                margin="dense"
-                label="Kontenjan (boş = sınırsız)"
-                type="number"
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-              />
-            )}
-          />
-          <Controller
-            name="audience"
-            control={control}
-            render={({ field }) => (
-              <FormControl margin="dense">
-                <FormLabel>Kimler katılabilir?</FormLabel>
-                <RadioGroup {...field} row>
-                  <FormControlLabel value="Public" control={<Radio />} label="Herkese açık" />
-                  <FormControlLabel value="ClubMembers" control={<Radio />} label="Sadece topluluk üyeleri" />
-                </RadioGroup>
-              </FormControl>
-            )}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              createDialog.closeDialog()
-              reset(emptyEventFormValues)
-            }}
-          >
-            Vazgeç
-          </Button>
-          <Button
-            variant="contained"
-            disabled={isFormSubmitting || createEventMutation.isPending}
-            onClick={handleSubmit((values) => createEventMutation.mutate(values))}
-          >
-            Oluştur
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   )
 }
