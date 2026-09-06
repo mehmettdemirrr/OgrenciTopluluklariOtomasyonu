@@ -252,6 +252,16 @@ export const tr = {
     createAnnouncement: 'Duyuru Yayınla',
     selectClub: 'Topluluk seçin',
   },
+  a11y: {
+    title: 'Erişilebilirlik',
+    open: 'Erişilebilirlik ayarlarını aç',
+    fontSize: 'Yazı boyutu',
+    highContrast: 'Yüksek kontrast',
+    reduceMotion: 'Hareketi azalt',
+    underlineLinks: 'Bağlantıların altını çiz',
+    reset: 'Sıfırla',
+    skipToContent: 'İçeriğe atla',
+  },
 }
 
 export const en: typeof tr = {
@@ -507,6 +517,16 @@ export const en: typeof tr = {
     saveAnnouncement: 'Save Announcement',
     createAnnouncement: 'Publish Announcement',
     selectClub: 'Select a club',
+  },
+  a11y: {
+    title: 'Accessibility',
+    open: 'Open accessibility settings',
+    fontSize: 'Text size',
+    highContrast: 'High contrast',
+    reduceMotion: 'Reduce motion',
+    underlineLinks: 'Underline links',
+    reset: 'Reset',
+    skipToContent: 'Skip to content',
   },
 }
 

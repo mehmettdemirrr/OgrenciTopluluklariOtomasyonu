@@ -152,7 +152,7 @@ export function PublicLayout() {
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 }, flex: 1 }}>
+      <Container id="main-content" component="main" tabIndex={-1} maxWidth="lg" sx={{ py: { xs: 3, md: 5 }, flex: 1 }}>
         <Outlet />
       </Container>
 

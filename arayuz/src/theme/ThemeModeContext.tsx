@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { ThemeProvider } from '@mui/material'
+import { useAccessibility } from '../a11y/AccessibilityContext'
 import { useLocale } from '../i18n/LocaleContext'
 import { createAppTheme } from './createAppTheme'
 
@@ -21,6 +22,7 @@ function readStoredMode(): ThemeMode {
 
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
   const { locale } = useLocale()
+  const { prefs } = useAccessibility()
   const [mode, setMode] = useState<ThemeMode>(readStoredMode)
 
   const toggleMode = useCallback(() => {
@@ -31,7 +33,7 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const theme = useMemo(() => createAppTheme(mode, locale), [mode, locale])
+  const theme = useMemo(() => createAppTheme(mode, locale, prefs), [mode, locale, prefs])
   const value = useMemo(() => ({ mode, toggleMode }), [mode, toggleMode])
 
   return (

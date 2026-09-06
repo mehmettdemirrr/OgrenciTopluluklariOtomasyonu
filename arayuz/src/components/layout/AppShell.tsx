@@ -47,7 +47,7 @@ export function AppShell() {
 
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <TopBar onMenuClick={() => setMobileOpen(true)} />
-        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 }, flex: 1 }}>
+        <Container id="main-content" component="main" tabIndex={-1} maxWidth="lg" sx={{ py: { xs: 3, md: 4 }, flex: 1 }}>
           <Outlet />
         </Container>
         <AppFooter />

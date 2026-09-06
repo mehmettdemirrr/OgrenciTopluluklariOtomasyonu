@@ -10,6 +10,9 @@ import { Permissions } from './auth/permissions'
 import { NotifierProvider } from './notifications/NotifierProvider'
 import { LocaleProvider } from './i18n/LocaleContext'
 import { ThemeModeProvider } from './theme'
+import { AccessibilityProvider } from './a11y/AccessibilityContext'
+import { AccessibilityFab } from './a11y/AccessibilityFab'
+import { SkipToContentLink } from './a11y/SkipToContentLink'
 import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { AnnouncementFormPage } from './pages/forms/AnnouncementFormPage'
 import { AuditLogPage } from './pages/AuditLogPage'
@@ -46,11 +49,13 @@ const queryClient = new QueryClient()
 function App() {
   return (
     <LocaleProvider>
+      <AccessibilityProvider>
       <ThemeModeProvider>
         <CssBaseline />
         <QueryClientProvider client={queryClient}>
           <NotifierProvider>
             <BrowserRouter>
+              <SkipToContentLink />
               <AuthProvider>
               <Routes>
                 <Route element={<AuthLayout />}>
@@ -222,11 +227,13 @@ function App() {
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              <AccessibilityFab />
               </AuthProvider>
             </BrowserRouter>
           </NotifierProvider>
         </QueryClientProvider>
       </ThemeModeProvider>
+      </AccessibilityProvider>
     </LocaleProvider>
   )
 }

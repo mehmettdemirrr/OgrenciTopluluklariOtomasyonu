@@ -1,7 +1,8 @@
 import { alpha, createTheme } from '@mui/material'
 import { enUS, trTR } from '@mui/material/locale'
 import { enUS as dataGridEn, trTR as dataGridTr } from '@mui/x-data-grid/locales'
-import { brand, surfaces } from './tokens'
+import { brand, contrastPalette, surfaces } from './tokens'
+import type { AccessibilityPreferences } from '../a11y/AccessibilityContext'
 
 declare module '@mui/material/styles' {
   interface Palette {
@@ -14,8 +15,20 @@ declare module '@mui/material/styles' {
 
 const navyShadow = (opacity: number) => `0 8px 24px ${alpha(brand.navy, opacity)}`
 
-export function createAppTheme(mode: 'light' | 'dark', locale: 'tr' | 'en') {
+const defaultAccessibility: AccessibilityPreferences = {
+  fontScale: 1,
+  highContrast: false,
+  reduceMotion: false,
+  underlineLinks: false,
+}
+
+export function createAppTheme(
+  mode: 'light' | 'dark',
+  locale: 'tr' | 'en',
+  a11y: AccessibilityPreferences = defaultAccessibility,
+) {
   const surface = surfaces[mode]
+  const contrast = contrastPalette[mode]
   const muiLocale = locale === 'tr' ? trTR : enUS
   const gridLocale = locale === 'tr' ? dataGridTr : dataGridEn
 
@@ -42,11 +55,13 @@ export function createAppTheme(mode: 'light' | 'dark', locale: 'tr' | 'en') {
         grey: {
           400: brand.grey,
         },
-        divider: alpha(brand.grey, mode === 'dark' ? 0.28 : 0.35),
-        text: {
-          primary: surface.text,
-          secondary: surface.textMuted,
-        },
+        divider: a11y.highContrast ? contrast.divider : alpha(brand.grey, mode === 'dark' ? 0.28 : 0.35),
+        text: a11y.highContrast
+          ? { primary: contrast.textPrimary, secondary: contrast.textSecondary }
+          : {
+              primary: surface.text,
+              secondary: surface.textMuted,
+            },
         background: {
           default: surface.default,
           paper: surface.paper,
@@ -55,7 +70,10 @@ export function createAppTheme(mode: 'light' | 'dark', locale: 'tr' | 'en') {
       shape: {
         borderRadius: 12,
       },
+      transitions: a11y.reduceMotion ? { create: () => 'none' } : undefined,
       typography: {
+        // A-79: tek kaynak — MUI tüm varyantları bu taban ölçüden türetir.
+        fontSize: 14 * a11y.fontScale,
         fontFamily: '"InterVariable", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
         h1: { fontWeight: 800, letterSpacing: '-0.03em' },
         h2: { fontWeight: 800, letterSpacing: '-0.025em' },
@@ -81,6 +99,24 @@ export function createAppTheme(mode: 'light' | 'dark', locale: 'tr' | 'en') {
             '::selection': {
               backgroundColor: alpha(brand.turquoise, 0.22),
             },
+            // A-79: klavye odağı her zaman görünür; yüksek kontrastta daha kalın.
+            '*:focus-visible': {
+              outline: `${a11y.highContrast ? 3 : 2}px solid ${contrast.focusRing}`,
+              outlineOffset: 2,
+            },
+            ...(a11y.reduceMotion
+              ? {
+                  '*, *::before, *::after': {
+                    animationDuration: '0.01ms !important',
+                    animationIterationCount: '1 !important',
+                    transitionDuration: '0.01ms !important',
+                    scrollBehavior: 'auto !important',
+                  },
+                }
+              : {}),
+            ...(a11y.underlineLinks
+              ? { 'a:not(.MuiButtonBase-root)': { textDecoration: 'underline !important' } }
+              : {}),
           },
         },
         MuiButton: {

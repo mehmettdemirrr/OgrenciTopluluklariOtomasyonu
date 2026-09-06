@@ -1,8 +1,8 @@
 # Öğrenci Toplulukları Otomasyonu — Mimari Taslak
 
-**Sürüm:** v6.9 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
+**Sürüm:** v6.11 · v1.0: 17 Ağustos 2026 (Faz 1-7, kararlar kapandı) · v2.0: 21 Ağustos 2026 (Faz 8-14
 eklendi) · v3.0: 23 Ağustos 2026 (Faz 15-18 eklendi) · v4.0: 23 Ağustos 2026 (Faz 19-23 eklendi)
-· v5.0: 25 Ağustos 2026 (Faz 24-29 eklendi) · v6.0: 26 Ağustos 2026 (Faz 30-34 eklendi) · v6.1: 26 Ağustos 2026 (A-67, Y-74 — onay kuyruklarında yönetici kapsamı) · v6.2: 27 Ağustos 2026 (A-68, Y-75, Faz 35 — kulüp içi yetki matrisi; A-61 ve Y-69 tadil edildi) · v6.3: 5 Eylül 2026 (K-40, A-69, Y-76, Faz 36 — kuruluş başvurusunda logo) · v6.4: 5 Eylül 2026 (K-41, A-70, Y-77, Faz 37 — danışmanın toplulukları) · v6.5: 5 Eylül 2026 (K-42, A-71, A-72, Y-78, Faz 38 — zengin duyuru içeriği) · v6.6: 5 Eylül 2026 (K-43, A-73, Y-79, Faz 39 — zengin etkinlik detayı) · v6.7: 5 Eylül 2026 (K-44, A-74, Y-80, Faz 40 — kulüp iletişimi ve sosyal medya) · v6.8: 5 Eylül 2026 (K-45, A-75, Y-81, Faz 41 — üye olmayanın kulüp görünürlüğü) · v6.9: 6 Eylül 2026 (K-46, A-76, A-77, Y-82, Faz 42 — etkinlik detay sayfası) · **v6.10: 6 Eylül 2026 (K-47, A-78, Y-83, Faz 43 — form sayfaları)**
+· v5.0: 25 Ağustos 2026 (Faz 24-29 eklendi) · v6.0: 26 Ağustos 2026 (Faz 30-34 eklendi) · v6.1: 26 Ağustos 2026 (A-67, Y-74 — onay kuyruklarında yönetici kapsamı) · v6.2: 27 Ağustos 2026 (A-68, Y-75, Faz 35 — kulüp içi yetki matrisi; A-61 ve Y-69 tadil edildi) · v6.3: 5 Eylül 2026 (K-40, A-69, Y-76, Faz 36 — kuruluş başvurusunda logo) · v6.4: 5 Eylül 2026 (K-41, A-70, Y-77, Faz 37 — danışmanın toplulukları) · v6.5: 5 Eylül 2026 (K-42, A-71, A-72, Y-78, Faz 38 — zengin duyuru içeriği) · v6.6: 5 Eylül 2026 (K-43, A-73, Y-79, Faz 39 — zengin etkinlik detayı) · v6.7: 5 Eylül 2026 (K-44, A-74, Y-80, Faz 40 — kulüp iletişimi ve sosyal medya) · v6.8: 5 Eylül 2026 (K-45, A-75, Y-81, Faz 41 — üye olmayanın kulüp görünürlüğü) · v6.9: 6 Eylül 2026 (K-46, A-76, A-77, Y-82, Faz 42 — etkinlik detay sayfası) · v6.10: 6 Eylül 2026 (K-47, A-78, Y-83, Faz 43 — form sayfaları) · **v6.11: 6 Eylül 2026 (K-48, A-79, Y-84, Faz 44 — erişilebilirlik paneli)**
 **Referans mimari:** [engindemirog/NetCoreBackend](https://github.com/engindemirog/NetCoreBackend)
 **Uygulama planları:** [docs/PLAN-V2.md](PLAN-V2.md) (Faz 8-14) · [docs/PLAN-V3.md](PLAN-V3.md) (Faz 15-18)
 · [docs/PLAN-V4.md](PLAN-V4.md) (Faz 19-23) · [docs/PLAN-V5.md](PLAN-V5.md) (Faz 24-29)
@@ -26,7 +26,9 @@ sosyal medya bağlantıları ekleyerek 1 kapsam maddesi (K-44), 1 karar (A-74) v
 sağlayarak 1 kapsam maddesi (K-45), 1 karar (A-75) ve 1 kural (Y-81) ekledi; **v6.9** etkinlik
 detayını iki sütunlu düzene taşıyıp anonim ziyaretçiye açarak 1 kapsam maddesi (K-46), 2 karar
 (A-76, A-77) ve 1 kural (Y-82) ekledi; **v6.10** etkinlik ve duyuru formlarını modaldan tam
-sayfaya taşıyarak 1 kapsam maddesi (K-47), 1 karar (A-78) ve 1 kural (Y-83) ekledi.
+sayfaya taşıyarak 1 kapsam maddesi (K-47), 1 karar (A-78) ve 1 kural (Y-83) ekledi; **v6.11**
+her sayfaya erişilebilirlik tercihleri panelini ekleyerek 1 kapsam maddesi (K-48), 1 karar (A-79)
+ve 1 kural (Y-84) ekledi.
 Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
 
 > **v6.2 neden bir tadil, iptal değil:** A-61'in kazancı ("yetki kontrolleri ek DB okuması yapmaz")
@@ -41,10 +43,10 @@ Yığın, kapsam ve kurallar sabit; bundan sonrası uygulama.
 
 | | |
 |---|---|
-| Karar | 78 (36 v1.0 + 7 v2.0 + 4 v3.0 + 7 v4.0 + 5 v5.0 + 9 v6.0 + 1 v6.3 + 1 v6.4 + 2 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8 + 2 v6.9 + 1 v6.10) |
-| Yasak kural | 83 (52 v1.0 + 6 v2.0 + 2 v3.0 + 4 v4.0 + 4 v5.0 + 7 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8 + 1 v6.9 + 1 v6.10) |
+| Karar | 79 (36 v1.0 + 7 v2.0 + 4 v3.0 + 7 v4.0 + 5 v5.0 + 9 v6.0 + 1 v6.3 + 1 v6.4 + 2 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8 + 2 v6.9 + 1 v6.10 + 1 v6.11) |
+| Yasak kural | 84 (52 v1.0 + 6 v2.0 + 2 v3.0 + 4 v4.0 + 4 v5.0 + 7 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8 + 1 v6.9 + 1 v6.10 + 1 v6.11) |
 | V1 dışı madde | 13 (K-13 v4.0'da **ikiye bölündü** — bkz. §3) |
-| Uygulama fazı | 43 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0 + 6 v5.0 + 6 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8 + 1 v6.9 + 1 v6.10) |
+| Uygulama fazı | 44 (7 v1.0 + 7 v2.0 + 4 v3.0 + 5 v4.0 + 6 v5.0 + 6 v6.0 + 1 v6.3 + 1 v6.4 + 1 v6.5 + 1 v6.6 + 1 v6.7 + 1 v6.8 + 1 v6.9 + 1 v6.10 + 1 v6.11) |
 
 **Yığın:** .NET 8 LTS · ASP.NET Core Identity · EF Core 8 / MSSQL · Autofac + async AOP ·
 FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · React 18 + Vite + TypeScript + MUI
@@ -54,11 +56,11 @@ FluentValidation · AutoMapper · Hangfire · Serilog → MSSQL · ClosedXML · 
 ## İçindekiler
 
 1. [Katmanlar ve bağımlılık yönü](#1-katmanlar-ve-bağımlılık-yönü)
-2. [Açıkça yasak (Y-01 … Y-83)](#2-açıkça-yasak)
-3. [V1 kapsamı (K-01 … K-47)](#3-v1-kapsamı)
+2. [Açıkça yasak (Y-01 … Y-84)](#2-açıkça-yasak)
+3. [V1 kapsamı (K-01 … K-48)](#3-v1-kapsamı)
 4. [Teknoloji ve domain](#4-teknoloji-ve-domain)
 5. [Uygulama sırası](#5-uygulama-sırası)
-6. [Karar kaydı (A-01 … A-78)](#6-karar-kaydı)
+6. [Karar kaydı (A-01 … A-79)](#6-karar-kaydı)
 7. [Sessiz onaylar](#7-sessiz-onaylar)
 
 ---
@@ -252,6 +254,7 @@ değiştiririz — ama önce belge değişir, sonra kod.
 | **Y-81** | Yetkisiz kullanıcının kulüp etkinlik sekmesini yönetim ucundan (`GET /api/clubs/{id}/events`) okutmak — o kulüpte `EventsManage` kapasitesi yokken bu uca düşmek | Arayüz `ClubDetailDto.myCapabilities`'e bakar: `EventsManage` yoksa yayınlanmış etkinlik ucu (`GET /api/events?clubId=`) çağrılır, yönetim ucu hiç çağrılmaz. Uçların kendi 403'leri **kaldırılmaz** — bu kural yalnızca arayüzün doğru ucu seçmesini garanti eder, ikinci bir yetki kapısı açmaz (K-45, A-75) |
 | **Y-82** | Anonim etkinlik detay ucundan taslak/onay bekleyen/reddedilen ya da `ClubMembers` kitleli bir etkinliği döndürmek; "bulunamadı" yerine 403 dönerek varlığını sızdırmak | `PublicContentManager.GetEventByIdAsync` vitrin listesiyle **aynı** filtreyi uygular (`Status == Published && Audience == Public`); eşleşmeyen her istek `NotFound` döner. Gerekçe: Y-58 ve Y-72'nin detay ucundaki karşılığı — liste sızdırmıyorken detayın sızdırması, filtrenin iki yerde ayrı yazılmasının klasik sonucudur. `PublicSurfaceLeakTests` bu ucu da tarar (K-46, A-76) |
 | **Y-83** | Etkinlik/duyuru form alanlarını bir `Dialog` içinde (yeniden) kurmak — zengin metin editörünü modalda açmak | Form alanları yalnızca form sayfası bileşenlerinde tanımlanır; modal, onay sorularına (`ConfirmDialog`, "İptal gerekçesi") ayrılmıştır. Gerekçe: aynı formun iki kopyası er ya da geç ayrışır — biri `descriptionJson`'a geçerken öbürü düz metinde kalır. İhlali `Architecture.Tests` kaynak taramasıyla yakalar: `arayuz/src/pages` altında hem `<Dialog` hem `RichTextEditor` geçen bir dosya olamaz (K-47, A-78) |
+| **Y-84** | Erişilebilirlik tercihini bir bileşenin içinde okuyup elle stil uygulamak (`if (fontScale === 130) …`, `style={{ fontSize: … }}`); aynı ayarı panelin dışında ikinci bir yerde tanımlamak | Tercih yalnızca `AccessibilityProvider` ve `createAppTheme` tarafından okunur; bileşenler sonucu temadan alır. Gerekçe: ayarı okuyan her bileşen, ayar değiştiğinde güncellenmesi gereken yeni bir yerdir — bir tanesi unutulduğunda kullanıcı "bazı yerler büyüdü, bazıları büyümedi" ile kalır. İhlali `Architecture.Tests` kaynak taramasıyla yakalar: `useAccessibility` yalnızca `arayuz/src/a11y/` altında ve tema sağlayıcısında geçebilir (K-48, A-79) |
 | **Y-75** | Kulüp içi kapasiteyi, kullanıcının Identity izninin **vermediği** bir şeyi verecek şekilde kullanmak; uç noktadan `[SecuredOperation]`'ı kaldırıp kararı kulüp matrisine bırakmak | Kulüp matrisi yalnızca **daraltır**, asla genişletmez. Uçtaki `[SecuredOperation(events.write)]` birinci kapı olarak yerinde kalır; kulüp kapasitesi ikinci kapıdır. Bir kulüp rolüne "etkinlik yönet" işaretlemek, Identity rolünde `events.write` olmayan birine bu hakkı **veremez** (A-68). Gerekçe: Y-37 ancak izinlerin tek kaynağı Identity kalırsa ayakta durur — matris bir *filtre*, bir *kaynak* değil. Mimari test kapasite okuyan her metodun aynı zamanda `[SecuredOperation]` taşıyan bir uçtan çağrıldığını doğrular |
 | **Y-70** | Başvuru evrakını `Public` görünürlükle kaydetmek veya anonim dosya ucundan servis etmek; indirmede yetkiyi yeniden kontrol etmemek | Evrak daima `FileVisibility.Protected`; erişim yalnızca `GET /api/club-applications/{id}/documents/{documentId}` ucundan, **indirme anında** yeniden kontrol edilen yetkiyle (A-63). Y-52'nin ve Y-51'in evrak karşılığı — adli sicil ve kurucu üye dilekçesi kişisel veridir, K-19 (KVKK akışı) hâlâ V1 dışıdır |
 | **Y-71** | Zorunlu evrak bütünlüğünü yalnızca arayüzde kontrol etmek veya FluentValidation kuralına gömmek | Kontrol `ClubApplicationManager` içinde, evrak tipi katalogunu okuyarak (A-62). Gerekçe: "hangi evrak zorunlu" cevabı veritabanındadır — biçimsel doğrulama değil iş kuralıdır (Y-03, Y-35) |
@@ -350,6 +353,7 @@ Ayrıntılı gerekçe, uçlar ve testler için [docs/PLAN-V6.md](PLAN-V6.md).
 | **K-45** | **Üye olmayanın kulüp görünürlüğü** | Giriş yapmış ama kulübe üye olmayan öğrenci, kulübün genel bilgilerini ve YAYINLANMIŞ etkinliklerini görür; üye listesini ve rol tanımlarını görmez. Taslak/onay bekleyen etkinlikler yalnızca yetkililere görünür | `ClubDetailDto.MyRelationship`/`MyCapabilities`, arayüz sekmeleri buradan çizilir, etkinlik sekmesi yetkisizken `GET /api/events?clubId=` ucuna düşer (A-75, Y-81) |
 | **K-46** | **Etkinlik detay sayfası** | Etkinlik detayı iki sütundur: solda afiş ve biçimlendirilmiş açıklama, sağda düzenleyen topluluk, zaman çizelgesi, konum + yol tarifi, görüntülenme/katılımcı/kontenjan sayıları ve birincil eylem. Anonim ziyaretçi de yayınlanmış ve herkese açık etkinliğin detayını görür; katılmak için giriş yapması istenir | `EventDetailLayout` (tek düzen, iki kabuk), `GET /api/public/events/{id}`, `EventListItemDto.ParticipantCount`/`ClubLogoFileId`, `Event.ViewCount` (A-76, A-77, Y-82) |
 | **K-47** | **Form sayfaları** | Etkinlik ve duyuru oluşturma/düzenleme kendi adresinde tam sayfadır (`/events/new`, `/events/{id}/edit`, `/announcements/new`, `/announcements/{id}/edit`); modal yalnızca onay sorularına kalır. Form, geldiği ekrana geri döner ve kaydedilmemiş değişiklikle çıkarken uyarır | Tek `EventFormPage`/`AnnouncementFormPage` iki kipte (oluştur/düzenle), `clubId` ve `returnTo` sorgu parametreleri (A-78, Y-83) |
+| **K-48** | **Erişilebilirlik tercihleri** | Her sayfada sol altta bir erişilebilirlik düğmesi vardır; panelden yazı boyutu (%100/%115/%130), yüksek kontrast, hareketi azalt ve bağlantıların altını çiz ayarlanır, tek düğmeyle sıfırlanır. Klavye kullanıcısı için sayfanın ilk odağı "içeriğe atla" bağlantısıdır. Tercihler tarayıcıda saklanır, sunucuya gitmez | `AccessibilityProvider` + `createAppTheme(mode, locale, a11y)`, `SkipToContentLink`, `localStorage` (A-79, Y-84) |
 
 > **K-29 notu (v6.0):** topluluk kurma başvurusu V6'da iki yerden birden büyüyor — önüne bir **kapı**
 > (K-39 takvimi), içine **evrak** (K-37) geliyor. Onay akışının kendisi değişmiyor: tek aşamalı admin
@@ -763,6 +767,7 @@ Bir kararı değiştirmek istersen önce bu tablo güncellenir, sonra kod.
 | **A-76** | Etkinlik detay **düzeni tek bileşendir**, sayfa onu giydirir | A | Afiş, açıklama kartı ve sağ sütun (düzenleyen/zaman/konum/istatistik) `arayuz/src/components/events/EventDetailLayout.tsx` içinde bir kez yazılır; anonim sayfa (`/etkinlikler/:id`) ve panel sayfası (`/events/:id`) onu sarar. Fark yalnızca **birincil eylem alanı** (`primaryAction` slotu: anonimde "Giriş Yap", panelde katıl/iptal) ve panele özgü ek bölümlerdir (katılımcı listesi, düzenleme/iptal). Gerekçe: A-73'ün harita yardımcılarında öğrendiğimiz ders — aynı görünümün iki kopyası, biri güncellenirken öbürünün unutulması demektir (K-46) |
 | **A-77** | Görüntülenme sayacı **ayrı bir yazma ucudur**, okuma yolunda artmaz | A | Detay ucu (`GET`) sayacı **artırmaz**; arayüz sayfayı açtığında ayrı bir `POST /api/public/events/{id}/view` çağırır ve bunu `sessionStorage` ile oturum başına bir kereye indirir. Artırma `IEventViewDal.IncrementAsync` içinde `ExecuteUpdateAsync` ile **tek SQL cümlesidir**: `Event.RowVersion` taşıdığı için oku-değiştir-kaydet döngüsü eşzamanlı okumalarda `ConcurrencyConflictException` üretirdi (A-15/Y-53). Sayaç **yaklaşıktır** ve bir karar dayanağı değildir; kontenjan ve katılım kararları hâlâ yalnızca katılım ucundan gelir. Gerekçe: GET'in yan etkisi olmaması hem önbelleklenebilirliği hem "okumak veriyi değiştirmez" beklentisini korur (K-46) |
 | **A-78** | Form **bir sayfadır**, kip rotadan gelir | A | Her varlığın formu tek bileşendedir; oluşturma ile düzenleme aynı sayfanın iki kipidir (`:id` varsa düzenleme). Çağıran ekran formu parametreyle bağlar: `clubId` bağlamı verir (yoksa sayfa kulüp seçtirir), `returnTo` kaydettikten sonra nereye dönüleceğini söyler. Gerekçe: K-37'de kuruluş başvurusu için verilen "evrak yüklemeli form diyaloga sığmaz" kararının genellenmesi — zengin metin editörü, tarih alanları ve görsel yükleme `maxWidth="sm"` bir diyalogda sıkışıyordu. Aynı alanların oluşturma ve düzenleme için iki kez yazılması, projede iki kez yaşanan "ikinci yapım noktası" hatasının arayüz karşılığıdır (K-47, Y-83) |
+| **A-79** | Erişilebilirlik tercihleri **tema katmanında** çözülür | A | Tercihler tek bir bağlamda tutulur ve `createAppTheme`'e argüman olarak girer: yazı ölçeği `typography.fontSize`, yüksek kontrast palet + odak halkası, hareket azaltma `transitions` ve `CssBaseline` üzerinden uygulanır. Bileşenler tercihi okumaz, yalnızca temadan boyanır (Y-84). Yüksek kontrast renkleri `theme/tokens.ts` içindeki `contrastPalette`'ten gelir — Y-56'nın istisnası değil, A-72 gibi **uzantısıdır**. Tercihler kullanıcı profiline değil `localStorage`'a yazılır: cihaza özgü bir ayardır, sunucuya taşımak yeni bir uç, yeni bir migration ve "hangi cihaz kazanır" sorusu demektir. Hareketi azalt ayarının başlangıç değeri `prefers-reduced-motion` sistem tercihinden okunur (K-48) |
 
 ### Kararların birbirini etkilediği yerler
 

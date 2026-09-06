@@ -49,3 +49,22 @@ export const richTextColors = {
 } as const
 
 export type RichTextColorToken = keyof typeof richTextColors.light
+
+/**
+ * docs/MIMARI.md · A-79/Y-56: yüksek kontrast modunun renkleri. Y-56'nın istisnası değil,
+ * A-72 gibi uzantısıdır — hex değerleri yine yalnızca bu dosyada.
+ */
+export const contrastPalette = {
+  light: {
+    textPrimary: '#0A0A0A',
+    textSecondary: '#2B2B2B',
+    divider: '#000000',
+    focusRing: '#0B6E87',
+  },
+  dark: {
+    textPrimary: '#FFFFFF',
+    textSecondary: '#E8E8E8',
+    divider: '#FFFFFF',
+    focusRing: '#7FD8F0',
+  },
+} as const
