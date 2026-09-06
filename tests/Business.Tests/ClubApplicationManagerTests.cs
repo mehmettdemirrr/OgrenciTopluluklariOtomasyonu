@@ -45,6 +45,7 @@ public class ClubApplicationManagerTests
     private readonly Mock<IFileStorage> _fileStorage = new();
 
     private readonly Mock<IAcademicStaffDal> _academicStaffDal = new();
+    private readonly Mock<IClubCategoryAssignmentDal> _clubCategoryAssignmentDal = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<ICurrentUser> _currentUser = new();
     private readonly Mock<IClock> _clock = new();
@@ -77,6 +78,7 @@ public class ClubApplicationManagerTests
             _clubApplicationDocumentRepository.Object,
             _storedFileRepository.Object,
             _academicStaffDal.Object,
+            _clubCategoryAssignmentDal.Object,
             _fileService.Object,
             _fileStorage.Object,
             _unitOfWork.Object,

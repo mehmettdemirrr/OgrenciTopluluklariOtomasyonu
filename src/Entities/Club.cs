@@ -18,9 +18,6 @@ public sealed class Club : IEntity
 
     public int? LogoFileId { get; set; }
 
-    /// <summary>docs/MIMARI.md · K-35/A-60: kategori. Nullable — mevcut kulüpler kategorisiz kalabilir.</summary>
-    public int? ClubCategoryId { get; set; }
-
     public bool IsActive { get; set; }
 
     /// <summary>docs/MIMARI.md · K-44: topluluk iletişim e-postası. Null = tanımsız.</summary>

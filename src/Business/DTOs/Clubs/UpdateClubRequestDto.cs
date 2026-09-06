@@ -19,10 +19,6 @@ public sealed class UpdateClubRequestDto
     /// </summary>
     public int? AdvisorId { get; set; }
 
-    /// <summary>
-    /// docs/MIMARI.md · A-60: kategori. <b>AdvisorId'den FARKLI semantik</b> — orada <c>null</c>
-    /// "değiştirme" demek (K-33 kısmi güncelleme), burada "kategorisiz yap" demektir. Kategori
-    /// zorunlu olmadığı için temizlenebilmeli.
-    /// </summary>
-    public int? ClubCategoryId { get; set; }
+    /// <summary>docs/MIMARI.md · K-49: en fazla 3 (validator). Boş liste = kategorisiz.</summary>
+    public IReadOnlyList<int> ClubCategoryIds { get; set; } = [];
 }

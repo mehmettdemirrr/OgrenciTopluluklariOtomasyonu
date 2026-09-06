@@ -38,7 +38,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { ResultPagination } from '../components/ui/ResultPagination'
 import { SearchField } from '../components/ui/SearchField'
-import { createClubFormSchema, emptyCreateClubFormValues, toCategoryPayload, type CreateClubFormValues } from '../schemas/clubForm'
+import { createClubFormSchema, emptyCreateClubFormValues, type CreateClubFormValues } from '../schemas/clubForm'
 import type {
   AcademicStaffListItemDto,
   ClubApplicationWindowDto,
@@ -140,7 +140,7 @@ export function ClubsPage() {
         name: values.name.trim(),
         description: values.description.trim() || null,
         advisorId: values.advisorId,
-        clubCategoryId: toCategoryPayload(values.clubCategoryId),
+        clubCategoryIds: values.clubCategoryIds,
       })
     },
     onSuccess: () => {
@@ -276,8 +276,12 @@ export function ClubsPage() {
                   </Typography>
                   <Chip size="small" label={club.isActive ? 'Aktif' : 'Pasif'} color={club.isActive ? 'success' : 'default'} variant={club.isActive ? 'filled' : 'outlined'} />
                 </Stack>
-                {club.clubCategoryName && (
-                  <Chip size="small" variant="outlined" label={club.clubCategoryName} sx={{ mb: 1 }} />
+                {club.clubCategoryNames.length > 0 && (
+                  <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap' }} useFlexGap>
+                    {club.clubCategoryNames.map((name) => (
+                      <Chip key={name} size="small" variant="outlined" label={name} />
+                    ))}
+                  </Stack>
                 )}
                 <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {club.description || 'Açıklama eklenmemiş.'}
@@ -354,18 +358,19 @@ export function ClubsPage() {
             )}
           />
           <Controller
-            name="clubCategoryId"
+            name="clubCategoryIds"
             control={control}
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <TextField
                 {...field}
                 select
                 fullWidth
                 margin="dense"
-                label="Kategori (isteğe bağlı)"
-                onChange={(event) => field.onChange(Number(event.target.value))}
+                label="Kategoriler (en fazla 3)"
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                slotProps={{ select: { multiple: true, renderValue: (selected) => (selected as number[]).length + ' kategori' } }}
               >
-                <MenuItem value={0}>— Kategorisiz —</MenuItem>
                 {(categoriesQuery.data?.items ?? []).map((category) => (
                   <MenuItem key={category.id} value={category.id}>
                     {category.name}

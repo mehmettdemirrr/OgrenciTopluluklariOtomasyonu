@@ -27,13 +27,6 @@ public sealed class ClubConfiguration : IEntityTypeConfiguration<Club>
             .HasForeignKey(c => c.LogoFileId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // A-60: kullanımdaki kategori silinemesin — Restrict, ReferentialIntegrityConflictException
-        // üzerinden 409'a dönüşür (DeleteDepartmentAsync precedent'i).
-        builder.HasOne<ClubCategory>()
-            .WithMany()
-            .HasForeignKey(c => c.ClubCategoryId)
-            .OnDelete(DeleteBehavior.Restrict);
-
         builder.Property(c => c.RowVersion)
             .IsRowVersion();
 

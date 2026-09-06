@@ -12,12 +12,10 @@ public sealed class ClubListItemDto
 
     public int? LogoFileId { get; set; }
 
-    /// <summary>docs/MIMARI.md · K-35/A-60: kategori. Null = kategorisiz.</summary>
-    public int? ClubCategoryId { get; set; }
-
     /// <summary>
-    /// Kategori adı. Y-32: AutoMapper doldurmaz (Club üzerinde kaynağı yok, join gerekir) —
-    /// profilde Ignore edilir, ClubManager kategori sözlüğünden doldurur.
+    /// docs/MIMARI.md · K-49/A-80: ada göre sıralı kategori adları. Boş liste = kategorisiz.
+    /// Y-32: AutoMapper doldurmaz (Club üzerinde kaynağı yok, join gerekir) — profilde Ignore
+    /// edilir, ClubManager tek toplu sorgudan doldurur.
     /// </summary>
-    public string? ClubCategoryName { get; set; }
+    public IReadOnlyList<string> ClubCategoryNames { get; set; } = [];
 }

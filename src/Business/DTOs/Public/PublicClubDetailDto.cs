@@ -17,7 +17,8 @@ public sealed class PublicClubDetailDto
     /// docs/MIMARI.md · K-35: kategori adı. Y-58 kontrolü: kurumsal sınıflandırma, kişisel veri değil.
     /// Kimlik (ClubCategoryId) taşınmaz — vitrinin ihtiyacı yalnızca görünen ad.
     /// </summary>
-    public string? ClubCategoryName { get; set; }
+    /// <summary>docs/MIMARI.md · K-49: ada göre sıralı kategori adları. Y-58: kişisel veri değil.</summary>
+    public IReadOnlyList<string> ClubCategoryNames { get; set; } = [];
 
     /// <summary>docs/MIMARI.md · K-44: topluluk iletişim e-postası. Null = tanımsız. Y-58: kurumsal iletişim, kişisel veri değil.</summary>
     public string? ContactEmail { get; set; }

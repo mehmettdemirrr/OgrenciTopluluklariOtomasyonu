@@ -6,6 +6,7 @@ using Core.DataAccess;
 using Core.Utilities.Results;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
+using DataAccess.Repositories;
 using DataAccess.Seed;
 using Entities;
 using Entities.Enums;
@@ -15,13 +16,14 @@ namespace Business.Concrete;
 public sealed class ClubManager(
     IEntityRepository<Club> clubRepository,
     IEntityRepository<AcademicStaff> academicStaffRepository,
-    IEntityRepository<ClubCategory> clubCategoryRepository,
+    IEntityRepository<ClubCategoryAssignment> clubCategoryAssignmentRepository,
     IEntityRepository<ClubRoleDefinition> clubRoleDefinitionRepository,
     IEntityRepository<MembershipApplication> membershipApplicationRepository,
     IEntityRepository<Student> studentRepository,
     IEntityRepository<ClubMembership> clubMembershipRepository,
     IEntityRepository<AcademicTerm> academicTermRepository,
     IEntityRepository<ClubSocialLink> clubSocialLinkRepository,
+    IClubCategoryAssignmentDal clubCategoryAssignmentDal,
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
     IClock clock,
@@ -37,6 +39,11 @@ public sealed class ClubManager(
         var clampedPageSize = ClampPageSize(pageSize);
         var term = SearchTerm.Normalize(search);
 
+        // Y-85: kategori filtresi SQL'de iki adımda: önce kategorideki kulüp id'leri, sonra sayfalama.
+        IReadOnlyCollection<int>? categoryClubIds = categoryId is { } id
+            ? await clubCategoryAssignmentDal.GetClubIdsByCategoryAsync(id, cancellationToken).ConfigureAwait(false)
+            : null;
+
         // Y-11/A-16: sayfalama kırpma bir iş kuralıdır, controller'da değil burada yapılır.
         // A-50/Y-62: arama SQL'de (LIKE) — liste çekip bellekte ayıklamak yok.
         // isActive artık dışarıdan gelir: sabit `c.IsActive` filtresi pasif kulübü arayüzden
@@ -46,7 +53,7 @@ public sealed class ClubManager(
                 pageIndex,
                 clampedPageSize,
                 c => (isActive == null || c.IsActive == isActive)
-                    && (categoryId == null || c.ClubCategoryId == categoryId)
+                    && (categoryClubIds == null || categoryClubIds.Contains(c.Id))
                     && (term.Length == 0 || c.Name.Contains(term)),
                 c => c.Name,
                 descending: false,
@@ -70,13 +77,17 @@ public sealed class ClubManager(
         }
 
         var dto = mapper.Map<ClubDetailDto>(club);
-        if (club.ClubCategoryId is { } detailCategoryId)
-        {
-            var category = await clubCategoryRepository
-                .GetAsync(c => c.Id == detailCategoryId, cancellationToken)
-                .ConfigureAwait(false);
-            dto.ClubCategoryName = category?.Name;
-        }
+
+        var namesByClub = await clubCategoryAssignmentDal
+            .GetNamesByClubAsync([id], cancellationToken)
+            .ConfigureAwait(false);
+        dto.ClubCategoryNames = namesByClub.GetValueOrDefault(id, []);
+
+        dto.ClubCategoryIds = (await clubCategoryAssignmentRepository
+                .GetListAsync(a => a.ClubId == id, cancellationToken)
+                .ConfigureAwait(false))
+            .Select(a => a.ClubCategoryId)
+            .ToList();
 
         dto.SocialLinks = await GetSocialLinksAsync(id, cancellationToken).ConfigureAwait(false);
 
@@ -149,32 +160,21 @@ public sealed class ClubManager(
             .Select(l => new ClubSocialLinkDto { Platform = l.Platform, Url = l.Url, DisplayOrder = l.DisplayOrder })
             .ToList();
 
-    /// <summary>
-    /// Y-10/Y-32: kategori adı AutoMapper ile taşınamaz (join gerekir). Tek toplu sorguyla
-    /// doldurulur — satır başına sorgu N+1 üretirdi (EventManager.MapWithClubNamesAsync deseni).
-    /// </summary>
+    /// <summary>Y-85: sayfa başına TEK toplu sorgu — satır başına sorgu N+1 üretirdi.</summary>
     private async Task FillCategoryNamesAsync(IReadOnlyList<ClubListItemDto> items, CancellationToken cancellationToken)
     {
-        var categoryIds = items
-            .Where(i => i.ClubCategoryId is not null)
-            .Select(i => i.ClubCategoryId!.Value)
-            .Distinct()
-            .ToList();
-
-        if (categoryIds.Count == 0)
+        if (items.Count == 0)
         {
             return;
         }
 
-        var namesById = (await clubCategoryRepository.GetListAsync(c => categoryIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
-            .ToDictionary(c => c.Id, c => c.Name);
+        var namesByClub = await clubCategoryAssignmentDal
+            .GetNamesByClubAsync(items.Select(i => i.Id).ToList(), cancellationToken)
+            .ConfigureAwait(false);
 
         foreach (var item in items)
         {
-            if (item.ClubCategoryId is { } id)
-            {
-                item.ClubCategoryName = namesById.GetValueOrDefault(id);
-            }
+            item.ClubCategoryNames = namesByClub.GetValueOrDefault(item.Id, []);
         }
     }
 
@@ -199,13 +199,15 @@ public sealed class ClubManager(
             Name = name,
             Description = request.Description?.Trim(),
             AdvisorId = advisor.Id,
-            ClubCategoryId = request.ClubCategoryId,
             IsActive = true,
             CreatedAtUtc = clock.UtcNow,
         };
 
         await clubRepository.AddAsync(club, cancellationToken).ConfigureAwait(false);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        // A-80: club.Id yukarıdaki SaveChanges'ten geliyor (düz int FK, navigation property yok).
+        await clubCategoryAssignmentDal.ReplaceAsync(club.Id, request.ClubCategoryIds, cancellationToken).ConfigureAwait(false);
 
         // O-20: yeni kulüp varsayılan unvan setiyle doğar — "Roller" sekmesi boş açılmasın.
         // club.Id yukarıdaki SaveChanges'ten geliyor (düz int FK, navigation property yok).
@@ -256,10 +258,11 @@ public sealed class ClubManager(
 
         club.Name = name;
         club.Description = request.Description?.Trim();
-        // A-60: AdvisorId'den FARKLI semantik — orada null "değiştirme" demek (K-33 kısmi
-        // güncelleme), burada null "kategorisiz yap" demektir. Kategori zorunlu olmadığı için temizlenebilmeli.
-        club.ClubCategoryId = request.ClubCategoryId;
         clubRepository.Update(club);
+
+        // A-80: kategoriler topluca değiştirilir (eskiler silinir, yeniler yazılır).
+        await clubCategoryAssignmentDal.ReplaceAsync(clubId, request.ClubCategoryIds, cancellationToken).ConfigureAwait(false);
+
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return Result.Success(advisorChanged ? Messages.ClubAdvisorChanged : Messages.ClubUpdated);

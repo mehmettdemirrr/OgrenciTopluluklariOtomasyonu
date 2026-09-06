@@ -6,6 +6,7 @@ using Business.Mappings;
 using Core.DataAccess;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
+using DataAccess.Repositories;
 using DataAccess.Seed;
 using Entities;
 using Entities.Enums;
@@ -20,13 +21,14 @@ public class ClubManagerTests
 {
     private readonly Mock<IEntityRepository<Club>> _clubRepository = new();
     private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
-    private readonly Mock<IEntityRepository<ClubCategory>> _clubCategoryRepository = new();
+    private readonly Mock<IEntityRepository<ClubCategoryAssignment>> _clubCategoryAssignmentRepository = new();
     private readonly Mock<IEntityRepository<ClubRoleDefinition>> _clubRoleDefinitionRepository = new();
     private readonly Mock<IEntityRepository<MembershipApplication>> _membershipApplicationRepository = new();
     private readonly Mock<IEntityRepository<Student>> _studentRepository = new();
     private readonly Mock<IEntityRepository<ClubMembership>> _clubMembershipRepository = new();
     private readonly Mock<IEntityRepository<AcademicTerm>> _academicTermRepository = new();
     private readonly Mock<IEntityRepository<ClubSocialLink>> _clubSocialLinkRepository = new();
+    private readonly Mock<IClubCategoryAssignmentDal> _clubCategoryAssignmentDal = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<ICurrentUser> _currentUser = new();
     private readonly Mock<IClock> _clock = new();
@@ -41,16 +43,23 @@ public class ClubManagerTests
         _clubSocialLinkRepository
             .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubSocialLink, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
+        _clubCategoryAssignmentRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubCategoryAssignment, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _clubCategoryAssignmentDal
+            .Setup(d => d.GetNamesByClubAsync(It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<int, IReadOnlyList<string>>());
         _sut = new ClubManager(
             _clubRepository.Object,
             _academicStaffRepository.Object,
-            _clubCategoryRepository.Object,
+            _clubCategoryAssignmentRepository.Object,
             _clubRoleDefinitionRepository.Object,
             _membershipApplicationRepository.Object,
             _studentRepository.Object,
             _clubMembershipRepository.Object,
             _academicTermRepository.Object,
             _clubSocialLinkRepository.Object,
+            _clubCategoryAssignmentDal.Object,
             _unitOfWork.Object,
             _currentUser.Object,
             _clock.Object,
@@ -241,5 +250,34 @@ public class ClubManagerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(ClubRelationship.Administrator, result.Data!.MyRelationship);
+    }
+
+    [Fact(DisplayName = "K-49: UpdateAsync kulübün kategorilerini topluca değiştirir")]
+    public async Task UpdateAsync_ReplacesCategories()
+    {
+        var club = new Club { Id = 1, Name = "Kulüp", AdvisorId = 1, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+        _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<Club, bool>> filter, CancellationToken _) => new[] { club }.AsQueryable().Where(filter).FirstOrDefault());
+
+        var result = await _sut.UpdateAsync(1, new UpdateClubRequestDto { Name = "Kulüp", ClubCategoryIds = [3, 7] });
+
+        Assert.True(result.IsSuccess);
+        _clubCategoryAssignmentDal.Verify(
+            d => d.ReplaceAsync(1, It.Is<IReadOnlyCollection<int>>(ids => ids.Contains(3) && ids.Contains(7)), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName = "K-49/Y-85: GetByIdAsync kategori adlarını tek toplu sorgudan doldurur")]
+    public async Task GetByIdAsync_FillsCategoryNames()
+    {
+        var club = new Club { Id = 1, Name = "Kulüp", AdvisorId = 1, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+        _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(club);
+        _clubCategoryAssignmentDal
+            .Setup(d => d.GetNamesByClubAsync(It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<int, IReadOnlyList<string>> { [1] = ["Bilim - Teknoloji", "Sosyal Sorumluluk"] });
+
+        var result = await _sut.GetByIdAsync(1);
+
+        Assert.Equal(["Bilim - Teknoloji", "Sosyal Sorumluluk"], result.Data!.ClubCategoryNames);
     }
 }

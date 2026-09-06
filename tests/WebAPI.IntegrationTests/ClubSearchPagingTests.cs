@@ -197,9 +197,7 @@ public sealed class ClubSearchPagingTests : IClassFixture<CustomWebApplicationFa
 
         public bool IsActive { get; init; }
 
-        public int? ClubCategoryId { get; init; }
-
-        public string? ClubCategoryName { get; init; }
+        public List<string> ClubCategoryNames { get; init; } = [];
     }
 
     [Fact(DisplayName = "A-50/Y-62: kulüp listesi categoryId ile sunucu tarafında filtrelenir ve kategori adını taşır")]
@@ -223,9 +221,12 @@ public sealed class ClubSearchPagingTests : IClassFixture<CustomWebApplicationFa
             await db.SaveChangesAsync();
             categoryId = category.Id;
 
-            db.Clubs.AddRange(
-                new Club { Name = inCategoryName, AdvisorId = advisorId, IsActive = true, CreatedAtUtc = DateTime.UtcNow, ClubCategoryId = categoryId },
-                new Club { Name = outOfCategoryName, AdvisorId = advisorId, IsActive = true, CreatedAtUtc = DateTime.UtcNow });
+            var inCategoryClub = new Club { Name = inCategoryName, AdvisorId = advisorId, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+            var outOfCategoryClub = new Club { Name = outOfCategoryName, AdvisorId = advisorId, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
+            db.Clubs.AddRange(inCategoryClub, outOfCategoryClub);
+            await db.SaveChangesAsync();
+
+            db.ClubCategoryAssignments.Add(new ClubCategoryAssignment { ClubId = inCategoryClub.Id, ClubCategoryId = categoryId });
             await db.SaveChangesAsync();
         }
 
@@ -233,7 +234,7 @@ public sealed class ClubSearchPagingTests : IClassFixture<CustomWebApplicationFa
 
         Assert.Contains(filtered.Items, c => c.Name == inCategoryName);
         Assert.DoesNotContain(filtered.Items, c => c.Name == outOfCategoryName);
-        Assert.Equal(categoryName, filtered.Items.Single(c => c.Name == inCategoryName).ClubCategoryName);
+        Assert.Contains(categoryName, filtered.Items.Single(c => c.Name == inCategoryName).ClubCategoryNames);
 
         // Filtre verilmezse ikisi de gelir — filtre "gevşemez", sadece uygulanmaz.
         var unfiltered = await GetClubsAsync($"pageIndex=0&pageSize=100&search={Uri.EscapeDataString(suffix)}");
@@ -258,17 +259,21 @@ public sealed class ClubSearchPagingTests : IClassFixture<CustomWebApplicationFa
             await db.SaveChangesAsync();
             categoryId = category.Id;
 
-            db.Clubs.Add(new Club
+            var club = new Club
             {
                 Name = clubName, AdvisorId = advisorId, IsActive = true,
-                CreatedAtUtc = DateTime.UtcNow, ClubCategoryId = categoryId,
-            });
+                CreatedAtUtc = DateTime.UtcNow,
+            };
+            db.Clubs.Add(club);
+            await db.SaveChangesAsync();
+
+            db.ClubCategoryAssignments.Add(new ClubCategoryAssignment { ClubId = club.Id, ClubCategoryId = categoryId });
             await db.SaveChangesAsync();
         }
 
         // 1. Liste eski adla ISINDIRILIR — cache bu çağrıda dolar.
         var before = await GetClubsAsync($"pageIndex=0&pageSize=100&categoryId={categoryId}");
-        Assert.Equal($"Eski Ad {suffix}", before.Items.Single(c => c.Name == clubName).ClubCategoryName);
+        Assert.Contains($"Eski Ad {suffix}", before.Items.Single(c => c.Name == clubName).ClubCategoryNames);
 
         // 2. Kategori adı değiştirilir.
         var newName = $"Yeni Ad {suffix}";
@@ -281,7 +286,7 @@ public sealed class ClubSearchPagingTests : IClassFixture<CustomWebApplicationFa
 
         // 3. CacheRemoveAspect "ClubManager." önekini düşürmezse burada ESKİ ad gelir.
         var after = await GetClubsAsync($"pageIndex=0&pageSize=100&categoryId={categoryId}");
-        Assert.Equal(newName, after.Items.Single(c => c.Name == clubName).ClubCategoryName);
+        Assert.Contains(newName, after.Items.Single(c => c.Name == clubName).ClubCategoryNames);
     }
 
     private sealed class AuthResponseDto

@@ -307,7 +307,7 @@ public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFa
             await seedDb.SaveChangesAsync();
             categoryId = category.Id;
 
-            club.ClubCategoryId = categoryId;
+            seedDb.ClubCategoryAssignments.Add(new ClubCategoryAssignment { ClubId = club.Id, ClubCategoryId = categoryId });
             await seedDb.SaveChangesAsync();
         }
 
@@ -332,7 +332,8 @@ public sealed class DomainConstraintTests : IClassFixture<CustomWebApplicationFa
         var (club, _, _) = await SeedClubStudentTermAsync(db, "kat2");
 
         var reloaded = await db.Clubs.AsNoTracking().SingleAsync(c => c.Id == club.Id);
-        Assert.Null(reloaded.ClubCategoryId);
+        Assert.NotNull(reloaded);
+        Assert.False(await db.ClubCategoryAssignments.AnyAsync(a => a.ClubId == club.Id));
     }
 
     [Fact(DisplayName = "A-61: aynı kulüpte aynı adla ikinci rol tanımı DB seviyesinde reddedilir")]

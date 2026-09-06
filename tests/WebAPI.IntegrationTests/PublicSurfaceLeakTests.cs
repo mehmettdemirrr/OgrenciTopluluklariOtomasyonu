@@ -191,7 +191,7 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
         await db.SaveChangesAsync();
 
         var activeClubName = $"pub-leak-active-club-{suffix}";
-        var activeClub = new Club { Name = activeClubName, AdvisorId = advisor.Id, IsActive = true, CreatedAtUtc = DateTime.UtcNow, ClubCategoryId = category.Id };
+        var activeClub = new Club { Name = activeClubName, AdvisorId = advisor.Id, IsActive = true, CreatedAtUtc = DateTime.UtcNow };
         db.Clubs.Add(activeClub);
         var inactiveClubName = $"pub-leak-inactive-club-{suffix}";
         db.Clubs.Add(new Club { Name = inactiveClubName, AdvisorId = advisor.Id, IsActive = false, CreatedAtUtc = DateTime.UtcNow });

@@ -12,8 +12,8 @@ public sealed class PublicClubListItemDto
     public int? LogoFileId { get; set; }
 
     /// <summary>
-    /// docs/MIMARI.md · K-35: kategori adı. Y-58 kontrolü: kurumsal sınıflandırma, kişisel veri değil.
-    /// Kimlik (ClubCategoryId) taşınmaz — vitrinin ihtiyacı yalnızca görünen ad.
+    /// docs/MIMARI.md · K-49: ada göre sıralı kategori adları. Y-58 kontrolü: kurumsal
+    /// sınıflandırma, kişisel veri değil. Kimlik taşınmaz — vitrinin ihtiyacı yalnızca görünen ad.
     /// </summary>
-    public string? ClubCategoryName { get; set; }
+    public IReadOnlyList<string> ClubCategoryNames { get; set; } = [];
 }

@@ -21,6 +21,7 @@ public sealed class PublicContentManager(
     IEntityRepository<ClubSocialLink> clubSocialLinkRepository,
     IEntityRepository<EventParticipation> eventParticipationRepository,
     IEventViewDal eventViewDal,
+    IClubCategoryAssignmentDal clubCategoryAssignmentDal,
     IClock clock) : IPublicContentService
 {
     private const int DefaultPageSize = 20;
@@ -33,7 +34,12 @@ public sealed class PublicContentManager(
         var initial = NameInitial.Normalize(letter);
         var initialLower = NameInitial.ToSearchLower(initial);
 
-        // A-50: arama, kategori ve harf filtresi SQL'de. IsActive filtresi kodda sabit kalır (Y-58) —
+        // Y-85: kategori filtresi SQL'de iki adımda: önce kategorideki kulüp id'leri, sonra sayfalama.
+        IReadOnlyCollection<int>? categoryClubIds = categoryId is { } cid
+            ? await clubCategoryAssignmentDal.GetClubIdsByCategoryAsync(cid, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        // A-50: arama ve harf filtresi SQL'de. IsActive filtresi kodda sabit kalır (Y-58) —
         // search / categoryId / letter onu gevşetemez. Büyük/küçük harf iki sabit önekle taranır
         // (EF ToLower+culture SQL'e çevrilemez; ToLower burada, ifade ağacının dışında alınır).
         var paged = await clubRepository
@@ -41,7 +47,7 @@ public sealed class PublicContentManager(
                 pageIndex,
                 ClampPageSize(pageSize),
                 c => c.IsActive
-                    && (categoryId == null || c.ClubCategoryId == categoryId)
+                    && (categoryClubIds == null || categoryClubIds.Contains(c.Id))
                     && (term.Length == 0 || c.Name.Contains(term))
                     && (initial.Length == 0
                         || c.Name.StartsWith(initial)
@@ -51,9 +57,9 @@ public sealed class PublicContentManager(
                 cancellationToken)
             .ConfigureAwait(false);
 
-        var categoryNames = await GetCategoryNamesAsync(
-            paged.Items.Where(c => c.ClubCategoryId is not null).Select(c => c.ClubCategoryId!.Value),
-            cancellationToken).ConfigureAwait(false);
+        var namesByClub = await clubCategoryAssignmentDal
+            .GetNamesByClubAsync(paged.Items.Select(c => c.Id).ToList(), cancellationToken)
+            .ConfigureAwait(false);
 
         var items = paged.Items
             .Select(c => new PublicClubListItemDto
@@ -62,7 +68,7 @@ public sealed class PublicContentManager(
                 Name = c.Name,
                 Description = c.Description,
                 LogoFileId = c.LogoFileId,
-                ClubCategoryName = c.ClubCategoryId is { } id ? categoryNames.GetValueOrDefault(id) : null,
+                ClubCategoryNames = namesByClub.GetValueOrDefault(c.Id, []),
             })
             .ToList();
 
@@ -78,9 +84,9 @@ public sealed class PublicContentManager(
             return DataResult<PublicClubDetailDto>.NotFound(Messages.ClubNotFound);
         }
 
-        var categoryNames = await GetCategoryNamesAsync(
-            club.ClubCategoryId is { } cid ? [cid] : [],
-            cancellationToken).ConfigureAwait(false);
+        var namesByClub = await clubCategoryAssignmentDal
+            .GetNamesByClubAsync([id], cancellationToken)
+            .ConfigureAwait(false);
 
         var socialLinks = (await clubSocialLinkRepository.GetListAsync(l => l.ClubId == id, cancellationToken).ConfigureAwait(false))
             .OrderBy(l => l.DisplayOrder)
@@ -93,24 +99,11 @@ public sealed class PublicContentManager(
             Name = club.Name,
             Description = club.Description,
             LogoFileId = club.LogoFileId,
-            ClubCategoryName = club.ClubCategoryId is { } detailCategoryId ? categoryNames.GetValueOrDefault(detailCategoryId) : null,
+            ClubCategoryNames = namesByClub.GetValueOrDefault(id, []),
             ContactEmail = club.ContactEmail,
             ContactPhone = club.ContactPhone,
             SocialLinks = socialLinks,
         });
-    }
-
-    /// <summary>Y-10: tek toplu sorgu — satır başına sorgu N+1 üretirdi.</summary>
-    private async Task<Dictionary<int, string>> GetCategoryNamesAsync(IEnumerable<int> categoryIds, CancellationToken cancellationToken)
-    {
-        var ids = categoryIds.Distinct().ToList();
-        if (ids.Count == 0)
-        {
-            return [];
-        }
-
-        return (await clubCategoryRepository.GetListAsync(c => ids.Contains(c.Id), cancellationToken).ConfigureAwait(false))
-            .ToDictionary(c => c.Id, c => c.Name);
     }
 
     public async Task<IDataResult<PagedResult<PublicEventListItemDto>>> GetEventsAsync(

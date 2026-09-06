@@ -53,7 +53,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { SOCIAL_PLATFORMS, SOCIAL_PLATFORM_LABELS, SocialLinkIcons } from '../components/ui/SocialLinks'
 import { ClubRoleChip } from '../components/ui/StatusChip'
-import { clubFormSchema, emptyClubFormValues, toCategoryPayload, type ClubFormValues } from '../schemas/clubForm'
+import { clubFormSchema, emptyClubFormValues, type ClubFormValues } from '../schemas/clubForm'
 import {
   clubContactFormSchema,
   emptyClubContactFormValues,
@@ -204,8 +204,7 @@ function GeneralTab({
         description: values.description.trim() || null,
         // K-33: 0 seçilmediyse null gider ve mevcut danışman korunur.
         advisorId: values.advisorId || null,
-        // A-60: burada null "kategorisiz yap" demek — AdvisorId'den farklı semantik.
-        clubCategoryId: toCategoryPayload(values.clubCategoryId),
+        clubCategoryIds: values.clubCategoryIds,
       })
     },
     onSuccess: () => {
@@ -232,7 +231,7 @@ function GeneralTab({
       name: club?.name ?? '',
       description: club?.description ?? '',
       advisorId: club?.advisorId ?? 0,
-      clubCategoryId: club?.clubCategoryId ?? 0,
+      clubCategoryIds: club?.clubCategoryIds ?? [],
     })
     editDialog.openDialog()
   }
@@ -276,7 +275,9 @@ function GeneralTab({
         chips={
           <>
             <Chip size="small" label={club.isActive ? 'Aktif' : 'Pasif'} color={club.isActive ? 'success' : 'default'} />
-            {club.clubCategoryName && <Chip size="small" variant="outlined" color="primary" label={club.clubCategoryName} />}
+            {club.clubCategoryNames.map((name) => (
+              <Chip key={name} size="small" variant="outlined" color="primary" label={name} />
+            ))}
           </>
         }
         description={club.description}
@@ -307,7 +308,11 @@ function GeneralTab({
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
-            <InfoTile icon={CategoryOutlinedIcon} label="Kategori" value={club.clubCategoryName ?? 'Kategorisiz'} />
+            <InfoTile
+              icon={CategoryOutlinedIcon}
+              label="Kategori"
+              value={club.clubCategoryNames.length > 0 ? club.clubCategoryNames.join(', ') : 'Kategorisiz'}
+            />
           </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
             <InfoTile
@@ -488,18 +493,19 @@ function GeneralTab({
           />
 
           <Controller
-            name="clubCategoryId"
+            name="clubCategoryIds"
             control={control}
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <TextField
                 {...field}
                 select
                 fullWidth
                 margin="dense"
-                label="Kategori (isteğe bağlı)"
-                onChange={(event) => field.onChange(Number(event.target.value))}
+                label="Kategoriler (en fazla 3)"
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                slotProps={{ select: { multiple: true, renderValue: (selected) => (selected as number[]).length + ' kategori' } }}
               >
-                <MenuItem value={0}>— Kategorisiz —</MenuItem>
                 {(categoriesQuery.data?.items ?? []).map((category) => (
                   <MenuItem key={category.id} value={category.id}>
                     {category.name}

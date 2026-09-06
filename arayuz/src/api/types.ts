@@ -14,8 +14,8 @@ export interface ClubListItemDto {
   description: string | null
   isActive: boolean
   logoFileId: number | null
-  clubCategoryId: number | null
-  clubCategoryName: string | null
+  /** docs/MIMARI.md · K-49: ada göre sıralı kategori adları. */
+  clubCategoryNames: string[]
 }
 
 // src/Entities/Enums/SocialPlatform.cs
@@ -37,8 +37,10 @@ export interface ClubDetailDto {
   createdAtUtc: string
   advisorId: number
   logoFileId: number | null
-  clubCategoryId: number | null
-  clubCategoryName: string | null
+  /** docs/MIMARI.md · K-49: ada göre sıralı kategori adları. */
+  clubCategoryNames: string[]
+  /** docs/MIMARI.md · K-49: düzenleme formu bu kimliklerle kutucukları işaretler. */
+  clubCategoryIds: number[]
   /** docs/MIMARI.md · K-44 */
   contactEmail: string | null
   contactPhone: string | null
@@ -418,8 +420,8 @@ export interface PublicClubListItemDto {
   name: string
   description: string | null
   logoFileId: number | null
-  /** K-35: kurumsal sınıflandırma; kimlik taşınmaz (Y-58). */
-  clubCategoryName: string | null
+  /** K-49: kurumsal sınıflandırma; kimlik taşınmaz (Y-58). */
+  clubCategoryNames: string[]
 }
 
 // src/Business/DTOs/Public/PublicClubDetailDto.cs
@@ -428,7 +430,7 @@ export interface PublicClubDetailDto {
   name: string
   description: string | null
   logoFileId: number | null
-  clubCategoryName: string | null
+  clubCategoryNames: string[]
   /** docs/MIMARI.md · K-44 */
   contactEmail: string | null
   contactPhone: string | null

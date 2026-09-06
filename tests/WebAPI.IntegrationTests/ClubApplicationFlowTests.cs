@@ -789,7 +789,8 @@ public sealed class ClubApplicationFlowTests : IClassFixture<CustomWebApplicatio
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var createdClub = await db.Clubs.SingleAsync(c => c.Name == proposedName);
-            Assert.Equal(categoryId, createdClub.ClubCategoryId);
+            var assignment = await db.ClubCategoryAssignments.SingleAsync(a => a.ClubId == createdClub.Id);
+            Assert.Equal(categoryId, assignment.ClubCategoryId);
         }
     }
 

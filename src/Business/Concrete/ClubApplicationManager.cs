@@ -30,6 +30,7 @@ public sealed class ClubApplicationManager(
     IEntityRepository<ClubApplicationDocument> clubApplicationDocumentRepository,
     IEntityRepository<StoredFile> storedFileRepository,
     IAcademicStaffDal academicStaffDal,
+    IClubCategoryAssignmentDal clubCategoryAssignmentDal,
     IFileService fileService,
     IFileStorage fileStorage,
     IUnitOfWork unitOfWork,
@@ -455,7 +456,6 @@ public sealed class ClubApplicationManager(
                         Name = application.ProposedName,
                         Description = application.Description,
                         AdvisorId = application.ProposedAdvisorId,
-                        ClubCategoryId = application.ProposedCategoryId,
                         IsActive = true,
                         CreatedAtUtc = now,
                         // Y-76: bu atama YALNIZCA Approved dalındadır — reddedilen başvurunun logosu geçmez.
@@ -467,6 +467,14 @@ public sealed class ClubApplicationManager(
                     // standart çözümü (bkz. FileManager.StoreFileAsync → UploadClubLogoAsync).
                     await clubRepository.AddAsync(club, cancellationToken).ConfigureAwait(false);
                     await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+                    // A-80: öneri tekildir, onayda tek bir bağ satırına dönüşür.
+                    if (application.ProposedCategoryId is { } proposedCategoryId)
+                    {
+                        await clubCategoryAssignmentDal
+                            .ReplaceAsync(club.Id, [proposedCategoryId], cancellationToken)
+                            .ConfigureAwait(false);
+                    }
 
                     // O-20: onayla doğan kulüp de varsayılan unvan setini alır (ClubManager.CreateAsync ile aynı).
                     foreach (var (roleName, role, capabilities, displayOrder) in DefaultClubRoles.All)

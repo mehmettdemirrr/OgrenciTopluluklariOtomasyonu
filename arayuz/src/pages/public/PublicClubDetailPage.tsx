@@ -78,7 +78,15 @@ export function PublicClubDetailPage() {
             fallback={<GroupsOutlinedIcon sx={{ fontSize: 48, color: 'primary.dark' }} />}
           />
         }
-        chips={club.clubCategoryName ? <Chip size="small" variant="outlined" color="primary" label={club.clubCategoryName} /> : undefined}
+        chips={
+          club.clubCategoryNames.length > 0 ? (
+            <>
+              {club.clubCategoryNames.map((name) => (
+                <Chip key={name} size="small" variant="outlined" color="primary" label={name} />
+              ))}
+            </>
+          ) : undefined
+        }
         title={club.name}
         titleComponent="h1"
         description={club.description}

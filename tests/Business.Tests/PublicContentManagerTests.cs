@@ -26,6 +26,7 @@ public class PublicContentManagerTests
     private readonly Mock<IEntityRepository<ClubSocialLink>> _clubSocialLinkRepository = new();
     private readonly Mock<IEntityRepository<EventParticipation>> _eventParticipationRepository = new();
     private readonly Mock<IEventViewDal> _eventViewDal = new();
+    private readonly Mock<IClubCategoryAssignmentDal> _clubCategoryAssignmentDal = new();
     private readonly Mock<IClock> _clock = new();
     private readonly PublicContentManager _sut;
 
@@ -38,10 +39,13 @@ public class PublicContentManagerTests
         _eventParticipationRepository
             .Setup(r => r.GetListPagedAsync(0, 1, It.IsAny<Expression<Func<EventParticipation, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedResult<EventParticipation>([], 0, 0, 1));
+        _clubCategoryAssignmentDal
+            .Setup(d => d.GetNamesByClubAsync(It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<int, IReadOnlyList<string>>());
         _sut = new PublicContentManager(
             _clubRepository.Object, _eventRepository.Object, _announcementRepository.Object,
             _clubCategoryRepository.Object, _studentRepository.Object, _clubSocialLinkRepository.Object,
-            _eventParticipationRepository.Object, _eventViewDal.Object, _clock.Object);
+            _eventParticipationRepository.Object, _eventViewDal.Object, _clubCategoryAssignmentDal.Object, _clock.Object);
     }
 
     [Fact(DisplayName = "GetClubsAsync: yalnızca IsActive=true kulüpler döner, pasif kulüp listede yok")]
@@ -58,37 +62,36 @@ public class PublicContentManagerTests
         Assert.Equal("Aktif Kulüp", item.Name);
     }
 
-    [Fact(DisplayName = "K-35: anonim vitrin categoryId ile filtrelenir ve kategori adını taşır")]
-    public async Task GetClubsAsync_CategoryFilter_ReturnsOnlyMatchingWithName()
+    [Fact(DisplayName = "K-49: anonim vitrin kategori filtresi bağ tablosundan gelen id kümesiyle daraltılır")]
+    public async Task GetClubsAsync_CategoryFilter_UsesAssignmentIds()
     {
-        var inCategory = new Club { Id = 1, Name = "Kategorili", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow, ClubCategoryId = 4 };
-        var otherCategory = new Club { Id = 2, Name = "Başka Kategori", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow, ClubCategoryId = 9 };
+        var matching = new Club { Id = 1, Name = "Kategorili", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
+        var other = new Club { Id = 2, Name = "Başka Kategori", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
         var noCategory = new Club { Id = 3, Name = "Kategorisiz", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
-        SetupPagedFilter<Club, string>(_clubRepository, [inCategory, otherCategory, noCategory]);
+        SetupPagedFilter<Club, string>(_clubRepository, [matching, other, noCategory]);
 
-        _clubCategoryRepository
-            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubCategory, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new ClubCategory { Id = 4, Name = "Bilim" }]);
+        _clubCategoryAssignmentDal
+            .Setup(d => d.GetClubIdsByCategoryAsync(4, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([1]);
+        _clubCategoryAssignmentDal
+            .Setup(d => d.GetNamesByClubAsync(It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<int, IReadOnlyList<string>> { [1] = ["Bilim"] });
 
         var result = await _sut.GetClubsAsync(0, 20, null, 4);
 
         Assert.True(result.IsSuccess);
         var item = Assert.Single(result.Data!.Items);
         Assert.Equal("Kategorili", item.Name);
-        Assert.Equal("Bilim", item.ClubCategoryName);
+        Assert.Equal(["Bilim"], item.ClubCategoryNames);
     }
 
-    [Fact(DisplayName = "K-35: categoryId verilmezse tüm aktif kulüpler döner (filtre gevşemez, sadece uygulanmaz)")]
+    [Fact(DisplayName = "K-49: categoryId verilmezse tüm aktif kulüpler döner (filtre gevşemez, sadece uygulanmaz)")]
     public async Task GetClubsAsync_NoCategoryFilter_ReturnsAllActive()
     {
-        var withCategory = new Club { Id = 1, Name = "Kategorili", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow, ClubCategoryId = 4 };
+        var withCategory = new Club { Id = 1, Name = "Kategorili", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
         var withoutCategory = new Club { Id = 2, Name = "Kategorisiz", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
-        var inactive = new Club { Id = 3, Name = "Pasif", AdvisorId = 1, IsActive = false, CreatedAtUtc = FixedNow, ClubCategoryId = 4 };
+        var inactive = new Club { Id = 3, Name = "Pasif", AdvisorId = 1, IsActive = false, CreatedAtUtc = FixedNow };
         SetupPagedFilter<Club, string>(_clubRepository, [withCategory, withoutCategory, inactive]);
-
-        _clubCategoryRepository
-            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubCategory, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new ClubCategory { Id = 4, Name = "Bilim" }]);
 
         var result = await _sut.GetClubsAsync(0, 20);
 

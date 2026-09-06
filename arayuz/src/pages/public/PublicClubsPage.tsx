@@ -1,4 +1,4 @@
-import { Alert, Box, Card, CardContent, CardMedia, Chip, Grid, Typography, alpha } from '@mui/material'
+import { Alert, Box, Card, CardContent, CardMedia, Chip, Grid, Stack, Typography, alpha } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -123,8 +123,12 @@ export function PublicClubsPage() {
                   <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.75 }} noWrap>
                     {club.name}
                   </Typography>
-                  {club.clubCategoryName && (
-                    <Chip size="small" variant="outlined" color="primary" label={club.clubCategoryName} sx={{ mb: 1 }} />
+                  {club.clubCategoryNames.length > 0 && (
+                    <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap' }} useFlexGap>
+                      {club.clubCategoryNames.map((name) => (
+                        <Chip key={name} size="small" variant="outlined" color="primary" label={name} />
+                      ))}
+                    </Stack>
                   )}
                   <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {club.description || t('common.noDescription')}
