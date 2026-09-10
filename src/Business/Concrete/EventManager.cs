@@ -368,11 +368,10 @@ public sealed class EventManager(
                 cancellationToken)
             .ConfigureAwait(false);
 
-        var unlockAll = currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll);
-        var unlockedClubIds = unlockAll ? null : await GetCalendarUnlockClubIdsAsync(cancellationToken).ConfigureAwait(false);
+        var (unlockAll, unlockedClubIds) = await ResolveCalendarUnlockAsync(cancellationToken).ConfigureAwait(false);
 
         var openClubIds = paged.Items
-            .Where(e => !CalendarEvents.IsMembersOnly(e) || unlockAll || unlockedClubIds!.Contains(e.ClubId))
+            .Where(e => !CalendarEvents.IsMembersOnly(e) || unlockAll || unlockedClubIds.Contains(e.ClubId))
             .Select(e => e.ClubId)
             .Distinct()
             .ToList();
@@ -384,7 +383,7 @@ public sealed class EventManager(
         var items = paged.Items
             .Select(e =>
             {
-                var canOpen = !CalendarEvents.IsMembersOnly(e) || unlockAll || unlockedClubIds!.Contains(e.ClubId);
+                var canOpen = !CalendarEvents.IsMembersOnly(e) || unlockAll || unlockedClubIds.Contains(e.ClubId);
                 return canOpen
                     ? CalendarEvents.ToOpen(e, clubNames.GetValueOrDefault(e.ClubId, string.Empty))
                     : CalendarEvents.ToLocked(e);
@@ -394,12 +393,23 @@ public sealed class EventManager(
         return DataResult<IReadOnlyList<PublicCalendarEventDto>>.Success(items);
     }
 
-    private async Task<HashSet<int>> GetCalendarUnlockClubIdsAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// docs/MIMARI.md · Y-74/A-67: yönetici kontrolü, çağıranı danışmana çözen bu metodun İLK
+    /// satırıdır — MembershipApplicationManager.GetPendingForAdvisorAsync ile birebir aynı desen.
+    /// Kontrolü ayrı bir dış kapıya (çağıran metoda) bırakmak, Faz 30'daki kör noktanın aynısını
+    /// yeniden üretir: bu metot doğrudan çağrılırsa yönetici sessizce boş kümeyle kilitli kalırdı.
+    /// </summary>
+    private async Task<(bool UnlockAll, HashSet<int> ClubIds)> ResolveCalendarUnlockAsync(CancellationToken cancellationToken)
     {
+        if (currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll))
+        {
+            return (true, []);
+        }
+
         var ids = new HashSet<int>();
         if (currentUser.UserId is not { } userId)
         {
-            return ids;
+            return (false, ids);
         }
 
         var advisor = await academicStaffRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
@@ -416,7 +426,7 @@ public sealed class EventManager(
         var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
         if (student is null || term is null)
         {
-            return ids;
+            return (false, ids);
         }
 
         var memberships = await clubMembershipRepository
@@ -427,7 +437,7 @@ public sealed class EventManager(
             ids.Add(membership.ClubId);
         }
 
-        return ids;
+        return (false, ids);
     }
 
     private async Task<HashSet<int>> GetRegisteredEventIdsAsync(List<int> eventIds, CancellationToken cancellationToken)
