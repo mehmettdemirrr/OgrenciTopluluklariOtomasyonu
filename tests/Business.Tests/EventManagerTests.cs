@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Business.Concrete;
 using Business.DTOs.Events;
+using Business.DTOs.Public;
 using Core.DataAccess;
 using Core.Utilities.Security;
 using Core.Utilities.Time;
@@ -464,5 +465,56 @@ public class EventManagerTests
         Assert.Equal(5, result.Data!.ParticipantCount);
         Assert.Equal(42, result.Data.ClubLogoFileId);
         Assert.Equal(11, result.Data.ViewCount);
+    }
+
+    [Fact(DisplayName = "A-84: takvim yalnızca çağıranın üyesi olduğu kulübün üyelere özel etkinliğini açar")]
+    public async Task GetCalendarAsync_UnlocksOnlyOwnClubs()
+    {
+        var now = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc);
+        _clock.Setup(c => c.UtcNow).Returns(now);
+        _currentUser.Setup(c => c.UserId).Returns(500);
+        _currentUser.Setup(c => c.Permissions).Returns([]);
+
+        var mine = new Event
+        {
+            Id = 1, ClubId = 10, Title = "Üyesi Olduğum", Audience = EventAudience.ClubMembers, Status = EventStatus.Published,
+            StartDateUtc = now.AddDays(1), EndDateUtc = now.AddDays(1).AddHours(2), CreatedAtUtc = now,
+        };
+        var foreign = new Event
+        {
+            Id = 2, ClubId = 20, Title = "Yabanci Kulup", Audience = EventAudience.ClubMembers, Status = EventStatus.Published,
+            StartDateUtc = now.AddDays(2), EndDateUtc = now.AddDays(2).AddHours(2), CreatedAtUtc = now,
+        };
+        _eventRepository
+            .Setup(r => r.GetListPagedAsync(
+                It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<Expression<Func<Event, bool>>>(), It.IsAny<Expression<Func<Event, DateTime>>>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PagedResult<Event>([mine, foreign], 2, 0, 100));
+
+        _academicStaffRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AcademicStaff?)null);
+        _studentRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Student, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Student { Id = 7, ApplicationUserId = 500, StudentNumber = "S1", DepartmentId = 1, EnrollmentYear = 2026 });
+        _academicTermRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicTerm, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AcademicTerm { Id = 3, Name = "2026-Güz", StartDateUtc = now.AddMonths(-1), EndDateUtc = now.AddMonths(3), IsCurrent = true });
+        _clubMembershipRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<ClubMembership, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new ClubMembership { ClubId = 10, StudentId = 7, AcademicTermId = 3, ClubRole = ClubRole.Member, JoinedAtUtc = now }]);
+        _clubRepository
+            .Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new Club { Id = 10, Name = "Benim Kulübüm", AdvisorId = 1, IsActive = true, CreatedAtUtc = now }]);
+
+        var result = await _sut.GetCalendarAsync(now.AddDays(-1), now.AddDays(10));
+
+        Assert.True(result.IsSuccess);
+        var own = Assert.Single(result.Data!, item => item.Locked == false);
+        Assert.Equal("Üyesi Olduğum", own.Title);
+        var locked = Assert.Single(result.Data!, item => item.Locked);
+        Assert.Null(locked.Title);
+        Assert.Null(locked.ClubId);
     }
 }

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using DataAccess;
 using Entities;
 using Entities.Enums;
@@ -299,5 +300,59 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
         // yalnizca bos liste gordugu icin gecmesini engeller.
         Assert.Contains(scenario.PublishedEventTitle, body, StringComparison.Ordinal);
         Assert.DoesNotContain(membersOnlyTitle, body, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "Y-72/A-84: anonim takvim üyelere özel etkinliği yalnızca kilitli dilim olarak gösterir")]
+    public async Task GetPublicCalendar_Anonymous_LocksMembersOnlyEvents()
+    {
+        var suffix = $"cal{Guid.NewGuid():N}"[..11];
+        var scenario = await SeedScenarioAsync(suffix);
+        var membersOnlyTitle = $"pub-leak-calendar-members-{suffix}";
+        var start = DateTime.UtcNow.AddDays(3);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var club = await db.Clubs.SingleAsync(c => c.Name == scenario.ActiveClubName);
+
+            db.Events.Add(new Event
+            {
+                ClubId = club.Id,
+                Title = membersOnlyTitle,
+                StartDateUtc = start,
+                EndDateUtc = start.AddHours(2),
+                Status = EventStatus.Published,
+                Audience = EventAudience.ClubMembers,
+                CreatedAtUtc = DateTime.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        // Aralık AÇIKÇA verilir: parametresiz çağrı "içinde bulunulan ay"a bakar ve ay sonunda
+        // seed edilen etkinlik aralığın dışında kalırdı (CalendarEvents.TryResolveRange).
+        var from = DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var to = DateTime.UtcNow.AddDays(30).ToString("yyyy-MM-ddTHH:mm:ssZ");
+        var response = await _client.GetAsync($"/api/public/calendar-events?fromUtc={from}&toUtc={to}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+
+        // Herkese açık etkinlik başlığıyla görünür — filtre "her şeyi ele" hâline gelirse bu satır kırılır.
+        Assert.Contains(scenario.PublishedEventTitle, body, StringComparison.Ordinal);
+        // Üyelere özel etkinliğin başlığı ve kulübü sızmaz; yalnızca saat dilimi görünür (A-84).
+        Assert.DoesNotContain(membersOnlyTitle, body, StringComparison.Ordinal);
+        AssertNoPii(body, scenario);
+
+        var locked = JsonDocument.Parse(body).RootElement.EnumerateArray()
+            .Where(item => item.GetProperty("locked").GetBoolean())
+            .ToList();
+        Assert.NotEmpty(locked);
+        Assert.All(locked, item =>
+        {
+            Assert.Equal(JsonValueKind.Null, item.GetProperty("id").ValueKind);
+            Assert.Equal(JsonValueKind.Null, item.GetProperty("title").ValueKind);
+            Assert.Equal(JsonValueKind.Null, item.GetProperty("clubName").ValueKind);
+            Assert.Equal(JsonValueKind.Null, item.GetProperty("posterFileId").ValueKind);
+        });
     }
 }
