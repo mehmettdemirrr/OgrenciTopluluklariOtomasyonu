@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Linq.Expressions;
 using Business.Abstract;
 using Business.Concrete;
@@ -260,7 +261,7 @@ public class FileManagerTests
     [Fact(DisplayName = "A-64: şablon yolu Docx kabul eder ve Public saklar")]
     public async Task StoreDocumentTemplateAsync_AcceptsDocx_AsPublic()
     {
-        var docx = FakeOfficeBytes("word/document.xml", "wordprocessingml");
+        var docx = BuildOfficePackage("word/document.xml", "wordprocessingml");
         StoredFile? addedFile = null;
         _storedFileRepository
             .Setup(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()))
@@ -299,7 +300,7 @@ public class FileManagerTests
     [Fact(DisplayName = "Y-40: şablon yoluna xlsx/zip yüklenemez")]
     public async Task StoreDocumentTemplateAsync_RejectsXlsx()
     {
-        var xlsx = FakeOfficeBytes("xl/workbook.xml", "spreadsheetml");
+        var xlsx = BuildOfficePackage("xl/workbook.xml", "spreadsheetml");
 
         var result = await _sut.StoreDocumentTemplateAsync(
             new UploadFileRequestDto { Content = new MemoryStream(xlsx), OriginalFileName = "sablon.xlsx", Length = xlsx.Length });
@@ -330,7 +331,7 @@ public class FileManagerTests
         _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(club);
         _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(advisor);
 
-        var docx = FakeOfficeBytes("word/document.xml", "wordprocessingml");
+        var docx = BuildOfficePackage("word/document.xml", "wordprocessingml");
         var result = await _sut.UploadClubLogoAsync(
             club.Id,
             new UploadFileRequestDto { Content = new MemoryStream(docx), OriginalFileName = "logo.docx", Length = docx.Length });
@@ -343,7 +344,7 @@ public class FileManagerTests
     [Fact(DisplayName = "A-64 REGRESYON: başvuru evrakı yoluna Docx yüklenemez")]
     public async Task StoreApplicationDocumentAsync_RejectsDocx()
     {
-        var docx = FakeOfficeBytes("word/document.xml", "wordprocessingml");
+        var docx = BuildOfficePackage("word/document.xml", "wordprocessingml");
 
         var result = await _sut.StoreApplicationDocumentAsync(
             new UploadFileRequestDto { Content = new MemoryStream(docx), OriginalFileName = "evrak.docx", Length = docx.Length });
@@ -354,10 +355,32 @@ public class FileManagerTests
         _storedFileRepository.Verify(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    private static byte[] FakeOfficeBytes(string pathMarker, string contentTypeMarker)
+    /// <summary>
+    /// Gerçek bir OOXML paketi üretir: girdi ADLARI sıkıştırılmadan, girdi İÇERİKLERİ deflate ile
+    /// yazılır — Word'ün ürettiği dosyanın davranışı (A-83).
+    /// </summary>
+    private static byte[] BuildOfficePackage(string entryPath, string contentTypeMarker)
     {
-        var prefix = new byte[] { 0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        var ascii = System.Text.Encoding.ASCII.GetBytes($"{pathMarker} {contentTypeMarker}");
-        return [..prefix, ..ascii];
+        using var buffer = new MemoryStream();
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var contentTypes = archive.CreateEntry("[Content_Types].xml", CompressionLevel.Optimal);
+            using (var writer = new StreamWriter(contentTypes.Open()))
+            {
+                writer.Write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Types>");
+                for (var i = 0; i < 40; i++)
+                {
+                    writer.Write($"<Default Extension=\"rels{i}\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>");
+                }
+
+                writer.Write($"<Override PartName=\"/{entryPath}\" ContentType=\"application/vnd.openxmlformats-officedocument.{contentTypeMarker}.document.main+xml\"/></Types>");
+            }
+
+            var document = archive.CreateEntry(entryPath, CompressionLevel.Optimal);
+            using var documentWriter = new StreamWriter(document.Open());
+            documentWriter.Write("<w:document><w:body/></w:document>");
+        }
+
+        return buffer.ToArray();
     }
 }

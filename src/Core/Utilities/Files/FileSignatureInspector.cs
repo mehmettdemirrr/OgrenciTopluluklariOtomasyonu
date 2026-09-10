@@ -1,3 +1,5 @@
+using System.IO.Compression;
+
 namespace Core.Utilities.Files;
 
 /// <summary>
@@ -41,19 +43,19 @@ public static class FileSignatureInspector
     }
 
     /// <summary>
-    /// Header imzası + OOXML gövde taraması. ZIP sihirli baytı tek başına Docx sayılmaz —
-    /// xlsx/pptx/düz zip reddedilir (Y-40).
+    /// docs/MIMARI.md · A-83: header imzası, sonra OOXML paket doğrulaması. ZIP sihirli baytı tek
+    /// başına Docx sayılmaz; paket açılıp girdi adı ve içerik tipi birlikte doğrulanır (Y-88).
     /// </summary>
-    public static DetectedFileType DetectContent(ReadOnlySpan<byte> content)
+    public static DetectedFileType DetectContent(byte[] content)
     {
         var headerLength = Math.Min(12, content.Length);
-        var detected = Detect(content[..headerLength]);
+        var detected = Detect(content.AsSpan(0, headerLength));
         if (detected != DetectedFileType.Unknown)
         {
             return detected;
         }
 
-        return IsZipLocalFileHeader(content) && LooksLikeDocx(content)
+        return IsZipLocalFileHeader(content) && IsWordPackage(content)
             ? DetectedFileType.Docx
             : DetectedFileType.Unknown;
     }
@@ -62,10 +64,35 @@ public static class FileSignatureInspector
         content.Length >= 4 &&
         content[0] == 0x50 && content[1] == 0x4B && content[2] == 0x03 && content[3] == 0x04;
 
-    /// <summary>
-    /// OOXML Word: hem <c>word/</c> parçası hem <c>wordprocessingml</c> içerik tipi. xlsx (<c>xl/</c>)
-    /// ve pptx (<c>ppt/</c>) bu iki imzayı birlikte taşımaz.
-    /// </summary>
-    public static bool LooksLikeDocx(ReadOnlySpan<byte> content) =>
-        content.IndexOf("word/"u8) >= 0 && content.IndexOf("wordprocessingml"u8) >= 0;
+    /// <summary>Untrusted paket: yalnızca girdi adları listelenir, tek küçük girdi tavanla okunur.</summary>
+    private const int MaxContentTypesBytes = 64 * 1024;
+
+    private static bool IsWordPackage(byte[] content)
+    {
+        try
+        {
+            using var stream = new MemoryStream(content, writable: false);
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+            if (archive.GetEntry("word/document.xml") is null)
+            {
+                return false;
+            }
+
+            var contentTypes = archive.GetEntry("[Content_Types].xml");
+            if (contentTypes is null || contentTypes.Length > MaxContentTypesBytes)
+            {
+                return false;
+            }
+
+            using var entryStream = contentTypes.Open();
+            using var reader = new StreamReader(entryStream);
+            return reader.ReadToEnd().Contains("wordprocessingml", StringComparison.Ordinal);
+        }
+        catch (InvalidDataException)
+        {
+            // Bozuk/kesik arşiv: tip doğrulanamadı → Unknown (çağıran reddeder).
+            return false;
+        }
+    }
 }

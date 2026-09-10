@@ -1,4 +1,5 @@
 using Business.Abstract;
+using Business.Constants;
 using Business.DTOs.Files;
 using Business.DTOs.Reference;
 using Microsoft.AspNetCore.Mvc;
@@ -48,6 +49,11 @@ public sealed class ClubDocumentTypesController(IReferenceDataService referenceD
     [RequestFormLimits(MultipartBodyLengthLimit = 5_242_880)]
     public async Task<IActionResult> UploadTemplate(int id, IFormFile file, CancellationToken cancellationToken)
     {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { status = 400, title = Messages.UnsupportedDocumentTemplateType });
+        }
+
         await using var stream = file.OpenReadStream();
         var result = await referenceDataService.UploadClubDocumentTemplateAsync(
             id,
