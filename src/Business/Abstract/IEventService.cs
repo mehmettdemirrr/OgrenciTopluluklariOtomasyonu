@@ -1,4 +1,5 @@
 using Business.DTOs.Events;
+using Business.DTOs.Public;
 using Business.ValidationRules;
 using Core.Aspects.Autofac;
 using Core.DataAccess;
@@ -52,6 +53,15 @@ public interface IEventService
     [SecuredOperation(IdentitySeedData.Permissions.EventsRead)]
     Task<IDataResult<PagedResult<EventListItemDto>>> GetUpcomingAsync(
         int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Anasayfa takvimi (giriş yapmış). Herkese açık etkinlikler açık; ClubMembers yalnızca
+    /// çağıranın üyesi/danışmanı olduğu kulüplerde açık, diğerleri kilitli tarih dilimidir.
+    /// Kullanıcıya göre değiştiği için [CacheAspect] yok.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.EventsRead)]
+    Task<IDataResult<IReadOnlyList<PublicCalendarEventDto>>> GetCalendarAsync(
+        DateTime? fromUtc, DateTime? toUtc, CancellationToken cancellationToken = default);
 
     /// <summary>Y-23: CreateAsync ile aynı kapsam kuralı. Yalnızca Draft/Rejected iken düzenlenebilir.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.EventsWrite)]

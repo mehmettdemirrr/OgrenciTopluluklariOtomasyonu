@@ -101,6 +101,29 @@ public sealed class PublicSurfaceLeakTests : IClassFixture<CustomWebApplicationF
         AssertNoPii(body, scenario);
     }
 
+    [Fact(DisplayName = "Anonim ziyaretçi: /api/public/announcements/{id} Public döner, Members 404, PII sızmaz")]
+    public async Task GetPublicAnnouncementById_Anonymous_LeaksNothing()
+    {
+        var scenario = await SeedScenarioAsync("announcement-detail");
+
+        int publicId, membersId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            publicId = (await db.Announcements.SingleAsync(a => a.Title == scenario.PublicAnnouncementTitle)).Id;
+            membersId = (await db.Announcements.SingleAsync(a => a.Title == scenario.MembersOnlyAnnouncementTitle)).Id;
+        }
+
+        var publicResponse = await _client.GetAsync($"/api/public/announcements/{publicId}");
+        Assert.Equal(HttpStatusCode.OK, publicResponse.StatusCode);
+        var publicBody = await publicResponse.Content.ReadAsStringAsync();
+        Assert.Contains(scenario.PublicAnnouncementTitle, publicBody);
+        Assert.DoesNotContain(scenario.MembersOnlyAnnouncementTitle, publicBody);
+        AssertNoPii(publicBody, scenario);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync($"/api/public/announcements/{membersId}")).StatusCode);
+    }
+
     [Fact(DisplayName = "Anonim ziyaretçi: /api/public/stats yalnızca sayılar döner, e-posta ve öğrenci no sızmaz")]
     public async Task GetPublicStats_Anonymous_ReturnsCountsWithoutPii()
     {

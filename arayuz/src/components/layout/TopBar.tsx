@@ -13,6 +13,7 @@ import {
   alpha,
 } from '@mui/material'
 import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined'
+import MenuOpenOutlinedIcon from '@mui/icons-material/MenuOpenOutlined'
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined'
 import { useState } from 'react'
@@ -20,8 +21,19 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { useLocale } from '../../i18n/LocaleContext'
 import { PreferenceControls } from '../ui/PreferenceControls'
+import { BrandMark } from './BrandMark'
 
-export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?: string }) {
+export function TopBar({
+  onMenuClick,
+  title,
+  navOpen = false,
+  showBrand = false,
+}: {
+  onMenuClick: () => void
+  title?: string
+  navOpen?: boolean
+  showBrand?: boolean
+}) {
   const { email, logout } = useAuth()
   const { t } = useLocale()
   const navigate = useNavigate()
@@ -45,9 +57,20 @@ export function TopBar({ onMenuClick, title }: { onMenuClick: () => void; title?
       }}
     >
       <Toolbar sx={{ gap: 1, minHeight: 72 }}>
-        <IconButton edge="start" onClick={onMenuClick} sx={{ display: { md: 'none' } }} aria-label={t('common.menu')}>
-          <MenuOutlinedIcon />
+        <IconButton
+          edge="start"
+          onClick={onMenuClick}
+          aria-label={navOpen ? t('common.closeMenu') : t('common.openMenu')}
+          aria-expanded={navOpen}
+        >
+          {navOpen ? <MenuOpenOutlinedIcon /> : <MenuOutlinedIcon />}
         </IconButton>
+
+        {showBrand && (
+          <Box sx={{ minWidth: 0, maxWidth: { xs: 200, sm: 280 } }}>
+            <BrandMark to="/panel" />
+          </Box>
+        )}
 
         <Typography variant="subtitle1" sx={{ flexGrow: 1, fontWeight: 700 }}>
           {title}

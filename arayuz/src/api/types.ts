@@ -479,6 +479,19 @@ export interface PublicEventDetailDto {
   posterFileId: number | null
 }
 
+// src/Business/DTOs/Public/PublicCalendarEventDto.cs — locked ise id/başlık/kulüp boştur (Y-72).
+export interface PublicCalendarEventDto {
+  locked: boolean
+  id: number | null
+  clubId: number | null
+  clubName: string | null
+  title: string | null
+  location: string | null
+  startDateUtc: string
+  endDateUtc: string
+  posterFileId: number | null
+}
+
 // src/Business/DTOs/Public/PublicAnnouncementListItemDto.cs
 export interface PublicAnnouncementListItemDto {
   id: number

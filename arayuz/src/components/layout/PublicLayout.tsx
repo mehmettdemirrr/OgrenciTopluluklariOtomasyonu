@@ -26,6 +26,7 @@ import { brandSlideBarSx, brandSlideToolbarSx } from './brandSlideBar'
 const publicLinks = [
   { to: '/kulupler', labelKey: 'nav.clubs' },
   { to: '/etkinlikler', labelKey: 'nav.events' },
+  { to: '/duyurular', labelKey: 'nav.announcements' },
 ]
 
 export function PublicLayout() {
@@ -35,7 +36,7 @@ export function PublicLayout() {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default', overflowX: 'hidden' }}>
       <AppBar
         position="sticky"
         color="transparent"

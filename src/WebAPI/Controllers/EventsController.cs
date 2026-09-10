@@ -63,6 +63,16 @@ public sealed class EventsController(IEventService eventService, IEventParticipa
         return result.ToActionResult();
     }
 
+    [HttpGet("events/calendar")]
+    public async Task<IActionResult> GetCalendar(
+        [FromQuery] DateTime? fromUtc = null,
+        [FromQuery] DateTime? toUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await eventService.GetCalendarAsync(fromUtc, toUtc, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpGet("events/mine")]
     public async Task<IActionResult> GetMine([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
     {

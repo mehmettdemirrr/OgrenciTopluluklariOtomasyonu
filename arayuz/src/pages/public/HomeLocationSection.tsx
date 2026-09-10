@@ -75,6 +75,7 @@ export function HomeLocationSection() {
             <QuickLink to="/" label={t('home.quickHome')} />
             <QuickLink to="/kulupler" label={t('home.quickClubs')} />
             <QuickLink to="/etkinlikler" label={t('nav.events')} />
+            <QuickLink to="/duyurular" label={t('nav.announcements')} />
             <QuickLink to={applyTo} label={t('home.quickApply')} />
           </Stack>
         </Grid>

@@ -28,6 +28,14 @@ public interface IPublicContentService
     Task<IDataResult<PagedResult<PublicEventListItemDto>>> GetEventsAsync(
         int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Anasayfa takvimi: yayındaki herkese açık etkinlikler açık, ClubMembers kitleli olanlar
+    /// kilitli tarih dilimi olarak döner (başlık/id yok — Y-72). Kimlik yok; önbelleklenebilir.
+    /// </summary>
+    [CacheAspect(durationMinutes: 10)]
+    Task<IDataResult<IReadOnlyList<PublicCalendarEventDto>>> GetCalendarEventsAsync(
+        DateTime? fromUtc, DateTime? toUtc, CancellationToken cancellationToken = default);
+
     /// <summary>docs/MIMARI.md · K-46/Y-82: vitrin listesiyle aynı filtre; eşleşmezse NotFound. Sayaç okumadan artmaz (A-77), bu yüzden [CacheAspect] YOK.</summary>
     Task<IDataResult<PublicEventDetailDto>> GetEventByIdAsync(int id, CancellationToken cancellationToken = default);
 
@@ -37,6 +45,10 @@ public interface IPublicContentService
     [CacheAspect(durationMinutes: 10)]
     Task<IDataResult<PagedResult<PublicAnnouncementListItemDto>>> GetAnnouncementsAsync(
         int? clubId, int pageIndex, int pageSize, string? search = null, CancellationToken cancellationToken = default);
+
+    /// <summary>Vitrin listesiyle aynı Public filtresi; eşleşmezse varlığı sızdırmadan NotFound.</summary>
+    [CacheAspect(durationMinutes: 10)]
+    Task<IDataResult<PublicAnnouncementListItemDto>> GetAnnouncementByIdAsync(int id, CancellationToken cancellationToken = default);
 
     [CacheAspect(durationMinutes: 10)]
     Task<IDataResult<PublicStatsDto>> GetStatsAsync(CancellationToken cancellationToken = default);

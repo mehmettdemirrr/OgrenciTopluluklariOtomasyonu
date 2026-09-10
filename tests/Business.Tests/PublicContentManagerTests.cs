@@ -267,6 +267,30 @@ public class PublicContentManagerTests
         Assert.Equal("Herkese Açık", item.Title);
     }
 
+    [Fact(DisplayName = "GetAnnouncementByIdAsync: Public duyuru döner, Members görünürlüklü NotFound")]
+    public async Task GetAnnouncementByIdAsync_PublicReturned_MembersOnlyNotFound()
+    {
+        var club = new Club { Id = 1, Name = "Kulüp", AdvisorId = 1, IsActive = true, CreatedAtUtc = FixedNow };
+        var pub = new Announcement { Id = 1, ClubId = 1, Title = "Herkese Açık", Content = "İçerik", Visibility = AnnouncementVisibility.Public, PublishedAtUtc = FixedNow };
+        var membersOnly = new Announcement { Id = 2, ClubId = 1, Title = "Yalnızca Üyeler", Content = "Gizli İçerik", Visibility = AnnouncementVisibility.Members, PublishedAtUtc = FixedNow };
+        _announcementRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Announcement, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<Announcement, bool>> filter, CancellationToken _) =>
+                new[] { pub, membersOnly }.AsQueryable().Where(filter).FirstOrDefault());
+        _clubRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<Club, bool>> filter, CancellationToken _) =>
+                new[] { club }.AsQueryable().Where(filter).FirstOrDefault());
+
+        var visible = await _sut.GetAnnouncementByIdAsync(1);
+        var hidden = await _sut.GetAnnouncementByIdAsync(2);
+
+        Assert.True(visible.IsSuccess);
+        Assert.Equal("Herkese Açık", visible.Data!.Title);
+        Assert.Equal("Kulüp", visible.Data.ClubName);
+        Assert.False(hidden.IsSuccess);
+    }
+
     [Fact(DisplayName = "GetStatsAsync: aktif/pasif kulüp, öğrenci ve yaklaşan herkese açık etkinlik sayılır")]
     public async Task GetStatsAsync_CountsActiveInactiveClubsStudentsAndUpcomingPublicEvents()
     {

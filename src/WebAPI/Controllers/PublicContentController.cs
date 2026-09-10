@@ -55,6 +55,16 @@ public sealed class PublicContentController(IPublicContentService publicContentS
         return result.ToActionResult();
     }
 
+    [HttpGet("calendar-events")]
+    public async Task<IActionResult> GetCalendarEvents(
+        [FromQuery] DateTime? fromUtc = null,
+        [FromQuery] DateTime? toUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await publicContentService.GetCalendarEventsAsync(fromUtc, toUtc, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpGet("events/{id:int}")]
     public async Task<IActionResult> GetEventById(int id, CancellationToken cancellationToken)
     {
@@ -79,6 +89,13 @@ public sealed class PublicContentController(IPublicContentService publicContentS
         CancellationToken cancellationToken = default)
     {
         var result = await publicContentService.GetAnnouncementsAsync(clubId, pageIndex, pageSize, search, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpGet("announcements/{id:int}")]
+    public async Task<IActionResult> GetAnnouncementById(int id, CancellationToken cancellationToken)
+    {
+        var result = await publicContentService.GetAnnouncementByIdAsync(id, cancellationToken);
         return result.ToActionResult();
     }
 

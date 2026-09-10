@@ -104,6 +104,7 @@ public static class Messages
 
     // Faz 30 — Etkinlik katılım kitlesi (K-38, Y-72)
     public const string EventForClubMembersOnly = "Bu etkinliğe yalnızca topluluğun üyeleri katılabilir.";
+    public const string InvalidCalendarRange = "Takvim aralığı geçersiz. Bitiş, başlangıçtan sonra olmalı ve en fazla 62 gün kapsayabilir.";
     public const string EventRegistered = "Etkinliğe kaydınız alındı.";
     public const string NotRegisteredForEvent = "Bu etkinliğe kaydınız bulunmuyor.";
     public const string EventRegistrationCancelled = "Etkinlik kaydınız iptal edildi.";

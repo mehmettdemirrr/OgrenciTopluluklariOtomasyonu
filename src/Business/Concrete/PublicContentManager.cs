@@ -171,6 +171,39 @@ public sealed class PublicContentManager(
             new PagedResult<PublicEventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
     }
 
+    public async Task<IDataResult<IReadOnlyList<PublicCalendarEventDto>>> GetCalendarEventsAsync(
+        DateTime? fromUtc, DateTime? toUtc, CancellationToken cancellationToken = default)
+    {
+        if (!CalendarEvents.TryResolveRange(fromUtc, toUtc, clock.UtcNow, out var from, out var to, out var rangeError))
+        {
+            return DataResult<IReadOnlyList<PublicCalendarEventDto>>.ValidationError(rangeError!);
+        }
+
+        var paged = await eventRepository
+            .GetListPagedAsync(
+                0,
+                MaxPageSize,
+                e => e.Status == EventStatus.Published && e.StartDateUtc < to && e.EndDateUtc >= from,
+                e => e.StartDateUtc,
+                descending: false,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        var publicClubIds = paged.Items.Where(e => e.Audience == EventAudience.Public).Select(e => e.ClubId).Distinct().ToList();
+        var clubNames = publicClubIds.Count == 0
+            ? new Dictionary<int, string>()
+            : (await clubRepository.GetListAsync(c => publicClubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+                .ToDictionary(c => c.Id, c => c.Name);
+
+        var items = paged.Items
+            .Select(e => CalendarEvents.IsMembersOnly(e)
+                ? CalendarEvents.ToLocked(e)
+                : CalendarEvents.ToOpen(e, clubNames.GetValueOrDefault(e.ClubId, string.Empty)))
+            .ToList();
+
+        return DataResult<IReadOnlyList<PublicCalendarEventDto>>.Success(items);
+    }
+
     public async Task<IDataResult<PublicEventDetailDto>> GetEventByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         // Y-82: vitrin listesiyle AYNI filtre — eşleşmezse varlığı sızdırmadan NotFound.
@@ -236,21 +269,31 @@ public sealed class PublicContentManager(
             .ToDictionary(c => c.Id, c => c.Name);
 
         var items = paged.Items
-            .Select(a => new PublicAnnouncementListItemDto
-            {
-                Id = a.Id,
-                ClubId = a.ClubId,
-                ClubName = a.ClubId is { } id ? clubNames.GetValueOrDefault(id, string.Empty) : null,
-                Title = a.Title,
-                Content = a.Content,
-                ContentJson = a.ContentJson,
-                ImageFileId = a.ImageFileId,
-                PublishedAtUtc = a.PublishedAtUtc,
-            })
+            .Select(a => ToPublicItem(a, a.ClubId is { } id ? clubNames.GetValueOrDefault(id, string.Empty) : null))
             .ToList();
 
         return DataResult<PagedResult<PublicAnnouncementListItemDto>>.Success(
             new PagedResult<PublicAnnouncementListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<PublicAnnouncementListItemDto>> GetAnnouncementByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var entity = await announcementRepository
+            .GetAsync(a => a.Id == id && a.Visibility == AnnouncementVisibility.Public, cancellationToken)
+            .ConfigureAwait(false);
+        if (entity is null)
+        {
+            return DataResult<PublicAnnouncementListItemDto>.NotFound(Messages.AnnouncementNotFound);
+        }
+
+        string? clubName = null;
+        if (entity.ClubId is { } clubId)
+        {
+            var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
+            clubName = club?.Name ?? string.Empty;
+        }
+
+        return DataResult<PublicAnnouncementListItemDto>.Success(ToPublicItem(entity, clubName));
     }
 
     public async Task<IDataResult<PublicStatsDto>> GetStatsAsync(CancellationToken cancellationToken = default)
@@ -290,6 +333,18 @@ public sealed class PublicContentManager(
 
         return DataResult<IReadOnlyList<PublicClubCategoryDto>>.Success(items);
     }
+
+    private static PublicAnnouncementListItemDto ToPublicItem(Announcement a, string? clubName) => new()
+    {
+        Id = a.Id,
+        ClubId = a.ClubId,
+        ClubName = a.ClubId is null ? null : clubName ?? string.Empty,
+        Title = a.Title,
+        Content = a.Content,
+        ContentJson = a.ContentJson,
+        ImageFileId = a.ImageFileId,
+        PublishedAtUtc = a.PublishedAtUtc,
+    };
 
     private static int ClampPageSize(int pageSize) =>
         pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);

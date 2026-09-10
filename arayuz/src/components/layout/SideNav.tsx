@@ -2,11 +2,13 @@ import {
   Box,
   Collapse,
   Divider,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Toolbar,
+  Tooltip,
   alpha,
 } from '@mui/material'
 import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined'
@@ -25,6 +27,7 @@ import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined'
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
+import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { useEffect, useState, type ComponentType } from 'react'
 import type { SvgIconProps } from '@mui/material'
@@ -100,7 +103,7 @@ function groupContainsPath(group: NavGroup, pathname: string) {
   return group.items.some((item) => pathname.startsWith(item.to))
 }
 
-export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SideNav({ onNavigate, onCollapse }: { onNavigate?: () => void; onCollapse?: () => void }) {
   const { hasPermission } = useAuth()
   const { t } = useLocale()
   const location = useLocation()
@@ -179,12 +182,28 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         color: 'common.white',
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
+        borderRadius: 0,
         background: (theme) =>
           `linear-gradient(180deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.dark} 140%)`,
       }}
     >
-      <Toolbar sx={{ px: 1.5, minHeight: 72, overflow: 'visible' }}>
-        <BrandMark light to="/panel" />
+      <Toolbar sx={{ px: 1.5, minHeight: 72, overflow: 'visible', gap: 0.5 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <BrandMark light to="/panel" />
+        </Box>
+        {onCollapse && (
+          <Tooltip title={t('common.closeMenu')}>
+            <IconButton
+              onClick={onCollapse}
+              aria-label={t('common.closeMenu')}
+              size="small"
+              sx={{ color: 'common.white', flexShrink: 0 }}
+            >
+              <ChevronLeftRoundedIcon />
+            </IconButton>
+          </Tooltip>
+        )}
       </Toolbar>
 
       <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>

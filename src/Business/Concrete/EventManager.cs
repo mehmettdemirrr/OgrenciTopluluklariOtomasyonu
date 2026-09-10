@@ -2,6 +2,7 @@ using Business.Abstract;
 using Business.BackgroundJobs;
 using Business.Constants;
 using Business.DTOs.Events;
+using Business.DTOs.Public;
 using Business.RichText;
 using Core.DataAccess;
 using Core.Utilities.Results;
@@ -347,6 +348,86 @@ public sealed class EventManager(
         }
 
         return DataResult<PagedResult<EventListItemDto>>.Success(new PagedResult<EventListItemDto>(items, paged.TotalCount, paged.PageIndex, paged.PageSize));
+    }
+
+    public async Task<IDataResult<IReadOnlyList<PublicCalendarEventDto>>> GetCalendarAsync(
+        DateTime? fromUtc, DateTime? toUtc, CancellationToken cancellationToken = default)
+    {
+        if (!CalendarEvents.TryResolveRange(fromUtc, toUtc, clock.UtcNow, out var from, out var to, out var rangeError))
+        {
+            return DataResult<IReadOnlyList<PublicCalendarEventDto>>.ValidationError(rangeError!);
+        }
+
+        var paged = await eventRepository
+            .GetListPagedAsync(
+                0,
+                MaxPageSize,
+                e => e.Status == EventStatus.Published && e.StartDateUtc < to && e.EndDateUtc >= from,
+                e => e.StartDateUtc,
+                descending: false,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        var unlockAll = currentUser.Permissions.Contains(IdentitySeedData.Permissions.ClubsManageAll);
+        var unlockedClubIds = unlockAll ? null : await GetCalendarUnlockClubIdsAsync(cancellationToken).ConfigureAwait(false);
+
+        var openClubIds = paged.Items
+            .Where(e => !CalendarEvents.IsMembersOnly(e) || unlockAll || unlockedClubIds!.Contains(e.ClubId))
+            .Select(e => e.ClubId)
+            .Distinct()
+            .ToList();
+        var clubNames = openClubIds.Count == 0
+            ? new Dictionary<int, string>()
+            : (await clubRepository.GetListAsync(c => openClubIds.Contains(c.Id), cancellationToken).ConfigureAwait(false))
+                .ToDictionary(c => c.Id, c => c.Name);
+
+        var items = paged.Items
+            .Select(e =>
+            {
+                var canOpen = !CalendarEvents.IsMembersOnly(e) || unlockAll || unlockedClubIds!.Contains(e.ClubId);
+                return canOpen
+                    ? CalendarEvents.ToOpen(e, clubNames.GetValueOrDefault(e.ClubId, string.Empty))
+                    : CalendarEvents.ToLocked(e);
+            })
+            .ToList();
+
+        return DataResult<IReadOnlyList<PublicCalendarEventDto>>.Success(items);
+    }
+
+    private async Task<HashSet<int>> GetCalendarUnlockClubIdsAsync(CancellationToken cancellationToken)
+    {
+        var ids = new HashSet<int>();
+        if (currentUser.UserId is not { } userId)
+        {
+            return ids;
+        }
+
+        var advisor = await academicStaffRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        if (advisor is not null)
+        {
+            var advised = await clubRepository.GetListAsync(c => c.AdvisorId == advisor.Id, cancellationToken).ConfigureAwait(false);
+            foreach (var club in advised)
+            {
+                ids.Add(club.Id);
+            }
+        }
+
+        var student = await studentRepository.GetAsync(s => s.ApplicationUserId == userId, cancellationToken).ConfigureAwait(false);
+        var term = await academicTermRepository.GetAsync(t => t.IsCurrent, cancellationToken).ConfigureAwait(false);
+        if (student is null || term is null)
+        {
+            return ids;
+        }
+
+        var memberships = await clubMembershipRepository
+            .GetListAsync(m => m.StudentId == student.Id && m.AcademicTermId == term.Id, cancellationToken)
+            .ConfigureAwait(false);
+        foreach (var membership in memberships)
+        {
+            ids.Add(membership.ClubId);
+        }
+
+        return ids;
     }
 
     private async Task<HashSet<int>> GetRegisteredEventIdsAsync(List<int> eventIds, CancellationToken cancellationToken)

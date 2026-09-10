@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Box, Button, Card, CardContent, CardMedia, Chip, Grid, Stack, Typography, alpha, type SvgIconProps } from '@mui/material'
+import { Box, Button, Card, CardContent, Chip, Grid, Stack, Typography, alpha, type SvgIconProps } from '@mui/material'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
@@ -10,9 +10,9 @@ import { useEffect, type ComponentType } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
-import { DateBadge } from '../../components/ui/DateBadge'
+import { HomeAnnouncementsPanel } from '../../components/announcements/HomeAnnouncementsPanel'
+import { HomeEventsCalendar } from '../../components/events/HomeEventsCalendar'
 import { EmptyState } from '../../components/ui/EmptyState'
-import { AnnouncementCard } from '../../components/ui/AnnouncementCard'
 import { SectionCard } from '../../components/ui/SectionCard'
 import type { PagedResult, PublicAnnouncementListItemDto, PublicClubListItemDto, PublicEventListItemDto, PublicStatsDto } from '../../api/types'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
@@ -37,9 +37,9 @@ export function HomePage() {
   const { isAuthenticated } = useAuth()
 
   const announcementsQuery = useQuery({
-    queryKey: ['public-announcements', 0, 4],
+    queryKey: ['public-announcements', 0, 12],
     queryFn: async () =>
-      (await apiClient.get<PagedResult<PublicAnnouncementListItemDto>>('/public/announcements', { params: { pageIndex: 0, pageSize: 4 } })).data,
+      (await apiClient.get<PagedResult<PublicAnnouncementListItemDto>>('/public/announcements', { params: { pageIndex: 0, pageSize: 12 } })).data,
   })
 
   const eventsQuery = useQuery({
@@ -82,10 +82,19 @@ export function HomePage() {
     <Stack spacing={5} sx={{ position: 'relative', zIndex: 1 }}>
       <Box
         sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 360px' },
+          gap: 4,
+          alignItems: 'stretch',
+        }}
+      >
+      <Box
+        sx={{
           position: 'relative',
           overflow: 'hidden',
           borderRadius: 4,
-          minHeight: { xs: 380, md: 480 },
+          minHeight: { xs: 380, md: 520 },
+          height: { md: 520 },
           p: { xs: 4, md: 7 },
           color: 'common.white',
           display: 'flex',
@@ -182,10 +191,17 @@ export function HomePage() {
           </Stack>
         )}
         <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', position: 'relative' }}>
-          <Chip icon={<GroupsRoundedIcon />} label={t('home.chipClubs')} variant="outlined" sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.35) }} />
-          <Chip icon={<EventOutlinedIcon />} label={t('home.chipEvents')} variant="outlined" sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.35) }} />
-          <Chip icon={<CampaignOutlinedIcon />} label={t('home.chipNews')} variant="outlined" sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.35) }} />
+          <Chip icon={<GroupsRoundedIcon />} label={t('home.chipClubs')} variant="outlined" component={RouterLink} to="/kulupler" clickable sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.35) }} />
+          <Chip icon={<EventOutlinedIcon />} label={t('home.chipEvents')} variant="outlined" component={RouterLink} to="/etkinlikler" clickable sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.35) }} />
+          <Chip icon={<CampaignOutlinedIcon />} label={t('home.chipNews')} variant="outlined" component={RouterLink} to="/duyurular" clickable sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.35) }} />
         </Stack>
+      </Box>
+
+      <HomeAnnouncementsPanel
+        items={announcementsQuery.data?.items ?? []}
+        totalCount={announcementsQuery.data?.totalCount ?? 0}
+        loading={announcementsQuery.isLoading}
+      />
       </Box>
 
       <SectionCard title={t('home.statsTitle')}>
@@ -200,65 +216,15 @@ export function HomePage() {
         />
       </SectionCard>
 
-      <SectionCard title={t('home.announcements')}>
-        {(announcementsQuery.data?.items.length ?? 0) === 0 ? (
-          <EmptyState title={t('home.noAnnouncements')} />
-        ) : (
-          <Stack spacing={1.5}>
-            {announcementsQuery.data!.items.map((announcement) => (
-              <AnnouncementCard
-                key={announcement.id}
-                title={announcement.title}
-                content={announcement.content}
-                contentJson={announcement.contentJson}
-                imageFileId={announcement.imageFileId}
-                publishedAtUtc={announcement.publishedAtUtc}
-                chip={announcement.clubName ? <Chip size="small" label={announcement.clubName} variant="outlined" /> : undefined}
-              />
-            ))}
-          </Stack>
-        )}
-      </SectionCard>
-
       <SectionCard
-        title={t('home.upcoming')}
+        title={t('home.calendarTitle')}
         action={
           <Button component={RouterLink} to="/etkinlikler" size="small" endIcon={<ArrowForwardRoundedIcon />}>
             {t('common.seeAll')}
           </Button>
         }
       >
-        {(eventsQuery.data?.items.length ?? 0) === 0 ? (
-          <EmptyState icon={EventOutlinedIcon} title={t('home.noEvents')} />
-        ) : (
-          <Grid container spacing={2.5}>
-            {eventsQuery.data!.items.map((event) => (
-              <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                <Card variant="outlined" sx={{ height: '100%' }}>
-                  {event.posterFileId && (
-                    <CardMedia component="img" height={140} image={`/api/files/${event.posterFileId}`} alt="" sx={{ objectFit: 'cover' }} />
-                  )}
-                  <CardContent>
-                    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-                      <DateBadge iso={event.startDateUtc} />
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 800 }} noWrap>
-                          {event.title}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {event.clubName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(event.startDateUtc).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
+        <HomeEventsCalendar />
       </SectionCard>
 
       <SectionCard
