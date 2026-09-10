@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Alert, Avatar, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -24,6 +25,8 @@ import type {
   SelectableAcademicStaffDto,
 } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { CLUB_DOCUMENT_TEMPLATES_ZIP, resolveClubDocumentTemplate } from '../data/clubDocumentTemplates'
+import { downloadBlob } from '../api/download'
 
 export function ClubApplicationPage() {
   useDocumentTitle('Topluluk Kuruluş Başvurusu')
@@ -114,6 +117,32 @@ export function ClubApplicationPage() {
 
   const documentTypes = documentTypesQuery.data?.items ?? []
   const windowClosed = windowQuery.data !== undefined && !windowQuery.data.isOpen
+  const hasUploadedTemplate = documentTypes.some((type) => type.templateFileId)
+
+  const downloadTemplate = async (type: ClubDocumentTypeListItemDto) => {
+    const template = resolveClubDocumentTemplate(type)
+    if (!template) {
+      return
+    }
+
+    if (template.source === 'api') {
+      await downloadBlob(template.url, template.fileName)
+      return
+    }
+
+    const link = document.createElement('a')
+    link.href = template.url
+    link.download = template.fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const downloadAllTemplates = async () => {
+    for (const type of documentTypes) {
+      await downloadTemplate(type)
+    }
+  }
 
   return (
     <>
@@ -228,15 +257,56 @@ export function ClubApplicationPage() {
 
       <SectionCard title="ZORUNLU EVRAKLAR" sx={{ mt: 2 }}>
         <Alert severity="info" sx={{ mb: 2 }}>
-          Evraklar yalnızca PDF olarak yüklenebilir. Dosya başına en fazla 5 MB.
+          Şablonları indirip doldurun, PDF olarak kaydedin ve yükleyin. Dosya başına en fazla 5 MB; yalnızca PDF kabul edilir.
         </Alert>
+        {hasUploadedTemplate ? (
+          <Button
+            variant="outlined"
+            startIcon={<DownloadOutlinedIcon />}
+            sx={{ mb: 2, fontWeight: 700 }}
+            onClick={() => {
+              void downloadAllTemplates().catch((error: unknown) =>
+                notify({ message: extractErrorMessage(error, 'Şablonlar indirilemedi.'), severity: 'error' }),
+              )
+            }}
+          >
+            Tüm şablonları indir
+          </Button>
+        ) : (
+          <Button
+            href={CLUB_DOCUMENT_TEMPLATES_ZIP}
+            download="topluluk-kurulus-sablonlari.zip"
+            variant="outlined"
+            startIcon={<DownloadOutlinedIcon />}
+            sx={{ mb: 2, fontWeight: 700 }}
+          >
+            Tüm şablonları indir
+          </Button>
+        )}
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-          {documentTypes.map((type) => (
+          {documentTypes.map((type) => {
+            const template = resolveClubDocumentTemplate(type)
+            return (
             <Box key={type.id} sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
               <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
                 {type.code} {type.name} {type.isRequired && <Box component="span" sx={{ color: 'error.main' }}>*</Box>}
               </Typography>
+              {template && (
+                <Button
+                  size="small"
+                  variant="text"
+                  startIcon={<DownloadOutlinedIcon />}
+                  sx={{ mb: 1, px: 0, fontWeight: 700 }}
+                  onClick={() => {
+                    void downloadTemplate(type).catch((error: unknown) =>
+                      notify({ message: extractErrorMessage(error, 'Şablon indirilemedi.'), severity: 'error' }),
+                    )
+                  }}
+                >
+                  Şablonu indir
+                </Button>
+              )}
               <input
                 type="file"
                 accept="application/pdf"
@@ -259,7 +329,8 @@ export function ClubApplicationPage() {
                 </Typography>
               )}
             </Box>
-          ))}
+            )
+          })}
         </Box>
       </SectionCard>
 

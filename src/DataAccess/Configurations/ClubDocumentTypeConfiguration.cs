@@ -24,6 +24,11 @@ public sealed class ClubDocumentTypeConfiguration : IEntityTypeConfiguration<Clu
 
         builder.HasIndex(t => t.Code).IsUnique();
 
+        builder.HasOne<StoredFile>()
+            .WithMany()
+            .HasForeignKey(t => t.TemplateFileId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasData(
             new ClubDocumentType { Id = 1, Code = "FR-0230", Name = "Topluluk Akademik Danışman Dilekçesi", IsRequired = true, IsActive = true, DisplayOrder = 1 },
             new ClubDocumentType { Id = 2, Code = "FR-0240", Name = "Topluluk Asıl Üyeler (Yönetim Kurulu)", IsRequired = true, IsActive = true, DisplayOrder = 2 },

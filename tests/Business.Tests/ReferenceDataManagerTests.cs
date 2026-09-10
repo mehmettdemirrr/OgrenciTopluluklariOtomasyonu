@@ -1,5 +1,8 @@
 using System.Linq.Expressions;
+using Business.Abstract;
 using Business.Concrete;
+using Business.Constants;
+using Business.DTOs.Files;
 using Business.DTOs.Reference;
 using Core.DataAccess;
 using Core.Utilities.Results;
@@ -16,6 +19,7 @@ public class ReferenceDataManagerTests
     private readonly Mock<IEntityRepository<Faculty>> _facultyRepository = new();
     private readonly Mock<IEntityRepository<Department>> _departmentRepository = new();
     private readonly Mock<IAcademicStaffDal> _academicStaffDal = new();
+    private readonly Mock<IFileService> _fileService = new();
 
     // Faz 27 (K-33): akademik personel artık yazılabilir, silme ise kulüp bağı kontrol ediyor.
     private readonly Mock<IEntityRepository<AcademicStaff>> _academicStaffRepository = new();
@@ -39,6 +43,7 @@ public class ReferenceDataManagerTests
             _clubCategoryRepository.Object,
             _clubDocumentTypeRepository.Object,
             _academicStaffDal.Object,
+            _fileService.Object,
             _unitOfWork.Object);
 
     [Fact(DisplayName = "K-33: kulübe danışmanlık yapan akademik personel silinemez (Conflict)")]
@@ -356,5 +361,87 @@ public class ReferenceDataManagerTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ResultStatus.Conflict, result.Status);
+    }
+
+    [Fact(DisplayName = "Şablon yüklemesi evrak tipine TemplateFileId yazar")]
+    public async Task UploadClubDocumentTemplateAsync_StoresFileIdOnType()
+    {
+        var documentType = new ClubDocumentType
+        {
+            Id = 1, Code = "FR-0230", Name = "Danışman", IsRequired = true, IsActive = true, DisplayOrder = 1,
+        };
+        _clubDocumentTypeRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubDocumentType, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(documentType);
+        _fileService
+            .Setup(s => s.StoreDocumentTemplateAsync(It.IsAny<UploadFileRequestDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DataResult<UploadedFileDto>.Success(new UploadedFileDto
+            {
+                FileId = 42, ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document", FileSizeBytes = 100,
+            }));
+
+        var result = await _sut.UploadClubDocumentTemplateAsync(
+            1, new UploadFileRequestDto { Content = Stream.Null, OriginalFileName = "FR-0230.docx", Length = 100 });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(42, documentType.TemplateFileId);
+        Assert.Equal(42, result.Data.TemplateFileId);
+        _clubDocumentTypeRepository.Verify(r => r.Update(documentType), Times.Once);
+    }
+
+    [Fact(DisplayName = "Olmayan evrak tipine şablon yüklenemez")]
+    public async Task UploadClubDocumentTemplateAsync_MissingType_ReturnsNotFound()
+    {
+        _clubDocumentTypeRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubDocumentType, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ClubDocumentType?)null);
+
+        var result = await _sut.UploadClubDocumentTemplateAsync(
+            99, new UploadFileRequestDto { Content = Stream.Null, OriginalFileName = "x.docx", Length = 10 });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
+        _fileService.Verify(
+            s => s.StoreDocumentTemplateAsync(It.IsAny<UploadFileRequestDto>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName = "Şablon tipi reddedilirse evrak tipi güncellenmez")]
+    public async Task UploadClubDocumentTemplateAsync_RejectedFile_DoesNotUpdateType()
+    {
+        var documentType = new ClubDocumentType
+        {
+            Id = 1, Code = "FR-0230", Name = "Danışman", IsRequired = true, IsActive = true, DisplayOrder = 1,
+        };
+        _clubDocumentTypeRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubDocumentType, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(documentType);
+        _fileService
+            .Setup(s => s.StoreDocumentTemplateAsync(It.IsAny<UploadFileRequestDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DataResult<UploadedFileDto>.ValidationError(Messages.UnsupportedDocumentTemplateType));
+
+        var result = await _sut.UploadClubDocumentTemplateAsync(
+            1, new UploadFileRequestDto { Content = Stream.Null, OriginalFileName = "logo.png", Length = 10 });
+
+        Assert.False(result.IsSuccess);
+        Assert.Null(documentType.TemplateFileId);
+        _clubDocumentTypeRepository.Verify(r => r.Update(It.IsAny<ClubDocumentType>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "Şablon indirilirken TemplateFileId yoksa 404")]
+    public async Task GetClubDocumentTemplateAsync_NoTemplate_ReturnsNotFound()
+    {
+        _clubDocumentTypeRepository
+            .Setup(r => r.GetAsync(It.IsAny<Expression<Func<ClubDocumentType, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ClubDocumentType
+            {
+                Id = 1, Code = "FR-0230", Name = "Danışman", IsRequired = true, IsActive = true, DisplayOrder = 1,
+            });
+
+        var result = await _sut.GetClubDocumentTemplateAsync(1);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
+        _fileService.Verify(s => s.GetPublicFileAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

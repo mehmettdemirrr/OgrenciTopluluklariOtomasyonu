@@ -68,3 +68,13 @@ export const contrastPalette = {
     focusRing: '#7FD8F0',
   },
 } as const
+
+/**
+ * Fakülte sitesindeki erişilebilirlik widget’ının vurgu ve imleç değerleri.
+ * Y-56: hex yalnızca burada.
+ */
+export const a11yAssets = {
+  linkHighlightBg: '#000000',
+  linkHighlightFg: '#FFFF00',
+  largeCursor: `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="%23000" stroke="%23fff" stroke-width="2"/></svg>') 0 0, pointer`,
+} as const

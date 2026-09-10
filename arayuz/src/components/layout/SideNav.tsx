@@ -1,12 +1,12 @@
 import {
   Box,
+  Collapse,
   Divider,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Toolbar,
-  Typography,
   alpha,
 } from '@mui/material'
 import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined'
@@ -24,8 +24,9 @@ import ManageAccountsOutlinedIcon from '@mui/icons-material/ManageAccountsOutlin
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined'
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined'
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
-import type { ComponentType } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import type { SvgIconProps } from '@mui/material'
 import { useAuth } from '../../auth/AuthContext'
 import { Permissions } from '../../auth/permissions'
@@ -91,6 +92,14 @@ const navGroups: NavGroup[] = [
 
 export const SIDENAV_WIDTH = 248
 
+function groupKey(group: NavGroup) {
+  return group.labelKey ?? 'root'
+}
+
+function groupContainsPath(group: NavGroup, pathname: string) {
+  return group.items.some((item) => pathname.startsWith(item.to))
+}
+
 export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
   const { hasPermission } = useAuth()
   const { t } = useLocale()
@@ -101,6 +110,23 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
   const visibleGroups = navGroups
     .map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || hasPermission(item.permission)) }))
     .filter((group) => group.items.length > 0)
+
+  const [openKeys, setOpenKeys] = useState<string[]>(() =>
+    visibleGroups.filter((group) => group.labelKey && groupContainsPath(group, location.pathname)).map(groupKey),
+  )
+
+  useEffect(() => {
+    const active = navGroups.find((group) => group.labelKey && groupContainsPath(group, location.pathname))
+    if (!active?.labelKey) {
+      return
+    }
+    const key = active.labelKey
+    setOpenKeys((current) => (current.includes(key) ? current : [...current, key]))
+  }, [location.pathname])
+
+  const toggleGroup = (key: string) => {
+    setOpenKeys((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key]))
+  }
 
   const renderItems = (items: NavItem[]) =>
     items
@@ -157,23 +183,63 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
           `linear-gradient(180deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.dark} 140%)`,
       }}
     >
-      <Toolbar sx={{ px: 2, gap: 1.25, minHeight: 72 }}>
+      <Toolbar sx={{ px: 1.5, minHeight: 72, overflow: 'visible' }}>
         <BrandMark light to="/panel" />
       </Toolbar>
 
       <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
-        {/* Bir grubun tüm öğeleri izin filtresine takılırsa başlığı da çizilmez. */}
-        {visibleGroups.map((group) => (
-          <List
-            key={group.labelKey ?? 'root'}
-            dense
-            disablePadding
-            subheader={group.labelKey ? <NavGroupLabel text={t(group.labelKey)} /> : undefined}
-            sx={{ mb: 1 }}
-          >
-            {renderItems(group.items)}
-          </List>
-        ))}
+        {visibleGroups.map((group) => {
+          const key = groupKey(group)
+          const labelKey = group.labelKey
+          const collapsible = Boolean(labelKey)
+          const open = !collapsible || openKeys.includes(key)
+          const hasActive = groupContainsPath(group, location.pathname)
+
+          return (
+            <List key={key} dense disablePadding sx={{ mb: 0.5 }}>
+              {labelKey && (
+                <ListItemButton
+                  onClick={() => toggleGroup(key)}
+                  aria-expanded={open}
+                  sx={{
+                    mx: 1,
+                    mb: 0.25,
+                    borderRadius: 2,
+                    color: (theme) => alpha(theme.palette.common.white, hasActive ? 0.92 : 0.7),
+                    '&:hover': { bgcolor: (theme) => alpha(theme.palette.common.white, 0.08) },
+                  }}
+                >
+                  <ListItemText
+                    slotProps={{
+                      primary: {
+                        sx: {
+                          fontSize: 11,
+                          fontWeight: 800,
+                          letterSpacing: 1,
+                          textTransform: 'uppercase',
+                        },
+                      },
+                    }}
+                  >
+                    {t(labelKey)}
+                  </ListItemText>
+                  <ExpandMoreRoundedIcon
+                    fontSize="small"
+                    sx={{
+                      opacity: 0.7,
+                      transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: (theme) =>
+                        theme.transitions.create('transform', { duration: theme.transitions.duration.shorter }),
+                    }}
+                  />
+                </ListItemButton>
+              )}
+              <Collapse in={open} timeout="auto" unmountOnExit={false}>
+                {renderItems(group.items)}
+              </Collapse>
+            </List>
+          )
+        })}
       </Box>
 
       {hasPermission(Permissions.HangfireDashboard) && (
@@ -200,18 +266,5 @@ export function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         </>
       )}
     </Box>
-  )
-}
-
-function NavGroupLabel({ text }: { text: string }) {
-  return (
-    // §23.1: 13 öğe + 4 başlık 900px'e ancak sığıyor — başlık satırı sıkı tutulur, ayırıcı yok.
-    <Typography
-      component="div"
-      variant="overline"
-      sx={{ px: 3, pt: 1, display: 'block', lineHeight: 1.6, color: (theme) => alpha(theme.palette.common.white, 0.48), fontSize: 11, letterSpacing: 1 }}
-    >
-      {text}
-    </Typography>
   )
 }

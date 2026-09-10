@@ -15,6 +15,8 @@ public class AccessibilityArchitectureTests
         {
             Path.Combine("a11y", "AccessibilityContext.tsx"),
             Path.Combine("a11y", "AccessibilityFab.tsx"),
+            Path.Combine("a11y", "AccessibilityMenu.tsx"),
+            Path.Combine("a11y", "AccessibilityOverlays.tsx"),
             Path.Combine("theme", "ThemeModeContext.tsx"),
         };
 

@@ -65,4 +65,41 @@ public class FileSignatureInspectorTests
 
         Assert.Equal(DetectedFileType.Unknown, FileSignatureInspector.Detect(header));
     }
+
+    [Fact(DisplayName = "Y-40: ZIP + word/ + wordprocessingml Docx olarak tanınır")]
+    public void DetectContent_DocxZip_ReturnsDocx()
+    {
+        var content = FakeOfficeBytes("word/document.xml", "wordprocessingml");
+
+        var detected = FileSignatureInspector.DetectContent(content);
+
+        Assert.Equal(DetectedFileType.Docx, detected);
+        Assert.Equal("application/vnd.openxmlformats-officedocument.wordprocessingml.document", detected.ToContentType());
+        Assert.Equal(".docx", detected.ToExtension());
+        Assert.Equal(DetectedFileType.Unknown, FileSignatureInspector.Detect(content.AsSpan(0, 12)));
+    }
+
+    [Fact(DisplayName = "Y-40: xlsx (xl/ + spreadsheetml) Docx sayılmaz")]
+    public void DetectContent_XlsxZip_ReturnsUnknown()
+    {
+        var content = FakeOfficeBytes("xl/workbook.xml", "spreadsheetml");
+
+        Assert.Equal(DetectedFileType.Unknown, FileSignatureInspector.DetectContent(content));
+        Assert.False(FileSignatureInspector.LooksLikeDocx(content));
+    }
+
+    [Fact(DisplayName = "Y-40: düz ZIP Docx sayılmaz")]
+    public void DetectContent_PlainZip_ReturnsUnknown()
+    {
+        var content = FakeOfficeBytes("readme.txt", "plain-text");
+
+        Assert.Equal(DetectedFileType.Unknown, FileSignatureInspector.DetectContent(content));
+    }
+
+    private static byte[] FakeOfficeBytes(string pathMarker, string contentTypeMarker)
+    {
+        var prefix = new byte[] { 0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        var ascii = System.Text.Encoding.ASCII.GetBytes($"{pathMarker} {contentTypeMarker}");
+        return [..prefix, ..ascii];
+    }
 }

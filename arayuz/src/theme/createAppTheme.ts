@@ -1,8 +1,14 @@
 import { alpha, createTheme } from '@mui/material'
 import { enUS, trTR } from '@mui/material/locale'
 import { enUS as dataGridEn, trTR as dataGridTr } from '@mui/x-data-grid/locales'
-import { brand, contrastPalette, surfaces } from './tokens'
-import type { AccessibilityPreferences } from '../a11y/AccessibilityContext'
+import {
+  FALLBACK_PREFERENCES,
+  LETTER_SPACING_FACTORS,
+  LINE_HEIGHT_FACTORS,
+  ZOOM_FACTORS,
+  type AccessibilityPreferences,
+} from '../a11y/AccessibilityContext'
+import { a11yAssets, brand, contrastPalette, surfaces } from './tokens'
 
 declare module '@mui/material/styles' {
   interface Palette {
@@ -15,12 +21,7 @@ declare module '@mui/material/styles' {
 
 const navyShadow = (opacity: number) => `0 8px 24px ${alpha(brand.navy, opacity)}`
 
-const defaultAccessibility: AccessibilityPreferences = {
-  fontScale: 1,
-  highContrast: false,
-  reduceMotion: false,
-  underlineLinks: false,
-}
+const defaultAccessibility: AccessibilityPreferences = FALLBACK_PREFERENCES
 
 export function createAppTheme(
   mode: 'light' | 'dark',
@@ -29,6 +30,17 @@ export function createAppTheme(
 ) {
   const surface = surfaces[mode]
   const contrast = contrastPalette[mode]
+  const highContrast = a11y.contrast === 'high'
+  const zoomFactor = ZOOM_FACTORS[a11y.zoom] ?? 1
+  const lineHeight = LINE_HEIGHT_FACTORS[a11y.lineHeight] ?? 0
+  const letterSpacing = LETTER_SPACING_FACTORS[a11y.letterSpacing] ?? 0
+  const rootFilter = [
+    a11y.contrast === 'invert' ? 'invert(1)' : null,
+    a11y.saturation === 'low' ? 'saturate(0.5)' : null,
+    a11y.saturation === 'high' ? 'saturate(1.5)' : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
   const muiLocale = locale === 'tr' ? trTR : enUS
   const gridLocale = locale === 'tr' ? dataGridTr : dataGridEn
 
@@ -55,8 +67,8 @@ export function createAppTheme(
         grey: {
           400: brand.grey,
         },
-        divider: a11y.highContrast ? contrast.divider : alpha(brand.grey, mode === 'dark' ? 0.28 : 0.35),
-        text: a11y.highContrast
+        divider: highContrast ? contrast.divider : alpha(brand.grey, mode === 'dark' ? 0.28 : 0.35),
+        text: highContrast
           ? { primary: contrast.textPrimary, secondary: contrast.textSecondary }
           : {
               primary: surface.text,
@@ -74,7 +86,9 @@ export function createAppTheme(
       typography: {
         // A-79: tek kaynak — MUI tüm varyantları bu taban ölçüden türetir.
         fontSize: 14 * a11y.fontScale,
-        fontFamily: '"InterVariable", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+        fontFamily: a11y.dyslexiaFriendly
+          ? '"Comic Sans MS", "Comic Sans", "Arial", cursive'
+          : '"InterVariable", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
         h1: { fontWeight: 800, letterSpacing: '-0.03em' },
         h2: { fontWeight: 800, letterSpacing: '-0.025em' },
         h3: { fontWeight: 800, letterSpacing: '-0.02em' },
@@ -96,14 +110,33 @@ export function createAppTheme(
               WebkitFontSmoothing: 'antialiased',
               MozOsxFontSmoothing: 'grayscale',
             },
+            '#root': {
+              ...(zoomFactor !== 1 ? { zoom: zoomFactor } : {}),
+              ...(rootFilter ? { filter: rootFilter } : {}),
+              ...(a11y.textAlign !== 'start' ? { textAlign: a11y.textAlign } : {}),
+              ...(lineHeight ? { lineHeight } : {}),
+              ...(letterSpacing
+                ? { letterSpacing: `${letterSpacing}em`, wordSpacing: `${letterSpacing * 2}em` }
+                : a11y.dyslexiaFriendly
+                  ? { letterSpacing: '0.1em', wordSpacing: '0.2em' }
+                  : {}),
+            },
             '::selection': {
-              backgroundColor: alpha(brand.turquoise, 0.22),
+              backgroundColor: a11y.selectionReader ? alpha(brand.gold, 0.5) : alpha(brand.turquoise, 0.22),
+              ...(a11y.selectionReader ? { color: surfaces.light.text } : {}),
             },
             // A-79: klavye odağı her zaman görünür; yüksek kontrastta daha kalın.
             '*:focus-visible': {
-              outline: `${a11y.highContrast ? 3 : 2}px solid ${contrast.focusRing}`,
+              outline: `${highContrast ? 3 : 2}px solid ${contrast.focusRing}`,
               outlineOffset: 2,
             },
+            ...(a11y.largeCursor
+              ? {
+                  'html, html *': {
+                    cursor: `${a11yAssets.largeCursor} !important`,
+                  },
+                }
+              : {}),
             ...(a11y.reduceMotion
               ? {
                   '*, *::before, *::after': {
@@ -115,7 +148,15 @@ export function createAppTheme(
                 }
               : {}),
             ...(a11y.underlineLinks
-              ? { 'a:not(.MuiButtonBase-root)': { textDecoration: 'underline !important' } }
+              ? {
+                  '#root a:not(.MuiButtonBase-root)': {
+                    backgroundColor: `${a11yAssets.linkHighlightBg} !important`,
+                    color: `${a11yAssets.linkHighlightFg} !important`,
+                    paddingInline: 4,
+                    paddingBlock: 2,
+                    borderRadius: 3,
+                  },
+                }
               : {}),
           },
         },

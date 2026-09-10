@@ -1,3 +1,4 @@
+using Business.DTOs.Files;
 using Business.DTOs.Reference;
 using Business.ValidationRules;
 using Core.Aspects.Autofac;
@@ -123,6 +124,22 @@ public interface IReferenceDataService
     [CacheRemoveAspect("ReferenceDataManager.")]
     [TransactionAspect]
     Task<IResult> DeleteClubDocumentTypeAsync(int documentTypeId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Boş kurumsal şablonu yükler/değiştirir. Liste cache'i TemplateFileId taşıdığı için düşer.
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]
+    [CacheRemoveAspect("ReferenceDataManager.")]
+    [TransactionAspect]
+    Task<IDataResult<ClubDocumentTypeListItemDto>> UploadClubDocumentTemplateAsync(
+        int documentTypeId, UploadFileRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Başvuru formundaki "Şablonu indir" — `clubs.read` (katalog okuma izninin aynısı).
+    /// </summary>
+    [SecuredOperation(IdentitySeedData.Permissions.ClubsRead)]
+    Task<IDataResult<FileContentDto>> GetClubDocumentTemplateAsync(
+        int documentTypeId, CancellationToken cancellationToken = default);
 
     /// <summary>docs/PLAN-V2.md §9: kulüp oluşturma diyaloğundaki danışman seçici için sayfalı liste.</summary>
     [SecuredOperation(IdentitySeedData.Permissions.ReferenceManage)]

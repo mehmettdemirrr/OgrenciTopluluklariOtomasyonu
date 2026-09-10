@@ -168,6 +168,7 @@ export interface ClubDocumentTypeListItemDto {
   isRequired: boolean
   isActive: boolean
   displayOrder: number
+  templateFileId: number | null
 }
 
 // src/Business/DTOs/ClubApplications/ClubApplicationDocumentDto.cs

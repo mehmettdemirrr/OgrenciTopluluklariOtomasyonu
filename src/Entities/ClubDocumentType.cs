@@ -22,4 +22,10 @@ public sealed class ClubDocumentType : IEntity
     public bool IsActive { get; set; }
 
     public int DisplayOrder { get; set; }
+
+    /// <summary>
+    /// Boş kurumsal şablon (Word/PDF). A-63 Protected kuralı doldurulmuş başvuru evrakına aittir;
+    /// boş form Public saklanır. Silinirse FK SetNull.
+    /// </summary>
+    public int? TemplateFileId { get; set; }
 }

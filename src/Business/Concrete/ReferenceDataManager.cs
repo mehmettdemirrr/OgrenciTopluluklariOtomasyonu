@@ -1,5 +1,6 @@
 using Business.Abstract;
 using Business.Constants;
+using Business.DTOs.Files;
 using Business.DTOs.Reference;
 using Core.DataAccess;
 using Core.Utilities.Results;
@@ -16,6 +17,7 @@ public sealed class ReferenceDataManager(
     IEntityRepository<ClubCategory> clubCategoryRepository,
     IEntityRepository<ClubDocumentType> clubDocumentTypeRepository,
     IAcademicStaffDal academicStaffDal,
+    IFileService fileService,
     IUnitOfWork unitOfWork) : IReferenceDataService
 {
     private const int DefaultPageSize = 20;
@@ -338,9 +340,64 @@ public sealed class ReferenceDataManager(
         return Result.Success(Messages.ClubDocumentTypeDeleted);
     }
 
+    public async Task<IDataResult<ClubDocumentTypeListItemDto>> UploadClubDocumentTemplateAsync(
+        int documentTypeId, UploadFileRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var documentType = await clubDocumentTypeRepository
+            .GetAsync(t => t.Id == documentTypeId, cancellationToken).ConfigureAwait(false);
+        if (documentType is null)
+        {
+            return DataResult<ClubDocumentTypeListItemDto>.NotFound(Messages.ClubDocumentTypeNotFound);
+        }
+
+        var stored = await fileService.StoreDocumentTemplateAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!stored.IsSuccess)
+        {
+            return DataResult<ClubDocumentTypeListItemDto>.ValidationError(
+                stored.Message ?? Messages.UnsupportedDocumentTemplateType);
+        }
+
+        documentType.TemplateFileId = stored.Data.FileId;
+        clubDocumentTypeRepository.Update(documentType);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return DataResult<ClubDocumentTypeListItemDto>.Success(
+            ToDocumentTypeDto(documentType), Messages.ClubDocumentTypeTemplateUploaded);
+    }
+
+    public async Task<IDataResult<FileContentDto>> GetClubDocumentTemplateAsync(
+        int documentTypeId, CancellationToken cancellationToken = default)
+    {
+        var documentType = await clubDocumentTypeRepository
+            .GetAsync(t => t.Id == documentTypeId, cancellationToken).ConfigureAwait(false);
+        if (documentType is null)
+        {
+            return DataResult<FileContentDto>.NotFound(Messages.ClubDocumentTypeNotFound);
+        }
+
+        if (documentType.TemplateFileId is not { } templateFileId)
+        {
+            return DataResult<FileContentDto>.NotFound(Messages.ClubDocumentTypeTemplateNotFound);
+        }
+
+        var file = await fileService.GetPublicFileAsync(templateFileId, cancellationToken).ConfigureAwait(false);
+        if (!file.IsSuccess)
+        {
+            return DataResult<FileContentDto>.NotFound(Messages.ClubDocumentTypeTemplateNotFound);
+        }
+
+        return file;
+    }
+
     private static ClubDocumentTypeListItemDto ToDocumentTypeDto(ClubDocumentType t) => new()
     {
-        Id = t.Id, Code = t.Code, Name = t.Name, IsRequired = t.IsRequired, IsActive = t.IsActive, DisplayOrder = t.DisplayOrder,
+        Id = t.Id,
+        Code = t.Code,
+        Name = t.Name,
+        IsRequired = t.IsRequired,
+        IsActive = t.IsActive,
+        DisplayOrder = t.DisplayOrder,
+        TemplateFileId = t.TemplateFileId,
     };
 
     public async Task<IDataResult<PagedResult<AcademicStaffListItemDto>>> GetAcademicStaffPagedAsync(

@@ -1,4 +1,5 @@
 using Business.Abstract;
+using Business.DTOs.Files;
 using Business.DTOs.Reference;
 using Microsoft.AspNetCore.Mvc;
 using WebAPI.Extensions;
@@ -40,5 +41,35 @@ public sealed class ClubDocumentTypesController(IReferenceDataService referenceD
     {
         var result = await referenceDataService.DeleteClubDocumentTypeAsync(id, cancellationToken);
         return result.ToActionResult();
+    }
+
+    [HttpPost("{id:int}/template")]
+    [RequestSizeLimit(5_242_880)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 5_242_880)]
+    public async Task<IActionResult> UploadTemplate(int id, IFormFile file, CancellationToken cancellationToken)
+    {
+        await using var stream = file.OpenReadStream();
+        var result = await referenceDataService.UploadClubDocumentTemplateAsync(
+            id,
+            new UploadFileRequestDto { Content = stream, OriginalFileName = file.FileName, Length = file.Length },
+            cancellationToken);
+
+        return result.ToActionResult();
+    }
+
+    /// <summary>
+    /// Şablon Public olsa da indirme adı orijinal dosya adıdır; FilesController logo ucuna
+    /// fileDownloadName eklenmez (görseller tarayıcıda açılsın diye).
+    /// </summary>
+    [HttpGet("{id:int}/template")]
+    public async Task<IActionResult> GetTemplate(int id, CancellationToken cancellationToken)
+    {
+        var result = await referenceDataService.GetClubDocumentTemplateAsync(id, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return result.ToActionResult();
+        }
+
+        return File(result.Data.Content, result.Data.ContentType, result.Data.DownloadFileName);
     }
 }

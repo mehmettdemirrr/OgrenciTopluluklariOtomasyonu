@@ -24,10 +24,13 @@ import {
 } from '@mui/material'
 import { DataGrid, type GridColDef, type GridRowSelectionModel } from '@mui/x-data-grid'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined'
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import { useState } from 'react'
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined'
+import { useRef, useState } from 'react'
 import { Controller, useForm, type Control } from 'react-hook-form'
 import { apiClient } from '../api/client'
+import { downloadBlob } from '../api/download'
 import { extractErrorMessage } from '../api/errors'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
@@ -978,6 +981,8 @@ function ClubDocumentTypesTab() {
   const queryClient = useQueryClient()
   const notify = useNotifier()
   const dialog = useFormDialog()
+  const templateInputRef = useRef<HTMLInputElement>(null)
+  const uploadTargetRef = useRef<ClubDocumentTypeListItemDto | null>(null)
   const [editTarget, setEditTarget] = useState<ClubDocumentTypeListItemDto | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ClubDocumentTypeListItemDto | null>(null)
 
@@ -1044,6 +1049,30 @@ function ClubDocumentTypesTab() {
     },
   })
 
+  const uploadTemplateMutation = useMutation({
+    mutationFn: async ({ id, file }: { id: number; file: File }) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return (await apiClient.post<ClubDocumentTypeListItemDto>(`/club-document-types/${id}/template`, formData)).data
+    },
+    onSuccess: (data) => {
+      notify({ message: 'Evrak şablonu güncellendi.', severity: 'success' })
+      uploadTargetRef.current = null
+      setEditTarget((current) => (current && current.id === data.id ? { ...current, templateFileId: data.templateFileId } : current))
+      invalidate()
+    },
+    onError: (error) => notify({ message: extractErrorMessage(error, 'Şablon yüklenemedi.'), severity: 'error' }),
+  })
+
+  const openTemplatePicker = (row: ClubDocumentTypeListItemDto) => {
+    uploadTargetRef.current = row
+    templateInputRef.current?.click()
+  }
+
+  const downloadTemplate = async (row: ClubDocumentTypeListItemDto) => {
+    await downloadBlob(`/club-document-types/${row.id}/template`, `${row.code}-sablon`)
+  }
+
   const columns: GridColDef<ClubDocumentTypeListItemDto>[] = [
     { field: 'displayOrder', headerName: 'Sıra', width: 80 },
     { field: 'code', headerName: 'Kod', width: 120 },
@@ -1063,13 +1092,47 @@ function ClubDocumentTypesTab() {
         params.row.isActive ? <Chip size="small" color="success" label="Yürürlükte" /> : <Chip size="small" variant="outlined" label="Pasif" />,
     },
     {
+      field: 'templateFileId',
+      headerName: 'Şablon',
+      width: 110,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) =>
+        params.row.templateFileId ? (
+          <Chip size="small" color="success" label="Yüklü" />
+        ) : (
+          <Chip size="small" variant="outlined" label="Yok" />
+        ),
+    },
+    {
       field: 'actions',
       headerName: '',
-      width: 120,
+      width: 180,
       sortable: false,
       filterable: false,
       renderCell: (params) => (
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+          <IconButton
+            size="small"
+            aria-label="Şablon yükle"
+            title={params.row.templateFileId ? 'Şablonu değiştir' : 'Şablon yükle'}
+            onClick={() => openTemplatePicker(params.row)}
+          >
+            <UploadFileOutlinedIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            aria-label="Şablonu indir"
+            title="Şablonu indir"
+            disabled={!params.row.templateFileId}
+            onClick={() => {
+              void downloadTemplate(params.row).catch((error: unknown) =>
+                notify({ message: extractErrorMessage(error, 'Şablon indirilemedi.'), severity: 'error' }),
+              )
+            }}
+          >
+            <DownloadOutlinedIcon fontSize="small" />
+          </IconButton>
           <IconButton
             size="small"
             onClick={() => {
@@ -1099,10 +1162,27 @@ function ClubDocumentTypesTab() {
         <Button variant="contained" onClick={dialog.openDialog}>
           Yeni Evrak Tipi
         </Button>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          Başvuru formunda indirilen Word/PDF şablonları buradan yüklenir ve değiştirilir. Doldurulmuş evraklar yine yalnızca PDF kabul edilir.
+        </Typography>
+        <input
+          ref={templateInputRef}
+          type="file"
+          hidden
+          accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            const target = uploadTargetRef.current
+            if (file && target) {
+              uploadTemplateMutation.mutate({ id: target.id, file })
+            }
+          }}
+        />
       </Box>
 
       <DataTable
-        mobileHiddenFields={['displayOrder', 'isActive']}
+        mobileHiddenFields={['displayOrder', 'isActive', 'templateFileId']}
         rows={documentTypesQuery.data?.items ?? []}
         columns={columns}
         loading={documentTypesQuery.isFetching}
@@ -1151,6 +1231,36 @@ function ClubDocumentTypesTab() {
         <DialogTitle>Evrak Tipini Düzenle</DialogTitle>
         <DialogContent>
           <ClubDocumentTypeFormFields control={editForm.control} />
+          {editTarget && (
+            <Stack spacing={1} sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                {editTarget.templateFileId ? 'Bu tip için bir şablon yüklü.' : 'Bu tip için henüz şablon yok.'} Word (.docx) veya PDF yükleyebilirsiniz.
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<UploadFileOutlinedIcon />}
+                  disabled={uploadTemplateMutation.isPending}
+                  onClick={() => openTemplatePicker(editTarget)}
+                >
+                  {editTarget.templateFileId ? 'Şablonu değiştir' : 'Şablon yükle'}
+                </Button>
+                <Button
+                  size="small"
+                  startIcon={<DownloadOutlinedIcon />}
+                  disabled={!editTarget.templateFileId}
+                  onClick={() => {
+                    void downloadTemplate(editTarget).catch((error: unknown) =>
+                      notify({ message: extractErrorMessage(error, 'Şablon indirilemedi.'), severity: 'error' }),
+                    )
+                  }}
+                >
+                  İndir
+                </Button>
+              </Stack>
+            </Stack>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditTarget(null)}>Vazgeç</Button>

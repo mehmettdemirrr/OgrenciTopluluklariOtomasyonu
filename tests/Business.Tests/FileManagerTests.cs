@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using Business.Abstract;
 using Business.Concrete;
+using Business.Constants;
 using Business.DTOs.Files;
 using Core.DataAccess;
 using Core.Utilities.Files;
@@ -254,5 +255,109 @@ public class FileManagerTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ResultStatus.ValidationError, result.Status);
         _storedFileRepository.Verify(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "A-64: şablon yolu Docx kabul eder ve Public saklar")]
+    public async Task StoreDocumentTemplateAsync_AcceptsDocx_AsPublic()
+    {
+        var docx = FakeOfficeBytes("word/document.xml", "wordprocessingml");
+        StoredFile? addedFile = null;
+        _storedFileRepository
+            .Setup(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()))
+            .Callback<StoredFile, CancellationToken>((f, _) =>
+            {
+                addedFile = f;
+                f.Id = 11;
+            })
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.StoreDocumentTemplateAsync(
+            new UploadFileRequestDto { Content = new MemoryStream(docx), OriginalFileName = "FR-0230.docx", Length = docx.Length });
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(addedFile);
+        Assert.Equal(FileVisibility.Public, addedFile!.Visibility);
+        Assert.Equal("application/vnd.openxmlformats-officedocument.wordprocessingml.document", addedFile.ContentType);
+        Assert.EndsWith(".docx", addedFile.GeneratedFileName);
+    }
+
+    [Fact(DisplayName = "A-64: şablon yolu PDF kabul eder")]
+    public async Task StoreDocumentTemplateAsync_AcceptsPdf()
+    {
+        _storedFileRepository
+            .Setup(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()))
+            .Callback<StoredFile, CancellationToken>((f, _) => f.Id = 12)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.StoreDocumentTemplateAsync(
+            new UploadFileRequestDto { Content = new MemoryStream(PdfBytes), OriginalFileName = "sablon.pdf", Length = PdfBytes.Length });
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(12, result.Data.FileId);
+    }
+
+    [Fact(DisplayName = "Y-40: şablon yoluna xlsx/zip yüklenemez")]
+    public async Task StoreDocumentTemplateAsync_RejectsXlsx()
+    {
+        var xlsx = FakeOfficeBytes("xl/workbook.xml", "spreadsheetml");
+
+        var result = await _sut.StoreDocumentTemplateAsync(
+            new UploadFileRequestDto { Content = new MemoryStream(xlsx), OriginalFileName = "sablon.xlsx", Length = xlsx.Length });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.ValidationError, result.Status);
+        Assert.Equal(Messages.UnsupportedDocumentTemplateType, result.Message);
+        _storedFileRepository.Verify(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "A-64: şablon yoluna PNG yüklenemez")]
+    public async Task StoreDocumentTemplateAsync_RejectsPng()
+    {
+        var result = await _sut.StoreDocumentTemplateAsync(
+            new UploadFileRequestDto { Content = new MemoryStream(ValidPngBytes), OriginalFileName = "sablon.png", Length = ValidPngBytes.Length });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.ValidationError, result.Status);
+        _storedFileRepository.Verify(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "A-64 REGRESYON: kulüp logosu ucuna Docx yüklenemez")]
+    public async Task UploadClubLogoAsync_RejectsDocx()
+    {
+        _currentUser.Setup(c => c.UserId).Returns(200);
+        var club = CreateClub();
+        var advisor = CreateAdvisor();
+        _clubRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<Club, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(club);
+        _academicStaffRepository.Setup(r => r.GetAsync(It.IsAny<Expression<Func<AcademicStaff, bool>>>(), It.IsAny<CancellationToken>())).ReturnsAsync(advisor);
+
+        var docx = FakeOfficeBytes("word/document.xml", "wordprocessingml");
+        var result = await _sut.UploadClubLogoAsync(
+            club.Id,
+            new UploadFileRequestDto { Content = new MemoryStream(docx), OriginalFileName = "logo.docx", Length = docx.Length });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.ValidationError, result.Status);
+        _storedFileRepository.Verify(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "A-64 REGRESYON: başvuru evrakı yoluna Docx yüklenemez")]
+    public async Task StoreApplicationDocumentAsync_RejectsDocx()
+    {
+        var docx = FakeOfficeBytes("word/document.xml", "wordprocessingml");
+
+        var result = await _sut.StoreApplicationDocumentAsync(
+            new UploadFileRequestDto { Content = new MemoryStream(docx), OriginalFileName = "evrak.docx", Length = docx.Length });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ResultStatus.ValidationError, result.Status);
+        Assert.Equal(Messages.UnsupportedDocumentFileType, result.Message);
+        _storedFileRepository.Verify(r => r.AddAsync(It.IsAny<StoredFile>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static byte[] FakeOfficeBytes(string pathMarker, string contentTypeMarker)
+    {
+        var prefix = new byte[] { 0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        var ascii = System.Text.Encoding.ASCII.GetBytes($"{pathMarker} {contentTypeMarker}");
+        return [..prefix, ..ascii];
     }
 }

@@ -1,14 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Box, Button, Card, CardContent, CardMedia, Chip, Grid, Stack, ToggleButton, ToggleButtonGroup, Typography, alpha, type SvgIconProps } from '@mui/material'
+import { Box, Button, Card, CardContent, CardMedia, Chip, Grid, Stack, Typography, alpha, type SvgIconProps } from '@mui/material'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
-import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined'
-import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
-import { useEffect, useState, type ComponentType } from 'react'
+import { useEffect, type ComponentType } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
@@ -17,19 +15,16 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { AnnouncementCard } from '../../components/ui/AnnouncementCard'
 import { SectionCard } from '../../components/ui/SectionCard'
 import type { PagedResult, PublicAnnouncementListItemDto, PublicClubListItemDto, PublicEventListItemDto, PublicStatsDto } from '../../api/types'
-import { campuses, type CampusId } from '../../data/campuses'
-import { mapsEmbedUrl, mapsSearchUrl } from '../../utils/maps'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { useLocale } from '../../i18n/LocaleContext'
 import universityLogo from '../../assets/logo.png'
 import ozelPortrait from '../../assets/turgut-ozal-portrait.webp'
+import { HomeLocationSection } from './HomeLocationSection'
 
 export function HomePage() {
   const { t, dateLocale } = useLocale()
   const { hash } = useLocation()
   useDocumentTitle(t('home.title'))
-  const [campusId, setCampusId] = useState<CampusId>('yesilyurt')
-
   useEffect(() => {
     if (hash !== '#kampusler') {
       return
@@ -38,7 +33,6 @@ export function HomePage() {
       document.getElementById('kampusler')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 50)
   }, [hash])
-  const selectedCampus = campuses.find((campus) => campus.id === campusId) ?? campuses[0]
 
   const { isAuthenticated } = useAuth()
 
@@ -317,102 +311,7 @@ export function HomePage() {
         )}
       </SectionCard>
 
-      <Box id="kampusler" sx={{ scrollMarginTop: 96 }}>
-      <SectionCard title={t('home.campuses')}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t('home.campusLead')}
-        </Typography>
-        <ToggleButtonGroup
-          exclusive
-          fullWidth
-          value={campusId}
-          onChange={(_, value: CampusId | null) => {
-            if (value) setCampusId(value)
-          }}
-          sx={{
-            mb: 2.5,
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-            gap: 1.5,
-            '& .MuiToggleButtonGroup-grouped': {
-              border: 0,
-              borderRadius: '12px !important',
-              mx: 0,
-            },
-          }}
-        >
-          {campuses.map((campus) => (
-            <ToggleButton
-              key={campus.id}
-              value={campus.id}
-              sx={{
-                py: 1.5,
-                px: 2,
-                justifyContent: 'flex-start',
-                gap: 1,
-                textTransform: 'none',
-                fontWeight: 800,
-                color: 'text.primary',
-                bgcolor: 'background.paper',
-                border: '1px solid',
-                borderColor: 'divider',
-                '&.Mui-selected': {
-                  color: 'primary.dark',
-                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
-                  borderColor: 'primary.main',
-                },
-              }}
-            >
-              <PlaceOutlinedIcon fontSize="small" />
-              {t(campus.nameKey)}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-
-        <Box
-          sx={{
-            borderRadius: 3,
-            overflow: 'hidden',
-            border: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Box
-            component="iframe"
-            title={t(selectedCampus.nameKey)}
-            src={mapsEmbedUrl(selectedCampus.query)}
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            sx={{ display: 'block', width: '100%', height: { xs: 220, md: 280 }, border: 0 }}
-          />
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1.5}
-            sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between', p: 2 }}
-          >
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                {t(selectedCampus.nameKey)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t(selectedCampus.addressKey)}
-              </Typography>
-            </Box>
-            <Button
-              href={mapsSearchUrl(selectedCampus.query)}
-              target="_blank"
-              rel="noopener noreferrer"
-              variant="contained"
-              endIcon={<OpenInNewOutlinedIcon />}
-              sx={{ flexShrink: 0 }}
-            >
-              {t('home.openMap')}
-            </Button>
-          </Stack>
-        </Box>
-      </SectionCard>
-      </Box>
+      <HomeLocationSection />
     </Stack>
     </Box>
   )

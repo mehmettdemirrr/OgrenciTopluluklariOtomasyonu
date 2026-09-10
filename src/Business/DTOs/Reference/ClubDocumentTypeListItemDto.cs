@@ -14,4 +14,6 @@ public sealed class ClubDocumentTypeListItemDto
     public bool IsActive { get; set; }
 
     public int DisplayOrder { get; set; }
+
+    public int? TemplateFileId { get; set; }
 }

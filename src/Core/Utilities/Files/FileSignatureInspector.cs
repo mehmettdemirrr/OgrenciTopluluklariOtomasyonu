@@ -39,4 +39,33 @@ public static class FileSignatureInspector
 
         return DetectedFileType.Unknown;
     }
+
+    /// <summary>
+    /// Header imzası + OOXML gövde taraması. ZIP sihirli baytı tek başına Docx sayılmaz —
+    /// xlsx/pptx/düz zip reddedilir (Y-40).
+    /// </summary>
+    public static DetectedFileType DetectContent(ReadOnlySpan<byte> content)
+    {
+        var headerLength = Math.Min(12, content.Length);
+        var detected = Detect(content[..headerLength]);
+        if (detected != DetectedFileType.Unknown)
+        {
+            return detected;
+        }
+
+        return IsZipLocalFileHeader(content) && LooksLikeDocx(content)
+            ? DetectedFileType.Docx
+            : DetectedFileType.Unknown;
+    }
+
+    public static bool IsZipLocalFileHeader(ReadOnlySpan<byte> content) =>
+        content.Length >= 4 &&
+        content[0] == 0x50 && content[1] == 0x4B && content[2] == 0x03 && content[3] == 0x04;
+
+    /// <summary>
+    /// OOXML Word: hem <c>word/</c> parçası hem <c>wordprocessingml</c> içerik tipi. xlsx (<c>xl/</c>)
+    /// ve pptx (<c>ppt/</c>) bu iki imzayı birlikte taşımaz.
+    /// </summary>
+    public static bool LooksLikeDocx(ReadOnlySpan<byte> content) =>
+        content.IndexOf("word/"u8) >= 0 && content.IndexOf("wordprocessingml"u8) >= 0;
 }

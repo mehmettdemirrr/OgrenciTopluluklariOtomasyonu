@@ -22,21 +22,22 @@ export function BrandMark({ light = false, to, showSubtitle = false, size = 'sm'
       sx={{
         alignItems: 'center',
         minWidth: 0,
+        width: '100%',
         color: 'inherit',
         textDecoration: 'none',
         cursor: to ? 'pointer' : 'default',
       }}
     >
       <Box component="img" src={logo} alt="" sx={{ width: logoSize, height: logoSize, flexShrink: 0 }} />
-      <Box sx={{ minWidth: 0 }}>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography
           variant={size === 'md' ? 'h6' : 'subtitle1'}
-          noWrap
           sx={{
             fontWeight: 800,
+            fontSize: size === 'md' ? undefined : 14,
             color: light ? 'common.white' : 'text.primary',
             lineHeight: 1.2,
-            letterSpacing: '-0.02em',
+            letterSpacing: '-0.03em',
           }}
         >
           {t('brand.name')}

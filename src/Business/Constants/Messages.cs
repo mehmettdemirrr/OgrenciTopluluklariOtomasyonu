@@ -193,12 +193,15 @@ public static class Messages
     // Faz 33 — Kuruluş evrakları (K-37, A-62, A-63, A-64)
     // A-64: iki farklı bağlam, iki farklı mesaj. UnsupportedFileType görsel yolunda kalır.
     public const string UnsupportedDocumentFileType = "Desteklenmeyen dosya türü. Evraklar yalnızca PDF olarak yüklenebilir.";
+    public const string UnsupportedDocumentTemplateType = "Desteklenmeyen dosya türü. Şablonlar yalnızca Word (.docx) veya PDF olarak yüklenebilir.";
 
     public const string ClubDocumentTypeNotFound = "Evrak tipi bulunamadı.";
     public const string ClubDocumentTypeCodeTaken = "Bu kodla bir evrak tipi zaten var.";
     public const string ClubDocumentTypeUpdated = "Evrak tipi güncellendi.";
     public const string ClubDocumentTypeDeleted = "Evrak tipi silindi.";
     public const string ClubDocumentTypeInUse = "Bu evrak tipi başvurularda kullanıldığı için silinemez. Yürürlükten kaldırmak için pasife alın.";
+    public const string ClubDocumentTypeTemplateUploaded = "Evrak şablonu güncellendi.";
+    public const string ClubDocumentTypeTemplateNotFound = "Bu evrak tipi için henüz bir şablon yüklenmedi.";
 
     public const string MissingRequiredClubDocuments = "Zorunlu evrakların tamamı yüklenmeden başvuru gönderilemez.";
     public const string UnknownClubDocumentType = "Gönderilen evrak tiplerinden biri tanımlı değil.";

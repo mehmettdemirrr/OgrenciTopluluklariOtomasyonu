@@ -28,6 +28,13 @@ public interface IFileService
         UploadFileRequestDto request, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Boş kurumsal şablon — Word (.docx) veya PDF, Public. Controller ucu YOKTUR; yalnızca
+    /// ReferenceDataManager çağırır (yetki orada). Başvuru evrakı PDF yoluna Docx eklenmez (A-64).
+    /// </summary>
+    Task<IDataResult<UploadedFileDto>> StoreDocumentTemplateAsync(
+        UploadFileRequestDto request, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// docs/MIMARI.md · K-40/A-64: başvuru logosu — yalnızca JPEG/PNG/WebP, Public.
     /// Controller ucu YOKTUR; yalnızca ClubApplicationManager çağırır (başvuru akışının parçası),
     /// bu yüzden [SecuredOperation] da yok — yetki SubmitAsync'te zaten kurulmuş durumda.

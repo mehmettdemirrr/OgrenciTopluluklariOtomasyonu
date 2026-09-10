@@ -32,6 +32,9 @@ public sealed class FileManager(
     /// <summary>docs/MIMARI.md · A-64: kuruluş evrakı yolu. Yalnızca PDF.</summary>
     private static readonly DetectedFileType[] DocumentTypes = [DetectedFileType.Pdf];
 
+    /// <summary>docs/MIMARI.md · A-64: boş kurumsal şablon. Word veya PDF; başvuru evrakı yoluna karışmaz.</summary>
+    private static readonly DetectedFileType[] DocumentTemplateTypes = [DetectedFileType.Docx, DetectedFileType.Pdf];
+
     public async Task<IDataResult<UploadedFileDto>> UploadClubLogoAsync(int clubId, UploadFileRequestDto request, CancellationToken cancellationToken = default)
     {
         var club = await clubRepository.GetAsync(c => c.Id == clubId, cancellationToken).ConfigureAwait(false);
@@ -142,6 +145,11 @@ public sealed class FileManager(
         // A-64: DocumentTypes = yalnızca PDF. Y-70: görünürlük Protected, pazarlık yok.
         StoreFileAsync(request, FileVisibility.Protected, DocumentTypes, Messages.UnsupportedDocumentFileType, cancellationToken);
 
+    public Task<IDataResult<UploadedFileDto>> StoreDocumentTemplateAsync(
+        UploadFileRequestDto request, CancellationToken cancellationToken = default) =>
+        // Boş form kişisel veri değildir → Public. Tip kümesi yalnızca şablon yolunda Docx|Pdf.
+        StoreFileAsync(request, FileVisibility.Public, DocumentTemplateTypes, Messages.UnsupportedDocumentTemplateType, cancellationToken);
+
     public Task<IDataResult<UploadedFileDto>> StoreApplicationLogoAsync(
         UploadFileRequestDto request, CancellationToken cancellationToken = default) =>
         // A-64: ImageTypes = JPEG/PNG/WebP. Logo kulüp kimliğidir, kişisel veri değil → Public (A-69).
@@ -193,11 +201,8 @@ public sealed class FileManager(
 
         using var buffer = new MemoryStream();
         await request.Content.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
-        buffer.Position = 0;
-
-        var header = new byte[12];
-        var headerLength = await buffer.ReadAsync(header.AsMemory(0, 12), cancellationToken).ConfigureAwait(false);
-        var detectedType = FileSignatureInspector.Detect(header.AsSpan(0, headerLength));
+        var bytes = buffer.ToArray();
+        var detectedType = FileSignatureInspector.DetectContent(bytes);
         var contentType = detectedType.ToContentType();
         var extension = detectedType.ToExtension();
 

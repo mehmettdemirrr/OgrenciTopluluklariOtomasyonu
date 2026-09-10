@@ -10,6 +10,12 @@ public enum DetectedFileType
 
     /// <summary>docs/MIMARI.md · K-37/A-64: kuruluş evrakı. YALNIZCA evrak yolunda kabul edilir.</summary>
     Pdf,
+
+    /// <summary>
+    /// Boş kurumsal şablon (Word). Yalnızca evrak tipi şablon yolunda kabul edilir — başvuru
+    /// evrakı ve görsel yolları Docx almaz (A-64).
+    /// </summary>
+    Docx,
 }
 
 public static class DetectedFileTypeExtensions
@@ -20,6 +26,7 @@ public static class DetectedFileTypeExtensions
         DetectedFileType.Png => "image/png",
         DetectedFileType.Webp => "image/webp",
         DetectedFileType.Pdf => "application/pdf",
+        DetectedFileType.Docx => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         _ => null,
     };
 
@@ -29,6 +36,7 @@ public static class DetectedFileTypeExtensions
         DetectedFileType.Png => ".png",
         DetectedFileType.Webp => ".webp",
         DetectedFileType.Pdf => ".pdf",
+        DetectedFileType.Docx => ".docx",
         _ => null,
     };
 }
