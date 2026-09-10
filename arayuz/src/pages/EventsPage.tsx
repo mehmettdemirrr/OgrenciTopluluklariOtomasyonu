@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Card, CardActions, CardContent, Chip, Grid, Stack, Tab, Tabs, Typography } from '@mui/material'
+import { Button, Chip, Grid, Stack, Tab, Tabs } from '@mui/material'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
-import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import type { GridColDef } from '@mui/x-data-grid'
 import { useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
@@ -9,12 +8,12 @@ import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { EventCard } from '../components/events/EventCard'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useSearchPagedQuery } from '../hooks/useSearchPagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { DataTable } from '../components/ui/DataTable'
 import { CardGridSkeleton } from '../components/ui/CardGridSkeleton'
-import { DateBadge } from '../components/ui/DateBadge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
@@ -109,51 +108,37 @@ function UpcomingTab() {
           const isRegistered = event.isRegistered === true
           return (
             <Grid key={event.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ flex: 1 }}>
-                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', mb: 1.25 }}>
-                    <DateBadge iso={event.startDateUtc} />
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 0.5 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 800 }} noWrap>
-                          {event.title}
-                        </Typography>
-                        <Chip size="small" label={event.capacity ? `Kontenjan: ${event.capacity}` : 'Sınırsız'} variant="outlined" />
-                      </Stack>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {event.clubName}
-                        </Typography>
-                        {/* K-38: "Katıl" düğmesine basmadan önce üyelik şartını görsün. */}
-                        {event.audience === 'ClubMembers' && <EventAudienceChip audience={event.audience} />}
-                      </Stack>
-                      <Typography variant="body2" sx={{ mb: 0.5 }}>
-                        {new Date(event.startDateUtc).toLocaleString('tr-TR')}
-                      </Typography>
-                      {event.location && (
-                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary' }}>
-                          <PlaceOutlinedIcon fontSize="inherit" />
-                          <Typography variant="caption">{event.location}</Typography>
-                        </Stack>
-                      )}
-                    </Box>
-                  </Stack>
-                </CardContent>
-                <CardActions sx={{ px: 2, pb: 2, gap: 0.5 }}>
-                  <Button size="small" component={RouterLink} to={`/events/${event.id}`}>
-                    Detay
-                  </Button>
-                  {isRegistered ? (
-                    <Button size="small" color="error" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate(event.id)}>
-                      Ayrıl
+              <EventCard
+                to={`/events/${event.id}`}
+                title={event.title}
+                clubName={event.clubName}
+                startDateUtc={event.startDateUtc}
+                location={event.location}
+                posterFileId={event.posterFileId}
+                badges={
+                  <>
+                    <Chip size="small" variant="outlined" label={event.capacity ? `Kontenjan: ${event.capacity}` : 'Sınırsız'} />
+                    {/* K-38/Y-72: "Katıl"a basmadan önce üyelik şartını görsün. */}
+                    {event.audience === 'ClubMembers' && <EventAudienceChip audience={event.audience} />}
+                  </>
+                }
+                actions={
+                  <>
+                    <Button size="small" component={RouterLink} to={`/events/${event.id}`}>
+                      Detay
                     </Button>
-                  ) : (
-                    <Button size="small" variant="outlined" disabled={registerMutation.isPending} onClick={() => registerMutation.mutate(event.id)}>
-                      Katıl
-                    </Button>
-                  )}
-                </CardActions>
-              </Card>
+                    {isRegistered ? (
+                      <Button size="small" color="error" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate(event.id)}>
+                        Ayrıl
+                      </Button>
+                    ) : (
+                      <Button size="small" variant="outlined" disabled={registerMutation.isPending} onClick={() => registerMutation.mutate(event.id)}>
+                        Katıl
+                      </Button>
+                    )}
+                  </>
+                }
+              />
             </Grid>
           )
         })}

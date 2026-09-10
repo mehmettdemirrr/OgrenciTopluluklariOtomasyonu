@@ -1,16 +1,16 @@
-import { Box, Button, Stack } from '@mui/material'
+import { Box, Button, Grid, Stack } from '@mui/material'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import { useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { AnnouncementGridCard } from '../components/announcements/AnnouncementGridCard'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { EmptyState } from '../components/ui/EmptyState'
 import { PageHeader } from '../components/ui/PageHeader'
 import { SearchField } from '../components/ui/SearchField'
-import { AnnouncementCard } from '../components/ui/AnnouncementCard'
 import { AnnouncementVisibilityChip } from '../components/ui/StatusChip'
 import type { AnnouncementListItemDto, PagedResult } from '../api/types'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
@@ -65,27 +65,27 @@ export function AnnouncementsPage() {
       {!feedQuery.isLoading && items.length === 0 ? (
         <EmptyState icon={CampaignOutlinedIcon} title="Henüz duyuru yok" description="Yeni bir duyuru yayınlandığında burada görünecek." />
       ) : (
-        <Stack spacing={1.5}>
+        <Grid container spacing={3.5}>
           {items.map((announcement) => (
-            <AnnouncementCard
-              key={announcement.id}
-              title={announcement.title}
-              content={announcement.content}
-              contentJson={announcement.contentJson}
-              imageFileId={announcement.imageFileId}
-              publishedAtUtc={announcement.publishedAtUtc}
-              meta={`${announcement.clubName ?? 'Sistem Duyurusu'} · ${new Date(announcement.publishedAtUtc).toLocaleString('tr-TR')}`}
-              chip={<AnnouncementVisibilityChip visibility={announcement.visibility} />}
-              action={
-                canCreateGlobal && announcement.clubId === null ? (
-                  <Button size="small" component={RouterLink} to={`/announcements/${announcement.id}/edit?returnTo=/announcements`}>
-                    Düzenle
-                  </Button>
-                ) : undefined
-              }
-            />
+            <Grid key={announcement.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <AnnouncementGridCard
+                title={announcement.title}
+                content={announcement.content}
+                clubName={announcement.clubName ?? 'Sistem Duyurusu'}
+                publishedAtUtc={announcement.publishedAtUtc}
+                imageFileId={announcement.imageFileId}
+                badges={<AnnouncementVisibilityChip visibility={announcement.visibility} />}
+                actions={
+                  canCreateGlobal && announcement.clubId === null ? (
+                    <Button size="small" component={RouterLink} to={`/announcements/${announcement.id}/edit?returnTo=/announcements`}>
+                      Düzenle
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </Grid>
           ))}
-        </Stack>
+        </Grid>
       )}
 
       {feedQuery.data && feedQuery.data.totalCount > paginationModel.pageSize && (

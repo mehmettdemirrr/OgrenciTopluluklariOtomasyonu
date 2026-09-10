@@ -10,7 +10,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import { useEffect } from 'react'
 import { Link as RouterLink, useParams } from 'react-router-dom'
 import { apiClient } from '../../api/client'
-import { PublicAnnouncementGridCard } from '../../components/announcements/PublicAnnouncementGridCard'
+import { AnnouncementGridCard } from '../../components/announcements/AnnouncementGridCard'
 import { BackButton } from '../../components/ui/BackButton'
 import { ClubProfileHeader } from '../../components/clubs/ClubProfileHeader'
 import { ClubShareCard } from '../../components/clubs/ClubShareCard'
@@ -202,7 +202,14 @@ export function PublicClubDetailPage() {
                 <Grid container spacing={2.5}>
                   {announcementsQuery.data!.items.map((announcement) => (
                     <Grid key={announcement.id} size={{ xs: 12, sm: 6 }}>
-                      <PublicAnnouncementGridCard announcement={announcement} />
+                      <AnnouncementGridCard
+                        to={`/duyurular/${announcement.id}`}
+                        title={announcement.title}
+                        content={announcement.content}
+                        clubName={announcement.clubName}
+                        publishedAtUtc={announcement.publishedAtUtc}
+                        imageFileId={announcement.imageFileId}
+                      />
                     </Grid>
                   ))}
                 </Grid>

@@ -2,7 +2,7 @@ import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import { Box, Grid, Typography, alpha } from '@mui/material'
 import { apiClient } from '../../api/client'
 import type { PagedResult, PublicAnnouncementListItemDto } from '../../api/types'
-import { PublicAnnouncementGridCard } from '../../components/announcements/PublicAnnouncementGridCard'
+import { AnnouncementGridCard } from '../../components/announcements/AnnouncementGridCard'
 import { CardGridSkeleton } from '../../components/ui/CardGridSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { ResultPagination } from '../../components/ui/ResultPagination'
@@ -70,7 +70,14 @@ export function PublicAnnouncementsPage() {
         <Grid container spacing={3.5}>
           {items.map((announcement) => (
             <Grid key={announcement.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <PublicAnnouncementGridCard announcement={announcement} />
+              <AnnouncementGridCard
+                to={`/duyurular/${announcement.id}`}
+                title={announcement.title}
+                content={announcement.content}
+                clubName={announcement.clubName}
+                publishedAtUtc={announcement.publishedAtUtc}
+                imageFileId={announcement.imageFileId}
+              />
             </Grid>
           ))}
         </Grid>
