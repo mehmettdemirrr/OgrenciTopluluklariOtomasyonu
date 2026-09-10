@@ -14,7 +14,6 @@ import {
   FormControlLabel,
   FormGroup,
   FormLabel,
-  Grid,
   IconButton,
   MenuItem,
   Paper,
@@ -28,13 +27,11 @@ import {
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { GridColDef } from '@mui/x-data-grid'
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
-import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined'
-import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined'
-import VerifiedOutlinedIcon from '@mui/icons-material/VerifiedOutlined'
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import { useState } from 'react'
 import { Controller, useFieldArray, useForm, type Control } from 'react-hook-form'
 import { useParams } from 'react-router-dom'
@@ -42,13 +39,12 @@ import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { ClubProfileHeader } from '../components/clubs/ClubProfileHeader'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { usePagedQuery } from '../hooks/usePagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DataTable } from '../components/ui/DataTable'
-import { DetailHero, DetailMedia } from '../components/ui/DetailHero'
-import { InfoTile } from '../components/ui/InfoTile'
 import { PageHeader } from '../components/ui/PageHeader'
 import { RemoteSelect } from '../components/ui/RemoteSelect'
 import { SOCIAL_PLATFORMS, SOCIAL_PLATFORM_LABELS, SocialLinkIcons } from '../components/ui/SocialLinks'
@@ -264,24 +260,26 @@ function GeneralTab({
 
   return (
     <>
-      <DetailHero
-        media={
-          <DetailMedia
-            src={club.logoFileId ? `/api/files/${club.logoFileId}` : null}
-            alt=""
-            fallback={<GroupsOutlinedIcon sx={{ fontSize: 48, color: 'primary.dark' }} />}
-          />
-        }
-        chips={
+      <ClubProfileHeader
+        name={club.name}
+        logoFileId={club.logoFileId}
+        badges={
           <>
-            <Chip size="small" label={club.isActive ? 'Aktif' : 'Pasif'} color={club.isActive ? 'success' : 'default'} />
+            <Chip
+              size="small"
+              label={club.isActive ? 'Aktif' : 'Pasif'}
+              color={club.isActive ? 'success' : 'default'}
+            />
+            {club.foundedYear !== null && (
+              <Chip icon={<CalendarMonthOutlinedIcon />} label={`Kuruluş: ${club.foundedYear}`} />
+            )}
+            <Chip icon={<VisibilityOutlinedIcon />} label={`${club.viewCount.toLocaleString('tr-TR')} Görüntülenme`} />
+            <Chip icon={<CalendarMonthOutlinedIcon />} label={`Kayıt: ${new Date(club.createdAtUtc).toLocaleDateString('tr-TR')}`} />
             {club.clubCategoryNames.map((name) => (
-              <Chip key={name} size="small" variant="outlined" color="primary" label={name} />
+              <Chip key={name} variant="outlined" color="primary" label={name} />
             ))}
           </>
         }
-        description={club.description}
-        emptyDescription="Bu topluluk için henüz açıklama eklenmemiş."
         actions={
           canManage ? (
             <>
@@ -298,31 +296,11 @@ function GeneralTab({
             </>
           ) : undefined
         }
-      >
-        <Grid container spacing={1.5}>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <InfoTile
-              icon={VerifiedOutlinedIcon}
-              label="Durum"
-              value={club.isActive ? 'Aktif' : 'Pasif'}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <InfoTile
-              icon={CategoryOutlinedIcon}
-              label="Kategori"
-              value={club.clubCategoryNames.length > 0 ? club.clubCategoryNames.join(', ') : 'Kategorisiz'}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <InfoTile
-              icon={CalendarMonthOutlinedIcon}
-              label="Oluşturulma"
-              value={new Date(club.createdAtUtc).toLocaleDateString('tr-TR')}
-            />
-          </Grid>
-        </Grid>
-      </DetailHero>
+      />
+
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 3, lineHeight: 1.9, whiteSpace: 'pre-line' }}>
+        {club.description || 'Bu topluluk için henüz açıklama eklenmemiş.'}
+      </Typography>
 
       {/* K-44: iletişim e-postası/telefonu ve sosyal bağlantılar — üye olmayan ziyaretçiye de görünür (vitrindeki karşılığı PublicClubDetailPage). */}
       {(club.contactEmail || club.contactPhone || club.socialLinks.length > 0 || canManageContact) && (

@@ -1,12 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Box,
   Button,
-  Card,
-  CardActions,
-  CardContent,
-  CardMedia,
   Chip,
   Dialog,
   DialogActions,
@@ -19,7 +14,6 @@ import {
   ToggleButtonGroup,
   Tooltip,
   MenuItem,
-  Typography,
 } from '@mui/material'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
 import { useRef, useState, type ChangeEvent } from 'react'
@@ -29,6 +23,7 @@ import { apiClient } from '../api/client'
 import { extractErrorMessage } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Permissions } from '../auth/permissions'
+import { ClubCard } from '../components/clubs/ClubCard'
 import { useFormDialog } from '../hooks/useFormDialog'
 import { useSearchPagedQuery } from '../hooks/useSearchPagedQuery'
 import { useNotifier } from '../notifications/NotifierProvider'
@@ -252,60 +247,39 @@ export function ClubsPage() {
       <Grid container spacing={2}>
         {clubs.map((club) => (
           <Grid key={club.id} size={{ xs: 12, sm: 6, md: 4 }}>
-            <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              {club.logoFileId ? (
-                // A-36: açık görsel, anonim uçtan doğrudan <img src> ile — tarayıcı önbelleği çalışır.
-                <CardMedia component="img" height={140} image={`/api/files/${club.logoFileId}`} alt="" sx={{ objectFit: 'contain', bgcolor: 'grey.50', p: 2 }} />
-              ) : (
-                <Box
-                  sx={{
-                    height: 140,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: (theme) => theme.palette.action.hover,
-                  }}
-                >
-                  <GroupsOutlinedIcon sx={{ fontSize: 44, color: 'primary.dark' }} />
-                </Box>
-              )}
-              <CardContent sx={{ flex: 1 }}>
-                <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-                    {club.name}
-                  </Typography>
-                  <Chip size="small" label={club.isActive ? 'Aktif' : 'Pasif'} color={club.isActive ? 'success' : 'default'} variant={club.isActive ? 'filled' : 'outlined'} />
-                </Stack>
-                {club.clubCategoryNames.length > 0 && (
-                  <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap' }} useFlexGap>
-                    {club.clubCategoryNames.map((name) => (
-                      <Chip key={name} size="small" variant="outlined" label={name} />
-                    ))}
-                  </Stack>
-                )}
-                <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {club.description || 'Açıklama eklenmemiş.'}
-                </Typography>
-              </CardContent>
-              <CardActions sx={{ px: 2, pb: 2, flexWrap: 'wrap', gap: 0.5 }}>
-                <Button size="small" component={RouterLink} to={`/clubs/${club.id}`}>
-                  Detay
-                </Button>
-                <Button
+            <ClubCard
+              to={`/clubs/${club.id}`}
+              name={club.name}
+              description={club.description}
+              logoFileId={club.logoFileId}
+              categoryNames={club.clubCategoryNames}
+              badges={
+                <Chip
                   size="small"
-                  variant="outlined"
-                  disabled={!club.isActive || applyMutation.isPending}
-                  onClick={() => applyMutation.mutate(club.id)}
-                >
+                  label={club.isActive ? 'Aktif' : 'Pasif'}
+                  color={club.isActive ? 'success' : 'default'}
+                  variant={club.isActive ? 'filled' : 'outlined'}
+                />
+              }
+              primaryAction={
+                // Y-86: uygunluk kararı sunucudadır — kulüp pasifse mesajı uç döndürür.
+                <Button variant="contained" disabled={applyMutation.isPending} onClick={() => applyMutation.mutate(club.id)}>
                   Başvur
                 </Button>
-                {canUploadLogo && (
-                  <Button size="small" disabled={logoMutation.isPending} onClick={() => handleLogoButtonClick(club.id)}>
-                    Logo Yükle
+              }
+              secondaryActions={
+                <Stack direction="row" spacing={1}>
+                  <Button fullWidth variant="outlined" component={RouterLink} to={`/clubs/${club.id}`}>
+                    Detay
                   </Button>
-                )}
-              </CardActions>
-            </Card>
+                  {canUploadLogo && (
+                    <Button fullWidth variant="outlined" disabled={logoMutation.isPending} onClick={() => handleLogoButtonClick(club.id)}>
+                      Logo Yükle
+                    </Button>
+                  )}
+                </Stack>
+              }
+            />
           </Grid>
         ))}
       </Grid>

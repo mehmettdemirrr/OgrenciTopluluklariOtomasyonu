@@ -1,11 +1,14 @@
-import { Alert, Grid } from '@mui/material'
+import { Alert, Button, Chip, Grid } from '@mui/material'
+import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
+import LoginOutlinedIcon from '@mui/icons-material/LoginOutlined'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { extractErrorMessage } from '../../api/errors'
 import { useAuth } from '../../auth/AuthContext'
-import { ClubBrowseCard } from '../../components/clubs/ClubBrowseCard'
+import { ClubCard } from '../../components/clubs/ClubCard'
 import { CardGridSkeleton } from '../../components/ui/CardGridSkeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -120,12 +123,35 @@ export function PublicClubsPage() {
         <Grid container spacing={2.5}>
           {items.map((club) => (
             <Grid key={club.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <ClubBrowseCard
-                club={club}
-                isAuthenticated={isAuthenticated}
-                joining={joinMutation.isPending}
-                onJoin={(clubId) => joinMutation.mutate(clubId)}
-                onShare={handleShare}
+              <ClubCard
+                to={`/kulupler/${club.id}`}
+                name={club.name}
+                description={club.description}
+                logoFileId={club.logoFileId}
+                categoryNames={club.clubCategoryNames}
+                onShare={() => handleShare(club)}
+                stats={
+                  <>
+                    <Chip size="small" icon={<GroupsOutlinedIcon />} label={t('public.memberCount', { count: club.memberCount })} />
+                    <Chip size="small" icon={<EventAvailableOutlinedIcon />} label={t('public.eventCount', { count: club.eventCount })} />
+                  </>
+                }
+                primaryAction={
+                  isAuthenticated ? (
+                    <Button variant="contained" color="success" disabled={joinMutation.isPending} onClick={() => joinMutation.mutate(club.id)}>
+                      {t('public.join')}
+                    </Button>
+                  ) : (
+                    <Button variant="contained" color="success" startIcon={<LoginOutlinedIcon />} component={RouterLink} to="/login">
+                      {t('public.loginAndJoin')}
+                    </Button>
+                  )
+                }
+                secondaryActions={
+                  <Button variant="outlined" component={RouterLink} to={`/kulupler/${club.id}`}>
+                    {t('public.inspect')}
+                  </Button>
+                }
               />
             </Grid>
           ))}

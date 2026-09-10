@@ -12,6 +12,7 @@ import { Link as RouterLink, useParams } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { PublicAnnouncementGridCard } from '../../components/announcements/PublicAnnouncementGridCard'
 import { BackButton } from '../../components/ui/BackButton'
+import { ClubProfileHeader } from '../../components/clubs/ClubProfileHeader'
 import { ClubShareCard } from '../../components/clubs/ClubShareCard'
 import { DateBadge } from '../../components/ui/DateBadge'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -84,34 +85,24 @@ export function PublicClubDetailPage() {
     <Stack spacing={3}>
       <BackButton to="/kulupler" />
 
-      {/* Künye: daire logo + ad + rozetler */}
-      <Card variant="outlined" sx={{ borderRadius: 3, textAlign: 'center', pt: 4, pb: 3, px: 2 }}>
-        <Box
-          component={club.logoFileId ? 'img' : 'div'}
-          src={club.logoFileId ? `/api/files/${club.logoFileId}` : undefined}
-          alt=""
-          sx={{
-            width: 108, height: 108, borderRadius: '50%', objectFit: 'contain',
-            bgcolor: 'background.paper', border: '4px solid', borderColor: 'background.paper',
-            boxShadow: 3, mx: 'auto', display: 'block', p: 1,
-          }}
-        />
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mt: 2 }}>
-          {club.name}
-        </Typography>
-        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', justifyContent: 'center', mt: 2 }}>
-          {/* Y-87: yıl yoksa rozet HİÇ çizilmez — CreatedAtUtc'den türetme. */}
-          {club.foundedYear !== null && (
-            <Chip icon={<CalendarMonthOutlinedIcon />} label={`${t('club.founded')}: ${club.foundedYear}`} />
-          )}
-          <Chip icon={<GroupsOutlinedIcon />} label={t('public.memberCount', { count: club.memberCount })} />
-          <Chip icon={<VisibilityOutlinedIcon />} label={`${club.viewCount.toLocaleString(dateLocale)} ${t('club.views')}`} />
-          <Chip icon={<EventOutlinedIcon />} label={t('public.eventCount', { count: club.eventCount })} />
-          {club.clubCategoryNames.map((name) => (
-            <Chip key={name} variant="outlined" color="primary" label={name} />
-          ))}
-        </Stack>
-      </Card>
+      <ClubProfileHeader
+        name={club.name}
+        logoFileId={club.logoFileId}
+        badges={
+          <>
+            {/* Y-87: yıl yoksa rozet HİÇ çizilmez — CreatedAtUtc'den türetme. */}
+            {club.foundedYear !== null && (
+              <Chip icon={<CalendarMonthOutlinedIcon />} label={`${t('club.founded')}: ${club.foundedYear}`} />
+            )}
+            <Chip icon={<GroupsOutlinedIcon />} label={t('public.memberCount', { count: club.memberCount })} />
+            <Chip icon={<VisibilityOutlinedIcon />} label={`${club.viewCount.toLocaleString(dateLocale)} ${t('club.views')}`} />
+            <Chip icon={<EventOutlinedIcon />} label={t('public.eventCount', { count: club.eventCount })} />
+            {club.clubCategoryNames.map((name) => (
+              <Chip key={name} variant="outlined" color="primary" label={name} />
+            ))}
+          </>
+        }
+      />
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
